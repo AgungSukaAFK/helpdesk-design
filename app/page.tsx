@@ -87,7 +87,7 @@ export default function DashboardPage() {
     if (savedUser) {
       setCurrentUser(JSON.parse(savedUser));
     } else {
-      router.push("/auth/login"); // Arahkan ke halaman login jika tidak ada user
+      // router.push("/auth/login"); // Arahkan ke halaman login jika tidak ada user
     }
     setRequests(savedRequests);
   }, [router]);
