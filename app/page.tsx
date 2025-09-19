@@ -1,456 +1,338 @@
-import React from "react";
-import { FileText, Users, TrendingUp, ArrowRight } from "lucide-react";
+// app/dashboard/page.tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ThemeSwitcher } from "@/components/theme-switcher";
-import { AuthButton } from "@/components/auth-button";
-import ToggleMenu from "@/components/toggle-menu";
-import MenuOpen from "@/components/menu-open";
-import Image from "next/image";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { toast } from "sonner";
+import { PlusCircle, Settings, List, Search } from "lucide-react";
 
-// Menambahkan tipe untuk props komponen
-
-const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
-  className,
-  ...props
-}) => (
-  <div
-    className={`bg-card text-card-foreground rounded-xl border border-border shadow-xs ${className}`}
-    {...props}
-  />
-);
-
-const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
-  className,
-  ...props
-}) => (
-  <div className={`flex flex-col space-y-1.5 p-6 ${className}`} {...props} />
-);
-
-const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
-  className,
-  ...props
-}) => (
-  <h3
-    className={`text-2xl font-semibold leading-none tracking-tight ${className}`}
-    {...props}
-  />
-);
-
-const CardDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement>> = ({
-  className,
-  ...props
-}) => <p className={`text-sm text-muted-foreground ${className}`} {...props} />;
-
-const CardContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
-  className,
-  ...props
-}) => <div className={`p-6 pt-0 ${className}`} {...props} />;
-
-interface NavLink {
+// Definisikan tipe data untuk user dan request
+interface User {
+  id: number;
   name: string;
-  href: string;
+  email: string;
+  department: string;
+  role: "user" | "admin";
 }
 
-// Komponen Utama Aplikasi
-const App: React.FC = () => {
-  const navLinks: NavLink[] = [
-    { name: "Fitur Utama", href: "#fitur" },
-    { name: "Manfaat", href: "#manfaat" },
-    { name: "Kontak", href: "#kontak" },
-  ];
+interface Request {
+  id: number;
+  userId: number;
+  name: string;
+  email: string;
+  department: string;
+  date: string;
+  deadline: string;
+  project: string;
+  purpose: string;
+  additionalInfo: string;
+  copywriting: string;
+  status: "Progress" | "Done";
+  createdAt: string;
+  designFile?: string;
+}
+
+const DEPARTMENTS = [
+  "BOD",
+  "Executive Manager",
+  "HR",
+  "GA",
+  "HSE",
+  "Finance",
+  "Marketing",
+  "Manufaktur",
+  "Service",
+  "IT",
+];
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [newRequest, setNewRequest] = useState({
+    project: "",
+    deadline: "",
+    purpose: "",
+    additionalInfo: "",
+    copywriting: "",
+  });
+
+  // Ambil data user dari localStorage saat komponen pertama kali dimuat
+  useEffect(() => {
+    const savedUser = localStorage.getItem("currentUser");
+    const savedRequests = JSON.parse(
+      localStorage.getItem("designRequests") || "[]"
+    );
+
+    if (savedUser) {
+      setCurrentUser(JSON.parse(savedUser));
+    } else {
+      router.push("/auth/login"); // Arahkan ke halaman login jika tidak ada user
+    }
+    setRequests(savedRequests);
+  }, [router]);
+
+  if (!currentUser) {
+    return null; // Atau tampilkan loading state
+  }
+
+  // Event handler untuk form
+  const handleNewRequestChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    const { name, value } = e.target;
+    setNewRequest({ ...newRequest, [name]: value });
+  };
+
+  const submitDesignRequest = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newReq: Request = {
+      id: Date.now(),
+      userId: currentUser.id,
+      name: currentUser.name,
+      email: currentUser.email,
+      department: currentUser.department,
+      date: new Date().toISOString().split("T")[0],
+      deadline: newRequest.deadline,
+      project: newRequest.project,
+      purpose: newRequest.purpose,
+      additionalInfo: newRequest.additionalInfo,
+      copywriting: newRequest.copywriting,
+      status: "Progress",
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedRequests = [...requests, newReq];
+    localStorage.setItem("designRequests", JSON.stringify(updatedRequests));
+    setRequests(updatedRequests);
+    toast.success("Permintaan desain berhasil dikirim!");
+    // Pindah ke tab "Daftar Permintaan" setelah submit
+    // Catatan: Ini akan memerlukan state tambahan untuk mengelola tab aktif
+    // Saat ini, Anda bisa menyegarkan halaman atau menggunakan state.
+  };
+
+  const logout = () => {
+    localStorage.removeItem("currentUser");
+    router.push("/auth/login");
+  };
+
+  const userRequests = requests.filter((req) => req.userId === currentUser.id);
+
   return (
-    <div className="bg-background text-foreground font-sans antialiased">
-      {/* Header / Navbar */}
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-lg">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-          <a href="#" className="flex items-center gap-2">
-            <svg
-              width="32"
-              height="32"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="text-primary"
-            >
-              <path
-                d="M12 2L2 7V17L12 22L22 17V7L12 2Z"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M2 7L12 12"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M12 22V12"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M22 7L12 12"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M17 4.5L7 9.5"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span className="font-bold text-lg">
-              Garuda<span className="font-light">Procure</span>
-            </span>
+    <div className="min-h-screen bg-gray-50">
+      {/* Navbar */}
+      <nav className="fixed top-0 z-50 w-full bg-white shadow">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <a className="font-bold text-lg text-indigo-600" href="#">
+            <span className="text-2xl mr-2">🗃️</span>Helpdesk Desain
           </a>
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                className="text-muted-foreground hover:text-primary transition-colors"
-              >
-                {link.name}
-              </a>
-            ))}
-          </nav>
-          <div className="hidden md:flex items-center gap-4">
-            <ThemeSwitcher />
-            <AuthButton />
-          </div>
-          <ToggleMenu />
-        </div>
-        <MenuOpen />
-      </header>
-
-      <main>
-        {/* Hero Section */}
-        <section className="relative py-20 md:py-32 bg-background">
-          <div className="absolute inset-0 bg-grid-slate-100 mask-[linear-gradient(to_bottom,white_20%,transparent_100%)] dark:bg-grid-slate-700/40"></div>
-          <div className="container mx-auto px-4 md:px-6 text-center relative">
-            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tighter text-foreground leading-tight">
-              Modernisasi Proses Pengadaan <br className="hidden md:block" />{" "}
-              untuk <span className="text-primary">General Affair</span>
-            </h1>
-            <p className="mt-6 max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground">
-              Buat Material Request (MR) dan Purchase Order (PO) dalam hitungan
-              menit dengan alur persetujuan yang fleksibel dan transparan.
-              Dirancang khusus untuk PT. Garuda Mart Indonesia.
-            </p>
-            <div className="mt-8 flex justify-center gap-4">
-              <Button className="px-8 py-3 text-lg">
-                <a href="dashboard">Mulai Sekarang</a>{" "}
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </div>
-            <div className="mt-16 mx-auto max-w-5xl">
-              <div className="rounded-xl bg-background shadow-2xl ring-1 ring-ring/10">
-                <Image
-                  src="/dashboard.png"
-                  alt="[Tampilan dashboard aplikasi MR & PO]"
-                  className="rounded-xl object-cover"
-                  width={1920}
-                  height={1080}
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Features Section */}
-        <section id="fitur" className="py-20 md:py-28 bg-secondary/40">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="text-center">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-primary">
-                Fitur Utama
-              </h2>
-              <p className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">
-                Semua yang Anda Butuhkan untuk Efisiensi
-              </p>
-              <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
-                Sistem kami dirancang untuk menyederhanakan proses, mengurangi
-                pekerjaan manual, dan memberikan visibilitas penuh.
-              </p>
-            </div>
-            <div className="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader>
-                  <div className="bg-primary/10 text-primary rounded-lg p-3 w-max">
-                    <FileText className="h-8 w-8" />
-                  </div>
-                  <CardTitle className="pt-4">
-                    Pembuatan MR & PO Cepat
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>
-                    Buat Material Request dan Purchase Order dengan template
-                    yang sudah disesuaikan. Kurangi waktu administrasi dan fokus
-                    pada hal yang lebih strategis.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <div className="bg-primary/10 text-primary rounded-lg p-3 w-max">
-                    <Users className="h-8 w-8" />
-                  </div>
-                  <CardTitle className="pt-4">
-                    Alur Persetujuan Dinamis
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>
-                    Atur alur persetujuan multi-level sesuai kebutuhan
-                    departemen. Notifikasi otomatis memastikan proses berjalan
-                    lancar tanpa penundaan.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <div className="bg-primary/10 text-primary rounded-lg p-3 w-max">
-                    <TrendingUp className="h-8 w-8" />
-                  </div>
-                  <CardTitle className="pt-4">Pelacakan Real-time</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>
-                    Pantau status setiap permintaan dari pengajuan hingga barang
-                    diterima. Dapatkan visibilitas penuh atas semua proses
-                    pengadaan.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </section>
-
-        {/* How it Works / Benefits Section */}
-        <section id="manfaat" className="py-20 md:py-28 bg-background">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="text-center">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-primary">
-                Proses yang Disederhanakan
-              </h2>
-              <p className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">
-                Hanya 3 Langkah Mudah
-              </p>
-            </div>
-            <div className="relative mt-16">
-              <div className="grid gap-12 md:grid-cols-3">
-                {/* Step 1 */}
-                <div className="text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xl">
-                    1
-                  </div>
-                  <h3 className="mt-6 text-xl font-bold text-foreground">
-                    Buat Permintaan
-                  </h3>
-                  <p className="mt-2 text-muted-foreground">
-                    Isi form Material Request dengan mudah, lampirkan dokumen
-                    pendukung jika perlu, dan kirim.
-                  </p>
-                </div>
-                {/* Step 2 */}
-                <div className="text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xl">
-                    2
-                  </div>
-                  <h3 className="mt-6 text-xl font-bold text-foreground">
-                    Proses Persetujuan
-                  </h3>
-                  <p className="mt-2 text-muted-foreground">
-                    Sistem secara otomatis mengirimkan permintaan ke pihak yang
-                    berwenang sesuai alur yang telah ditentukan.
-                  </p>
-                </div>
-                {/* Step 3 */}
-                <div className="text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xl">
-                    3
-                  </div>
-                  <h3 className="mt-6 text-xl font-bold text-foreground">
-                    PO Terbit & Terkirim
-                  </h3>
-                  <p className="mt-2 text-muted-foreground">
-                    Setelah disetujui, Purchase Order dibuat secara otomatis dan
-                    dapat langsung dikirimkan ke vendor.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="bg-primary">
-          <div className="container mx-auto max-w-4xl py-16 px-4 text-center sm:py-20 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-extrabold text-primary-foreground sm:text-4xl">
-              <span className="block">
-                Siap untuk mentransformasi proses pengadaan?
-              </span>
-            </h2>
-            <p className="mt-4 text-lg leading-6 text-primary-foreground/80">
-              Tingkatkan efisiensi dan transparansi di departemen General Affair
-              Anda hari ini.
-            </p>
-          </div>
-        </section>
-      </main>
-
-      {/* Footer */}
-      <footer id="kontak" className="bg-gray-950 text-secondary-foreground">
-        <div className="container mx-auto py-12 px-4 md:px-6">
-          <div className="xl:grid xl:grid-cols-3 xl:gap-8">
-            <div className="space-y-4">
-              <a href="#" className="flex items-center gap-2">
-                <svg
-                  width="32"
-                  height="32"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="text-white"
-                >
-                  <path
-                    d="M12 2L2 7V17L12 22L22 17V7L12 2Z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M2 7L12 12"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M12 22V12"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M22 7L12 12"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M17 4.5L7 9.5"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <span className="font-bold text-lg">GarudaProcure</span>
-              </a>
-              <p className="text-sm text-muted-foreground">
-                Sistem Manajemen MR & PO untuk General Affair <br />
-                PT. Garuda Mart Indonesia.
-              </p>
-            </div>
-            <div className="mt-12 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
-              <div className="md:grid md:grid-cols-2 md:gap-8">
-                <div>
-                  <h3 className="text-sm font-semibold tracking-wider uppercase">
-                    Solusi
-                  </h3>
-                  <ul className="mt-4 space-y-2">
-                    <li>
-                      <a
-                        href="#fitur"
-                        className="text-base text-muted-foreground hover:text-primary-foreground"
-                      >
-                        Fitur
-                      </a>
-                    </li>
-                    <li>
-                      <a
-                        href="#manfaat"
-                        className="text-base text-muted-foreground hover:text-primary-foreground"
-                      >
-                        Manfaat
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-                <div className="mt-12 md:mt-0">
-                  <h3 className="text-sm font-semibold tracking-wider uppercase">
-                    Perusahaan
-                  </h3>
-                  <ul className="mt-4 space-y-2">
-                    <li>
-                      <a
-                        href="#"
-                        className="text-base text-muted-foreground hover:text-primary-foreground"
-                      >
-                        Tentang Kami
-                      </a>
-                    </li>
-                    <li>
-                      <a
-                        href="#"
-                        className="text-base text-muted-foreground hover:text-primary-foreground"
-                      >
-                        Karir
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <div className="md:grid md:grid-cols-2 md:gap-8">
-                <div>
-                  <h3 className="text-sm font-semibold tracking-wider uppercase">
-                    Legal
-                  </h3>
-                  <ul className="mt-4 space-y-2">
-                    <li>
-                      <a
-                        href="#"
-                        className="text-base text-muted-foreground hover:text-primary-foreground"
-                      >
-                        Kebijakan Privasi
-                      </a>
-                    </li>
-                    <li>
-                      <a
-                        href="#"
-                        className="text-base text-muted-foreground hover:text-primary-foreground"
-                      >
-                        Syarat & Ketentuan
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="mt-12 border-t border-border/20 pt-8">
-            <p className="text-base text-muted-foreground xl:text-center">
-              &copy; {new Date().getFullYear()} PT. Garuda Mart Indonesia. Semua
-              Hak Cipta Dilindungi.
-            </p>
+          <div className="flex items-center space-x-4">
+            <span className="text-gray-600 hidden md:inline">
+              Selamat datang, **{currentUser.name}**
+            </span>
+            <Button
+              onClick={logout}
+              variant="outline"
+              className="text-red-500 hover:text-red-600"
+            >
+              Keluar
+            </Button>
           </div>
         </div>
-      </footer>
+      </nav>
+
+      {/* Main Content */}
+      <div className="container mx-auto py-28 px-4">
+        <Tabs defaultValue="request" className="w-full">
+          <TabsList>
+            <TabsTrigger value="request">
+              <PlusCircle className="w-4 h-4 mr-2" /> Permintaan Baru
+            </TabsTrigger>
+            <TabsTrigger value="list">
+              <List className="w-4 h-4 mr-2" /> Daftar Permintaan
+            </TabsTrigger>
+            {currentUser.role === "admin" && (
+              <TabsTrigger value="admin">
+                <Settings className="w-4 h-4 mr-2" /> Admin Panel
+              </TabsTrigger>
+            )}
+          </TabsList>
+
+          {/* Tab Content: Form Permintaan Baru */}
+          <TabsContent value="request" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Form Permintaan Desain</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={submitDesignRequest} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Nama</label>
+                      <Input value={currentUser.name} disabled />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Email</label>
+                      <Input value={currentUser.email} disabled />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Departemen</label>
+                      <Select value={currentUser.department} disabled>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Departemen" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DEPARTMENTS.map((dept) => (
+                            <SelectItem key={dept} value={dept}>
+                              {dept}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Tanggal</label>
+                      <Input
+                        type="date"
+                        value={new Date().toISOString().split("T")[0]}
+                        disabled
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Deadline</label>
+                      <Input
+                        type="date"
+                        name="deadline"
+                        onChange={handleNewRequestChange}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Project</label>
+                      <Input
+                        type="text"
+                        name="project"
+                        onChange={handleNewRequestChange}
+                        placeholder="Nama project..."
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">
+                        Tujuan Desain
+                      </label>
+                      <Textarea
+                        name="purpose"
+                        onChange={handleNewRequestChange}
+                        placeholder="Jelaskan tujuan desain..."
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">
+                        Informasi Tambahan
+                      </label>
+                      <Textarea
+                        name="additionalInfo"
+                        onChange={handleNewRequestChange}
+                        placeholder="Info lain-lain..."
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">
+                        Copywriting / Teks
+                      </label>
+                      <Textarea
+                        name="copywriting"
+                        onChange={handleNewRequestChange}
+                        placeholder="Masukkan teks yang diperlukan..."
+                      />
+                    </div>
+                    <Button type="submit" className="w-full md:w-auto">
+                      Kirim Permintaan
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tab Content: Daftar Permintaan */}
+          <TabsContent value="list" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Daftar Permintaan Anda</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Departemen</TableHead>
+                      <TableHead>Deadline</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {userRequests.map((req) => (
+                      <TableRow key={req.id}>
+                        <TableCell>{req.project}</TableCell>
+                        <TableCell>{req.department}</TableCell>
+                        <TableCell>{req.deadline}</TableCell>
+                        <TableCell>{req.status}</TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="outline">
+                            <Search className="w-4 h-4 mr-2" /> Detail
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tab Content: Admin Panel */}
+          {currentUser.role === "admin" && (
+            <TabsContent value="admin" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Admin Panel</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>Panel admin akan ditampilkan di sini.</p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+        </Tabs>
+      </div>
     </div>
   );
-};
-
-export default App;
+}
