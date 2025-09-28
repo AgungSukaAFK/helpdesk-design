@@ -71,7 +71,7 @@ export default function LandingPageV3() {
                     className="shadow-lg shadow-primary/20"
                     asChild
                   >
-                    <a href="/auth/signup">
+                    <a href="/auth/sign-up">
                       Mulai Gratis <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                   </Button>
