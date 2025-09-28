@@ -17,11 +17,9 @@ import {
   Bot,
   LayoutDashboard,
   FileBox,
-  BaggageClaim,
-  Boxes,
   BookOpen,
-  MessageSquareShare,
   Info,
+  Clock,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -35,6 +33,21 @@ const data = {
   ],
   navAdmin: [
     {
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Permintaan Desain",
+      url: "/permintaan-desain-admin",
+      icon: FileBox,
+    },
+    {
+      title: "Riwayat Pengerjaan",
+      url: "/riwayat-pengerjaan",
+      icon: Clock,
+    },
+    {
       title: "User Management",
       url: "/user-management",
       icon: Bot,
@@ -47,19 +60,14 @@ const data = {
       icon: LayoutDashboard,
     },
     {
-      title: "Material Request",
-      url: "/material-request",
+      title: "Permintaan Desain",
+      url: "/permintaan-desain",
       icon: FileBox,
     },
     {
-      title: "Purchase Order",
-      url: "/purchase-order",
-      icon: BaggageClaim,
-    },
-    {
-      title: "Barang",
-      url: "/barang",
-      icon: Boxes,
+      title: "Riwayat",
+      url: "/riwayat",
+      icon: Clock,
     },
   ],
   navSecondary: [
@@ -68,11 +76,11 @@ const data = {
       url: "/dokumentasi",
       icon: BookOpen,
     },
-    {
-      title: "Feedback",
-      url: "/feedback",
-      icon: MessageSquareShare,
-    },
+    // {
+    //   title: "Feedback",
+    //   url: "/feedback",
+    //   icon: MessageSquareShare,
+    // },
     {
       title: "Tentang App",
       url: "/tentang-app",
@@ -94,7 +102,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       if (!error) setUser(data.user);
       if (!data.user) redirect("auth/login");
       const profileRes = await supabase
-        .from("profiles")
+        .from("users")
         .select("*")
         .eq("id", data.user.id)
         .single();
@@ -123,10 +131,11 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent>
-        {profile?.role === "admin" && (
-          <NavMain label="Admin" items={markActive(data.navAdmin)} />
+        {profile?.role === "admin" ? (
+          <NavMain label="Menu" items={markActive(data.navAdmin)} />
+        ) : (
+          <NavMain label="Menu" items={markActive(data.navMain)} />
         )}
-        <NavMain items={markActive(data.navMain)} />
         <NavMain label="About" items={markActive(data.navSecondary)} />
       </SidebarContent>
 
@@ -136,7 +145,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             user={{
               avatar: `https://ui-avatars.com/api/?name=${user.email}`,
               email: user.email || "",
-              name: profile?.nama || "-",
+              name: profile?.name || "-",
             }}
           />
         )}

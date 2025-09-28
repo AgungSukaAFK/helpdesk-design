@@ -62,11 +62,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         redirect("/auth/login");
       }
       const profileRes = await supabase
-        .from("profiles")
+        .from("users")
         .select("*")
         .eq("id", user.id)
         .single();
-      if (!profileRes.data.nama) {
+      if (!profileRes.data.name) {
         toast.warning("Anda belum melengkapi informasi akun.", {
           action: {
             label: "Lengkapi Profil",
@@ -98,7 +98,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
                     <BreadcrumbLink href="/dashboard">
-                      Garuda Procure
+                      Design Desk
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator className="hidden md:block" />

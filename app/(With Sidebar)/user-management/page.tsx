@@ -22,7 +22,7 @@ import Link from "next/link";
 
 export default async function UserManagement() {
   const s = await createClient();
-  const { data } = await s.from("users_with_profiles").select("*").limit(25);
+  const { data } = await s.from("user_profiles").select("*").limit(25);
   console.log(data);
   return (
     <>
@@ -34,8 +34,6 @@ export default async function UserManagement() {
               <TableHead>Nama</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead>Lokasi</TableHead>
-              <TableHead>Department</TableHead>
               <TableHead>Aksi</TableHead>
             </TableRow>
           </TableHeader>
@@ -43,11 +41,11 @@ export default async function UserManagement() {
             {data?.map((user, index) => (
               <TableRow key={user.id} className="col-span-12">
                 <TableCell className="p-2">{index + 1}</TableCell>
-                <TableCell className="p-2">{user.nama}</TableCell>
+                <TableCell className="p-2">
+                  {user.name || "Belum ada nama"}
+                </TableCell>
                 <TableCell className="p-2">{user.email}</TableCell>
                 <TableCell className="p-2">{user.role}</TableCell>
-                <TableCell className="p-2">{user.lokasi}</TableCell>
-                <TableCell className="p-2">{user.department}</TableCell>
                 <TableCell className="p-2">
                   <Button variant={"outline"} size="sm">
                     <Link href={`/user-management/${user.id}`}>Edit</Link>

@@ -20,7 +20,7 @@ export default async function ProtectedPage() {
   }
 
   const profileRes = await supabase
-    .from("profiles")
+    .from("users")
     .select("*")
     .eq("id", user.id)
     .single();
