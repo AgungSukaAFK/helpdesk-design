@@ -7,29 +7,26 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Check, Palette, Rocket, Users } from "lucide-react";
+import { Check, Palette, Rocket, Users, ArrowRight } from "lucide-react"; // Menambahkan ArrowRight
 import Image from "next/image";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 
-export default function LandingPageV2() {
+export default function LandingPageV3() {
   return (
-    // Menggunakan bg-background dan text-foreground untuk dasar theming
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
-      {/* Header: Menggunakan variabel border dan background */}
+      {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-lg">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <a href="#" className="flex items-center gap-2">
-            {/* Menggunakan text-primary untuk warna aksen */}
             <Palette className="h-6 w-6 text-primary" />
             <span className="text-lg font-bold">DesignDesk</span>
           </a>
           <nav className="hidden items-center gap-6 md:flex">
-            {/* Menggunakan text-muted-foreground dan hover:text-primary */}
             <a
               href="#features"
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
             >
-              Fitur
+              Fitur Unggulan
             </a>
             <a
               href="#how-it-works"
@@ -41,12 +38,12 @@ export default function LandingPageV2() {
               href="#testimonials"
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
             >
-              Testimoni
+              Kata Mereka
             </a>
           </nav>
           <div className="flex items-center gap-2">
             <ThemeSwitcher />
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" asChild>
               <a href="/auth/login">Masuk</a>
             </Button>
           </div>
@@ -54,40 +51,39 @@ export default function LandingPageV2() {
       </header>
 
       <main className="flex-1">
-        {/* Hero Section: Dihilangkan bg-white, karena sudah di-handle oleh bg-background */}
+        {/* Hero Section */}
         <section className="relative overflow-hidden py-20 md:py-32">
           <div className="container mx-auto px-4">
-            {/* Gradient Glow menggunakan warna primary */}
             <div className="absolute -top-1/4 right-0 -z-0 h-full w-2/3 rounded-full bg-primary/10 blur-[100px]" />
             <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
               <div className="max-w-xl">
-                {/* Menggunakan text-foreground dan text-muted-foreground */}
-                <h1 className="text-4xl font-extrabold tracking-tighter text-foreground sm:text-5xl md:text-6xl">
-                  Platform Kolaborasi Desain Tanpa Batas
+                <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl md:text-6xl">
+                  Ucapkan Selamat Tinggal pada Drama Desain.
                 </h1>
                 <p className="mt-6 text-lg leading-8 text-muted-foreground">
-                  Ubah cara tim Anda meminta, mereview, dan menyetujui desain.
-                  DesignDesk adalah pusat komando untuk semua kebutuhan kreatif
-                  Anda.
+                  Lelah dengan brief yang berceceran di email dan revisi tanpa
+                  akhir? DesignDesk menyatukan semua permintaan, feedback, dan
+                  file desain Anda di satu tempat yang rapi.
                 </p>
                 <div className="mt-10 flex items-center gap-4">
-                  {/* Shadow juga menggunakan warna primary */}
                   <Button
-                    asChild
                     size="lg"
                     className="shadow-lg shadow-primary/20"
+                    asChild
                   >
-                    <a href="/dashboard">Masuk ke Dashboard</a>
+                    <a href="/auth/signup">
+                      Mulai Gratis <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
                   </Button>
-                  <Button size="lg" variant="outline">
-                    <a href="/auth/signup">Daftar Sekarang</a>
+                  <Button size="lg" variant="outline" asChild>
+                    <a href="/dashboard">Lihat Dashboard</a>
                   </Button>
                 </div>
               </div>
               <div className="hidden lg:block">
                 <Image
-                  src="https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzZ8fGRlc2lnbnxlbnwwfHwwfHx8MA%3D%3D"
-                  alt="Dashboard Preview"
+                  src="https://images.unsplash.com/photo-1558655146-364adaf1fcc9?q=80&w=2564&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+                  alt="Kolaborasi tim desain"
                   width={1200}
                   height={800}
                   className="rounded-xl shadow-2xl"
@@ -103,24 +99,24 @@ export default function LandingPageV2() {
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Alur Kerja Kreatif yang Lebih Baik
+                Didesain untuk Tim yang Sibuk
               </h2>
               <p className="mt-4 text-lg text-muted-foreground">
-                Semua fitur dirancang untuk menghilangkan hambatan dan
-                mempercepat proses kreatif.
+                Fokus pada kreativitas, bukan administrasi. Semua yang Anda
+                butuhkan untuk alur kerja yang lebih lancar.
               </p>
             </div>
             <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
               <Card className="transform transition-transform hover:-translate-y-1">
                 <CardHeader>
-                  {/* Latar ikon menggunakan bg-accent dan ikon menggunakan text-primary */}
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-accent">
                     <Rocket className="h-6 w-6 text-primary" />
                   </div>
-                  <CardTitle>Pengajuan Cepat</CardTitle>
+                  <CardTitle>Brief Anti-Bingung</CardTitle>
                   <CardDescription>
-                    Formulir cerdas yang memastikan desainer mendapatkan semua
-                    informasi yang dibutuhkan sejak awal.
+                    Formulir cerdas kami memastikan setiap detail penting
+                    tertangkap dari awal. Tak ada lagi pertanyaan "Ini ukurannya
+                    berapa?".
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -129,10 +125,11 @@ export default function LandingPageV2() {
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-accent">
                     <Users className="h-6 w-6 text-primary" />
                   </div>
-                  <CardTitle>Kolaborasi Terpusat</CardTitle>
+                  <CardTitle>Revisi Terpusat</CardTitle>
                   <CardDescription>
-                    Berikan feedback, ajukan revisi, dan lihat riwayat versi di
-                    satu tempat yang mudah diakses.
+                    Tinggalkan komentar, beri anotasi, dan lihat riwayat versi
+                    langsung di satu tempat. Ucapkan selamat tinggal pada email
+                    berantai.
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -141,10 +138,10 @@ export default function LandingPageV2() {
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-accent">
                     <Check className="h-6 w-6 text-primary" />
                   </div>
-                  <CardTitle>Persetujuan Mudah</CardTitle>
+                  <CardTitle>Persetujuan Satu Klik</CardTitle>
                   <CardDescription>
-                    Sistem approval satu-klik untuk mempercepat pengambilan
-                    keputusan dan finalisasi proyek.
+                    Sudah cocok? Cukup satu klik untuk memberi persetujuan.
+                    Proyek selesai lebih cepat, semua orang senang.
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -157,30 +154,28 @@ export default function LandingPageV2() {
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Tiga Langkah Menuju Desain Sempurna
+                Hanya 3 Langkah Mudah
               </h2>
               <p className="mt-4 text-lg text-muted-foreground">
-                Proses kami sederhana, transparan, dan efisien.
+                Dari ide hingga hasil akhir, prosesnya kini lebih sederhana dari
+                memesan kopi.
               </p>
             </div>
             <div className="relative mt-16">
-              {/* Garis timeline menggunakan bg-border */}
               <div
-                className="absolute left-1/2 top-0 -ml-px h-full w-0.5 bg-border"
+                className="absolute left-1/2 top-0 -ml-px h-full w-0.5 bg-border hidden md:block"
                 aria-hidden="true"
               />
               <div className="grid gap-12 lg:grid-cols-2">
-                {/* Step circle menggunakan warna theme */}
                 <div className="flex items-start gap-6">
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 border-primary bg-background font-bold text-primary">
                     1
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold">Kirim Permintaan</h3>
+                    <h3 className="text-xl font-semibold">Ajukan Permintaan</h3>
                     <p className="mt-2 text-muted-foreground">
-                      Jelaskan kebutuhan desain Anda melalui formulir
-                      terstruktur kami. Lampirkan aset dan referensi yang
-                      diperlukan.
+                      Isi brief singkat, lampirkan file pendukung jika ada, lalu
+                      kirim. Kurang dari 2 menit, kami jamin.
                     </p>
                   </div>
                 </div>
@@ -188,12 +183,10 @@ export default function LandingPageV2() {
                 <div />
                 <div className="flex items-start gap-6 lg:ml-auto lg:text-right">
                   <div>
-                    <h3 className="text-xl font-semibold">
-                      Review & Kolaborasi
-                    </h3>
+                    <h3 className="text-xl font-semibold">Berkolaborasi</h3>
                     <p className="mt-2 text-muted-foreground">
-                      Terima draf awal, berikan komentar langsung, dan pantau
-                      kemajuan revisi secara real-time.
+                      Dapatkan notifikasi saat draf pertama siap. Beri masukan,
+                      diskusikan revisi, semua dalam satu platform.
                     </p>
                   </div>
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 border-primary bg-background font-bold text-primary">
@@ -207,9 +200,8 @@ export default function LandingPageV2() {
                   <div>
                     <h3 className="text-xl font-semibold">Setujui & Unduh</h3>
                     <p className="mt-2 text-muted-foreground">
-                      Setelah desain sesuai dengan keinginan Anda, berikan
-                      persetujuan akhir dan unduh semua file dalam format yang
-                      Anda butuhkan.
+                      Setelah semua sempurna, berikan persetujuan akhir dan
+                      unduh semua file yang Anda butuhkan. Selesai!
                     </p>
                   </div>
                 </div>
@@ -223,14 +215,17 @@ export default function LandingPageV2() {
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Dipercaya oleh Tim Hebat di Seluruh Dunia
+                Jangan Hanya Percaya Kata Kami
               </h2>
             </div>
             <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
               <Card>
                 <CardContent className="pt-6">
                   <p className="italic text-muted-foreground">
-                    &quot;DesignDesk mengubah alur kerja kami...&quot;
+                    "Akhirnya! Semua permintaan desain jadi teratur. Dulu butuh
+                    waktu berhari-hari hanya untuk bolak-balik revisi via email,
+                    sekarang semua jauh lebih cepat. Waktu tim kami jadi lebih
+                    efisien."
                   </p>
                   <div className="mt-4 flex items-center gap-4">
                     <Avatar>
@@ -249,7 +244,9 @@ export default function LandingPageV2() {
               <Card>
                 <CardContent className="pt-6">
                   <p className="italic text-muted-foreground">
-                    &quot;Sebagai desainer, saya sangat terbantu...&quot;
+                    "Sebagai desainer, ini sangat membantu. Briefnya jelas,
+                    feedbacknya terpusat. Saya bisa fokus mendesain tanpa harus
+                    mencari-cari detail di tumpukan email. Game-changer!"
                   </p>
                   <div className="mt-4 flex items-center gap-4">
                     <Avatar>
@@ -268,7 +265,9 @@ export default function LandingPageV2() {
               <Card>
                 <CardContent className="pt-6">
                   <p className="italic text-muted-foreground">
-                    &quot;Fitur approval-nya luar biasa...&quot;
+                    "Fitur approval-nya juara. Saya bisa cepat meninjau dan
+                    menyetujui desain bahkan saat sedang di luar kantor lewat
+                    ponsel. Sangat direkomendasikan untuk tim yang dinamis."
                   </p>
                   <div className="mt-4 flex items-center gap-4">
                     <Avatar>
@@ -288,19 +287,20 @@ export default function LandingPageV2() {
           </div>
         </section>
 
+        {/* CTA Section */}
         <section className="py-20">
           <div className="container mx-auto px-4">
             <div className="relative overflow-hidden rounded-2xl bg-primary px-6 py-16 text-center shadow-xl">
               <h2 className="text-3xl font-bold tracking-tight text-primary-foreground sm:text-4xl">
-                Siap Mengubah Alur Kerja Kreatif Anda?
+                Sudah Siap Bekerja Lebih Cerdas?
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-lg text-primary-foreground/80">
-                Bergabunglah dengan ratusan tim yang telah beralih ke cara kerja
-                yang lebih cerdas.
+                Hentikan kebiasaan lama. Coba DesignDesk gratis dan rasakan
+                sendiri perbedaannya dalam kolaborasi tim Anda.
               </p>
               <div className="mt-8">
                 <Button asChild size="lg" variant="secondary">
-                  <a href="/auth/signup">Daftar Sekarang</a>
+                  <a href="/auth/signup">Coba Sekarang, Gratis!</a>
                 </Button>
               </div>
             </div>
@@ -319,19 +319,19 @@ export default function LandingPageV2() {
               href="#"
               className="text-sm text-muted-foreground hover:text-foreground"
             >
-              Terms
+              Ketentuan
             </a>
             <a
               href="#"
               className="text-sm text-muted-foreground hover:text-foreground"
             >
-              Privacy
+              Privasi
             </a>
             <a
               href="#"
               className="text-sm text-muted-foreground hover:text-foreground"
             >
-              Contact
+              Kontak
             </a>
           </div>
         </div>
