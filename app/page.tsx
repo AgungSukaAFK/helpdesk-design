@@ -115,8 +115,8 @@ export default function LandingPageV3() {
                   <CardTitle>Brief Anti-Bingung</CardTitle>
                   <CardDescription>
                     Formulir cerdas kami memastikan setiap detail penting
-                    tertangkap dari awal. Tak ada lagi pertanyaan "Ini ukurannya
-                    berapa?".
+                    tertangkap dari awal. Tak ada lagi pertanyaan &quot;Ini
+                    ukurannya berapa?&quot;.
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -222,10 +222,10 @@ export default function LandingPageV3() {
               <Card>
                 <CardContent className="pt-6">
                   <p className="italic text-muted-foreground">
-                    "Akhirnya! Semua permintaan desain jadi teratur. Dulu butuh
-                    waktu berhari-hari hanya untuk bolak-balik revisi via email,
-                    sekarang semua jauh lebih cepat. Waktu tim kami jadi lebih
-                    efisien."
+                    &quot;Akhirnya! Semua permintaan desain jadi teratur. Dulu
+                    butuh waktu berhari-hari hanya untuk bolak-balik revisi via
+                    email, sekarang semua jauh lebih cepat. Waktu tim kami jadi
+                    lebih efisien.&quot;
                   </p>
                   <div className="mt-4 flex items-center gap-4">
                     <Avatar>
@@ -244,9 +244,9 @@ export default function LandingPageV3() {
               <Card>
                 <CardContent className="pt-6">
                   <p className="italic text-muted-foreground">
-                    "Sebagai desainer, ini sangat membantu. Briefnya jelas,
+                    &quot;Sebagai desainer, ini sangat membantu. Briefnya jelas,
                     feedbacknya terpusat. Saya bisa fokus mendesain tanpa harus
-                    mencari-cari detail di tumpukan email. Game-changer!"
+                    mencari-cari detail di tumpukan email. Game-changer!&quot;
                   </p>
                   <div className="mt-4 flex items-center gap-4">
                     <Avatar>
@@ -265,9 +265,10 @@ export default function LandingPageV3() {
               <Card>
                 <CardContent className="pt-6">
                   <p className="italic text-muted-foreground">
-                    "Fitur approval-nya juara. Saya bisa cepat meninjau dan
+                    &quot;Fitur approval-nya juara. Saya bisa cepat meninjau dan
                     menyetujui desain bahkan saat sedang di luar kantor lewat
-                    ponsel. Sangat direkomendasikan untuk tim yang dinamis."
+                    ponsel. Sangat direkomendasikan untuk tim yang
+                    dinamis.&quot;
                   </p>
                   <div className="mt-4 flex items-center gap-4">
                     <Avatar>
