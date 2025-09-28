@@ -27,7 +27,7 @@ interface RiwayatAdmin {
   due_date: string;
   rating: number;
   review: string | null;
-  requester_name: string | null;
+  requester: string | null;
 }
 
 const ITEMS_PER_PAGE = 9;
@@ -86,7 +86,7 @@ export function RiwayatAdminClientContent() {
 
       let query = s
         .from("permintaan")
-        .select(`id, judul, due_date, rating, review, requester_name`, {
+        .select(`id, judul, due_date, rating, review, requester`, {
           count: "exact",
         })
         .eq("admin", user.id)
@@ -148,8 +148,8 @@ export function RiwayatAdminClientContent() {
               <CardHeader>
                 <CardTitle className="line-clamp-2">{item.judul}</CardTitle>
                 <CardDescription>
-                  Dari: <strong>{item.requester_name || "N/A"}</strong> |
-                  Selesai pada:{" "}
+                  Dari: <strong>{item.requester || "N/A"}</strong> | Selesai
+                  pada:{" "}
                   {format(new Date(item.due_date), "dd MMMM yyyy", {
                     locale: indonesiaLocale,
                   })}
