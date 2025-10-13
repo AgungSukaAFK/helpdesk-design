@@ -228,6 +228,10 @@ export default function DetailPermintaanPage({
             <p>{permin.judul}</p>
           </div>
           <div className="flex flex-col items-start gap-2">
+            <Label className="text-base">Project</Label>
+            <p>{permin.project}</p>
+          </div>
+          <div className="flex flex-col items-start gap-2">
             <Label className="text-base">Departemen</Label>
             <p>{permin.departemen}</p>
           </div>

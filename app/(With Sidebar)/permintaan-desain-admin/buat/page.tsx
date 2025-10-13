@@ -1,3 +1,5 @@
+// src/app/(With Sidebar)/permintaan-desain/buat/page.tsx
+
 "use client";
 
 import { Combobox, ComboboxData } from "@/components/combobox";
@@ -11,12 +13,14 @@ import { createClient } from "@/lib/supabase/client";
 import { FormEvent, useState } from "react";
 import { toast } from "sonner";
 
+// REVISI: Menambahkan 'project' ke interface
 export interface PermintaanDesain {
   id: string;
   created_at: Date;
   due_date: Date;
   judul: string;
   deskripsi: string;
+  project: string; // <-- Tambahan kolom baru
   status: string;
   departemen: string;
   rating: string;
@@ -31,6 +35,7 @@ interface File {
   name: string;
 }
 
+// Data Departemen (tidak berubah)
 const dataDepartment: ComboboxData = [
   { label: "General Affair", value: "General Affair" },
   { label: "Marketing", value: "Marketing" },
@@ -47,10 +52,25 @@ const dataDepartment: ComboboxData = [
   { label: "Boards of Director", value: "Boards of Director" },
 ];
 
+// REVISI: Menambahkan data untuk dropdown project
+const dataProject: ComboboxData = [
+  { label: "Desain Poster", value: "Desain Poster" },
+  { label: "Desain Logo", value: "Desain Logo" },
+  { label: "Desain Flyer", value: "Desain Flyer" },
+  { label: "Desain Lowongan Kerja", value: "Desain Lowongan Kerja" },
+  { label: "Desain Kemasan", value: "Desain Kemasan" },
+  { label: "Desain Event", value: "Desain Event" },
+  { label: "Lainnya...", value: "Lainnya" },
+];
+
 export default function BuatPermintaanDesainPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedDepartment, setSelectedDepartment] = useState<string>("");
   const [alertMessage, setAlertMessage] = useState<string>("");
+
+  // REVISI: State baru untuk project
+  const [selectedProject, setSelectedProject] = useState<string>("");
+  const [customProject, setCustomProject] = useState<string>("");
 
   const s = createClient();
 
@@ -63,13 +83,21 @@ export default function BuatPermintaanDesainPage() {
     const due_date = formData.get("due_date") as string;
     const departemen = selectedDepartment;
 
-    if (!departemen) {
-      setAlertMessage("Departemen harus dipilih.");
+    // REVISI: Menentukan nilai 'project' yang akan disimpan
+    const projectValue =
+      selectedProject === "Lainnya" ? customProject : selectedProject;
+
+    // REVISI: Validasi baru
+    if (!departemen || !projectValue) {
+      setAlertMessage("Departemen dan Jenis Proyek harus diisi.");
       return;
     }
-
+    if (selectedProject === "Lainnya" && !customProject.trim()) {
+      setAlertMessage("Harap sebutkan jenis proyek lainnya.");
+      return;
+    }
     if (!judul || !deskripsi || !due_date) {
-      setAlertMessage("Semua field harus diisi.");
+      setAlertMessage("Judul, deskripsi, dan due date harus diisi.");
       return;
     }
 
@@ -81,10 +109,13 @@ export default function BuatPermintaanDesainPage() {
         toast.error("Anda harus login untuk membuat permintaan desain.");
         return;
       }
+
+      // REVISI: Menambahkan 'project' ke data yang akan di-insert
       const data: Omit<PermintaanDesain, "id" | "created_at" | "admin"> = {
         departemen,
         deskripsi,
         judul,
+        project: projectValue, // <-- Menggunakan nilai project yang sudah ditentukan
         due_date: new Date(due_date),
         files: [],
         rating: "",
@@ -98,14 +129,16 @@ export default function BuatPermintaanDesainPage() {
         throw insertError;
       }
 
+      // REVISI: Mereset state baru setelah submit berhasil
       form.reset();
       setSelectedDepartment("");
+      setSelectedProject("");
+      setCustomProject("");
       toast.success("Permintaan desain berhasil dibuat.");
       setAlertMessage("Berhasil membuat permintaan desain.");
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
-
-      toast.error("Terjadi kesalahan. Silakan coba lagi.");
+      toast.error("Terjadi kesalahan: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -113,6 +146,15 @@ export default function BuatPermintaanDesainPage() {
 
   function handleDepartmentChange(value: string) {
     setSelectedDepartment(value);
+  }
+
+  // REVISI: Handler baru untuk perubahan project
+  function handleProjectChange(value: string) {
+    setSelectedProject(value);
+    // Jika user memilih opsi selain "Lainnya", kosongkan input kustom
+    if (value !== "Lainnya") {
+      setCustomProject("");
+    }
   }
 
   return (
@@ -130,6 +172,33 @@ export default function BuatPermintaanDesainPage() {
               placeholder="Masukkan judul permintaan desain..."
             />
           </div>
+
+          {/* REVISI: Form untuk Project */}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="project">Jenis Proyek</Label>
+            <Combobox
+              data={dataProject}
+              onChange={handleProjectChange}
+              defaultValue={selectedProject}
+            />
+          </div>
+
+          {/* REVISI: Input kondisional untuk "Lainnya" */}
+          {selectedProject === "Lainnya" && (
+            <div className="flex flex-col gap-2 animate-in fade-in">
+              <Label htmlFor="custom_project">Sebutkan Proyek Lainnya</Label>
+              <Input
+                id="custom_project"
+                name="custom_project"
+                value={customProject}
+                onChange={(e) => setCustomProject(e.target.value)}
+                placeholder="Contoh: Desain Kalender"
+                required={selectedProject === "Lainnya"} // Wajib diisi jika "Lainnya" dipilih
+                disabled={loading}
+              />
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             <Label htmlFor="deskripsi">Deskripsi</Label>
             <Textarea
@@ -138,7 +207,7 @@ export default function BuatPermintaanDesainPage() {
               name="deskripsi"
               required
               disabled={loading}
-              placeholder="Masukkan deskripsi permintaan desain..."
+              placeholder="Jelaskan detail desain yang Anda butuhkan..."
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -162,12 +231,16 @@ export default function BuatPermintaanDesainPage() {
             />
           </div>
           {alertMessage && (
-            <Alert>
+            <Alert
+              variant={
+                alertMessage.includes("Berhasil") ? "default" : "destructive"
+              }
+            >
               <AlertDescription>{alertMessage}</AlertDescription>
             </Alert>
           )}
-          <Button type="submit" disabled={loading}>
-            {loading ? "Loading..." : "Submit"}
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? "Mengirim..." : "Kirim Permintaan"}
           </Button>
         </form>
       </Content>
