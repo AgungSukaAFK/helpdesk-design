@@ -21,10 +21,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Newspaper, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useTransition } from "react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx"; // Impor library Excel
 
 // Definisikan tipe data untuk konsistensi
 interface Permintaan {
@@ -35,9 +36,24 @@ interface Permintaan {
   created_at: string;
 }
 
-const ITEMS_PER_PAGE = 10;
+// Tipe data untuk ekspor Excel yang lebih lengkap
+interface PermintaanExport {
+  id: string;
+  created_at: string;
+  due_date: string;
+  judul: string;
+  deskripsi: string;
+  status: string;
+  departemen: string;
+  project: string;
+  // Relasi untuk mengambil nama requester
+  requester: {
+    name: string;
+  } | null;
+}
 
-// Semua logika lama Anda sekarang ada di dalam komponen ini
+const LIMIT_OPTIONS = [10, 25, 50, 100];
+
 export function PermintaanAdminClientContent() {
   const s = createClient();
   const router = useRouter();
@@ -47,30 +63,34 @@ export function PermintaanAdminClientContent() {
   // State
   const [permintaanList, setPermintaanList] = useState<Permintaan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [totalItems, setTotalItems] = useState<number>(0);
+  const [isPending, startTransition] = useTransition();
 
-  // State untuk filter dan pencarian, diambil dari URL
+  // State dari URL
   const currentPage = Number(searchParams.get("page") || "1");
   const searchTerm = searchParams.get("search") || "";
   const statusFilter = searchParams.get("status") || "";
+  const startDate = searchParams.get("startDate") || "";
+  const endDate = searchParams.get("endDate") || "";
+  const limit = Number(searchParams.get("limit") || 10);
 
-  // State untuk input, agar bisa menggunakan debounce
+  // State untuk input form
   const [searchInput, setSearchInput] = useState(searchTerm);
+  const [startDateInput, setStartDateInput] = useState(startDate);
+  const [endDateInput, setEndDateInput] = useState(endDate);
 
   const createQueryString = useCallback(
-    (paramsToUpdate: Record<string, string | number>) => {
+    (paramsToUpdate: Record<string, string | number | undefined>) => {
       const params = new URLSearchParams(searchParams.toString());
-      for (const [name, value] of Object.entries(paramsToUpdate)) {
+      Object.entries(paramsToUpdate).forEach(([name, value]) => {
         if (value) {
           params.set(name, String(value));
         } else {
           params.delete(name);
         }
-      }
-      if (
-        paramsToUpdate.search !== undefined ||
-        paramsToUpdate.status !== undefined
-      ) {
+      });
+      if (Object.keys(paramsToUpdate).some((k) => k !== "page")) {
         params.set("page", "1");
       }
       return params.toString();
@@ -82,49 +102,125 @@ export function PermintaanAdminClientContent() {
     async function fetchPermintaan() {
       setLoading(true);
 
-      const from = (currentPage - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
+      const from = (currentPage - 1) * limit;
+      const to = from + limit - 1;
 
-      let query = s.from("permintaan").select(`*`, { count: "exact" });
+      let query = s
+        .from("permintaan")
+        .select(`id, judul, status, due_date, created_at`, { count: "exact" });
 
-      if (searchTerm) {
-        query = query.ilike("judul", `%${searchTerm}%`);
-      }
-      if (statusFilter) {
-        query = query.eq("status", statusFilter);
-      }
+      if (searchTerm) query = query.ilike("judul", `%${searchTerm}%`);
+      if (statusFilter) query = query.eq("status", statusFilter);
+      if (startDate) query = query.gte("created_at", startDate);
+      if (endDate) query = query.lte("created_at", `${endDate} 23:59:59`);
 
       query = query.range(from, to).order("created_at", { ascending: false });
 
       const { data, error, count } = await query;
 
       if (error) {
-        toast.error("Gagal mengambil data permintaan: " + error.message);
+        toast.error("Gagal mengambil data: " + error.message);
         setPermintaanList([]);
       } else {
-        setPermintaanList(data || []);
+        setPermintaanList((data as Permintaan[]) || []);
         setTotalItems(count || 0);
       }
       setLoading(false);
     }
-
     fetchPermintaan();
-  }, [s, currentPage, searchTerm, statusFilter]);
+  }, [s, currentPage, searchTerm, statusFilter, startDate, endDate, limit]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      router.push(pathname + "?" + createQueryString({ search: searchInput }));
+      if (searchInput !== searchTerm) {
+        startTransition(() => {
+          router.push(
+            `${pathname}?${createQueryString({ search: searchInput })}`
+          );
+        });
+      }
     }, 500);
+    return () => clearTimeout(handler);
+  }, [searchInput, searchTerm, pathname, router, createQueryString]);
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchInput, pathname, router, createQueryString]);
+  const handleFilterChange = (
+    updates: Record<string, string | number | undefined>
+  ) => {
+    startTransition(() => {
+      router.push(`${pathname}?${createQueryString(updates)}`);
+    });
+  };
 
-  const handleStatusFilterChange = (value: string) => {
-    router.push(
-      pathname + "?" + createQueryString({ status: value === "all" ? "" : value })
-    );
+  const handleDownloadExcel = async () => {
+    setIsExporting(true);
+    toast.info("Mempersiapkan data lengkap untuk diunduh...");
+
+    try {
+      // REVISI: Query baru untuk mengambil semua data yang dibutuhkan untuk Excel
+      let query = s.from("permintaan").select<string, PermintaanExport>(
+        `
+            created_at,
+            due_date,
+            judul,
+            deskripsi,
+            status,
+            departemen,
+            project,
+            requester:user_profiles (name)
+            `
+      );
+
+      // Terapkan semua filter yang sedang aktif
+      if (searchTerm) query = query.ilike("judul", `%${searchTerm}%`);
+      if (statusFilter) query = query.eq("status", statusFilter);
+      if (startDate) query = query.gte("created_at", startDate);
+      if (endDate) query = query.lte("created_at", `${endDate} 23:59:59`);
+
+      const { data, error } = await query.order("created_at", {
+        ascending: false,
+      });
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        toast.warning(
+          "Tidak ada data untuk diekspor sesuai filter yang dipilih."
+        );
+        return;
+      }
+
+      // REVISI: Format data sesuai kolom yang diminta
+      const formattedData = data.map((item) => ({
+        "Tanggal Dibuat": new Date(item.created_at).toLocaleString("id-ID", {
+          dateStyle: "long",
+          timeStyle: "short",
+        }),
+        "Due Date": new Date(item.due_date).toLocaleDateString("id-ID", {
+          dateStyle: "long",
+        }),
+        "Judul Permintaan": item.judul,
+        Deskripsi: item.deskripsi,
+        Status: item.status,
+        Departemen: item.departemen,
+        Project: item.project,
+        Requester: item.requester?.name || "N/A",
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(formattedData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Permintaan Desain");
+      XLSX.writeFile(
+        workbook,
+        `Laporan_Permintaan_Desain_${
+          new Date().toISOString().split("T")[0]
+        }.xlsx`
+      );
+
+      toast.success("Data berhasil diunduh!");
+    } catch (error: any) {
+      toast.error("Gagal mengunduh data", { description: error.message });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const getStatusVariant = (status: Permintaan["status"]) => {
@@ -144,31 +240,86 @@ export function PermintaanAdminClientContent() {
 
   return (
     <Content title="Daftar Semua Permintaan Desain" size="lg">
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="relative w-full md:w-1/2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            placeholder="Cari berdasarkan judul..."
-            className="pl-10"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-grow">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              placeholder="Cari berdasarkan judul..."
+              className="pl-10"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </div>
+          <Button
+            onClick={handleDownloadExcel}
+            disabled={isExporting}
+            className="w-full md:w-auto"
+          >
+            {isExporting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Newspaper className="mr-2 h-4 w-4" />
+            )}
+            Download Excel
+          </Button>
         </div>
-        <Select
-          onValueChange={handleStatusFilterChange}
-          defaultValue={statusFilter || "all"}
-        >
-          <SelectTrigger className="w-full md:w-[200px]">
-            <SelectValue placeholder="Filter berdasarkan status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Status</SelectItem>
-            <SelectItem value="PROGRESS">Progress</SelectItem>
-            <SelectItem value="REVISION">Revision</SelectItem>
-            <SelectItem value="REVIEW">Review</SelectItem>
-            <SelectItem value="DONE">Done</SelectItem>
-          </SelectContent>
-        </Select>
+
+        <div className="p-4 border rounded-lg bg-muted/50">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Status</label>
+              <Select
+                onValueChange={(value) =>
+                  handleFilterChange({
+                    status: value === "all" ? undefined : value,
+                  })
+                }
+                defaultValue={statusFilter || "all"}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="PROGRESS">Progress</SelectItem>
+                  <SelectItem value="REVISION">Revision</SelectItem>
+                  <SelectItem value="REVIEW">Review</SelectItem>
+                  <SelectItem value="DONE">Done</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Dari Tanggal</label>
+              <Input
+                type="date"
+                value={startDateInput}
+                onChange={(e) => setStartDateInput(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Sampai Tanggal</label>
+              <Input
+                type="date"
+                value={endDateInput}
+                onChange={(e) => setEndDateInput(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              className="mt-4 w-full md:w-auto"
+              onClick={() =>
+                handleFilterChange({
+                  startDate: startDateInput,
+                  endDate: endDateInput,
+                })
+              }
+            >
+              Terapkan Filter Tanggal
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="border rounded-md">
@@ -183,7 +334,7 @@ export function PermintaanAdminClientContent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {loading || isPending ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center h-24">
                   <div className="flex justify-center items-center gap-2">
@@ -196,7 +347,7 @@ export function PermintaanAdminClientContent() {
               permintaanList.map((permintaan, index) => (
                 <TableRow key={permintaan.id}>
                   <TableCell className="font-medium">
-                    {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
+                    {(currentPage - 1) * limit + index + 1}
                   </TableCell>
                   <TableCell className="font-semibold">
                     {permintaan.judul}
@@ -207,14 +358,11 @@ export function PermintaanAdminClientContent() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {new Date(permintaan.due_date).toLocaleDateString(
-                      "id-ID",
-                      {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                      }
-                    )}
+                    {new Date(permintaan.due_date).toLocaleDateString("id-ID", {
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric",
+                    })}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="outline" size="sm" asChild>
@@ -235,15 +383,32 @@ export function PermintaanAdminClientContent() {
           </TableBody>
         </Table>
       </div>
-      <div className="mt-6">
+
+      <div className="mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>Tampilkan</span>
+          <Select
+            value={String(limit)}
+            onValueChange={(value) => handleFilterChange({ limit: value })}
+          >
+            <SelectTrigger className="w-[70px]">
+              <SelectValue placeholder={limit} />
+            </SelectTrigger>
+            <SelectContent>
+              {LIMIT_OPTIONS.map((opt) => (
+                <SelectItem key={opt} value={String(opt)}>
+                  {opt}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span>dari {totalItems} hasil.</span>
+        </div>
         <PaginationComponent
-          basePath={`${pathname}?${createQueryString({ page: "" }).slice(
-            0,
-            -1
-          )}`}
+          basePath={pathname}
           currentPage={currentPage}
           totalItems={totalItems}
-          itemsPerPage={ITEMS_PER_PAGE}
+          itemsPerPage={limit}
         />
       </div>
     </Content>
