@@ -12,15 +12,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import { FormEvent, useState } from "react";
 import { toast } from "sonner";
+import { Loader2, Paperclip, Trash2 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-// REVISI: Menambahkan 'project' ke interface
 export interface PermintaanDesain {
   id: string;
   created_at: Date;
   due_date: Date;
   judul: string;
   deskripsi: string;
-  project: string; // <-- Tambahan kolom baru
+  project: string;
   status: string;
   departemen: string;
   rating: string;
@@ -35,7 +43,6 @@ interface File {
   name: string;
 }
 
-// Data Departemen (tidak berubah)
 const dataDepartment: ComboboxData = [
   { label: "General Affair", value: "General Affair" },
   { label: "Marketing", value: "Marketing" },
@@ -53,7 +60,6 @@ const dataDepartment: ComboboxData = [
   { label: "Boards of Director", value: "Boards of Director" },
 ];
 
-// REVISI: Menambahkan data untuk dropdown project
 const dataProject: ComboboxData = [
   { label: "Desain Poster", value: "Desain Poster" },
   { label: "Desain Logo", value: "Desain Logo" },
@@ -66,15 +72,72 @@ const dataProject: ComboboxData = [
 
 export default function BuatPermintaanDesainPage() {
   const [loading, setLoading] = useState<boolean>(false);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
   const [selectedDepartment, setSelectedDepartment] = useState<string>("");
   const [alertMessage, setAlertMessage] = useState<string>("");
-
-  // REVISI: State baru untuk project
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [customProject, setCustomProject] = useState<string>("");
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]); // State untuk lampiran
 
   const s = createClient();
 
+  // --- FUNGSI UNTUK MENGELOLA LAMPIRAN ---
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const toastId = toast.loading(`Mengunggah ${files.length} file...`);
+
+    const uploadPromises = Array.from(files).map(async (file) => {
+      const filePath = `design-requests/${Date.now()}_${file.name}`;
+      const { data, error } = await s.storage
+        .from("permintaan")
+        .upload(filePath, file); // Ganti "mr" dengan nama bucket Anda
+      if (error) return { error, file };
+      return { data: { ...data, name: file.name }, error: null };
+    });
+
+    const results = await Promise.all(uploadPromises);
+    const successfulUploads = results
+      .filter((r) => !r.error)
+      .map((r) => ({ url: r.data!.path, name: r.data!.name }));
+    const failedUploads = results.filter((r) => r.error);
+
+    if (successfulUploads.length > 0) {
+      setUploadedFiles((prev) => [...prev, ...successfulUploads]);
+      toast.success(`${successfulUploads.length} file berhasil diunggah.`, {
+        id: toastId,
+      });
+    }
+    if (failedUploads.length > 0) {
+      toast.error(`Gagal mengunggah ${failedUploads.length} file.`, {
+        id: toastId,
+      });
+    } else if (successfulUploads.length === 0) {
+      toast.dismiss(toastId);
+    }
+    setIsUploading(false);
+    e.target.value = ""; // Reset input file
+  };
+
+  const handleRemoveFile = async (index: number, path: string) => {
+    const toastId = toast.loading("Menghapus file...");
+    const { error } = await s.storage.from("permintaan").remove([path]); // Ganti "mr" dengan nama bucket Anda
+
+    if (error) {
+      toast.error("Gagal menghapus file", {
+        id: toastId,
+        description: error.message,
+      });
+      return;
+    }
+
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+    toast.success("File berhasil dihapus.", { id: toastId });
+  };
+
+  // --- FUNGSI SUBMIT FORM UTAMA ---
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -83,62 +146,50 @@ export default function BuatPermintaanDesainPage() {
     const deskripsi = formData.get("deskripsi") as string;
     const due_date = formData.get("due_date") as string;
     const departemen = selectedDepartment;
-
-    // REVISI: Menentukan nilai 'project' yang akan disimpan
     const projectValue =
       selectedProject === "Lainnya" ? customProject : selectedProject;
 
-    // REVISI: Validasi baru
-    if (!departemen || !projectValue) {
-      setAlertMessage("Departemen dan Jenis Proyek harus diisi.");
+    if (!departemen || !projectValue || !judul || !deskripsi || !due_date) {
+      setAlertMessage("Semua kolom (selain lampiran) wajib diisi.");
       return;
     }
     if (selectedProject === "Lainnya" && !customProject.trim()) {
       setAlertMessage("Harap sebutkan jenis proyek lainnya.");
       return;
     }
-    if (!judul || !deskripsi || !due_date) {
-      setAlertMessage("Judul, deskripsi, dan due date harus diisi.");
-      return;
-    }
 
     setAlertMessage("");
     try {
       setLoading(true);
-      const { data: user } = await s.auth.getUser();
-      if (!user.user) {
-        toast.error("Anda harus login untuk membuat permintaan desain.");
-        return;
-      }
+      const {
+        data: { user },
+      } = await s.auth.getUser();
+      if (!user) throw new Error("Anda harus login untuk membuat permintaan.");
 
-      // REVISI: Menambahkan 'project' ke data yang akan di-insert
-      const data: Omit<PermintaanDesain, "id" | "created_at" | "admin"> = {
+      const dataToInsert = {
         departemen,
         deskripsi,
         judul,
-        project: projectValue, // <-- Menggunakan nilai project yang sudah ditentukan
+        project: projectValue,
         due_date: new Date(due_date),
-        files: [],
-        rating: "",
-        review: "",
+        files: uploadedFiles, // <-- Menambahkan data lampiran
         status: "TO DO",
-        requester: user.user.id,
+        requester: user.id,
       };
 
-      const { error: insertError } = await s.from("permintaan").insert([data]);
-      if (insertError) {
-        throw insertError;
-      }
+      const { error: insertError } = await s
+        .from("permintaan")
+        .insert([dataToInsert]);
+      if (insertError) throw insertError;
 
-      // REVISI: Mereset state baru setelah submit berhasil
       form.reset();
       setSelectedDepartment("");
       setSelectedProject("");
       setCustomProject("");
+      setUploadedFiles([]); // <-- Reset state lampiran
       toast.success("Permintaan desain berhasil dibuat.");
       setAlertMessage("Berhasil membuat permintaan desain.");
     } catch (error: any) {
-      console.log(error);
       toast.error("Terjadi kesalahan: " + error.message);
     } finally {
       setLoading(false);
@@ -148,33 +199,26 @@ export default function BuatPermintaanDesainPage() {
   function handleDepartmentChange(value: string) {
     setSelectedDepartment(value);
   }
-
-  // REVISI: Handler baru untuk perubahan project
   function handleProjectChange(value: string) {
     setSelectedProject(value);
-    // Jika user memilih opsi selain "Lainnya", kosongkan input kustom
-    if (value !== "Lainnya") {
-      setCustomProject("");
-    }
+    if (value !== "Lainnya") setCustomProject("");
   }
 
   return (
     <>
-      <Content title="Permintaan Desain" size="sm">
+      <Content title="Permintaan Desain" size="md">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="judul">Judul Permintaan</Label>
             <Input
-              type="text"
               id="judul"
               name="judul"
               required
               disabled={loading}
-              placeholder="Masukkan judul permintaan desain..."
+              placeholder="Contoh: Poster untuk Event 17 Agustus"
             />
           </div>
 
-          {/* REVISI: Form untuk Project */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="project">Jenis Proyek</Label>
             <Combobox
@@ -184,7 +228,6 @@ export default function BuatPermintaanDesainPage() {
             />
           </div>
 
-          {/* REVISI: Input kondisional untuk "Lainnya" */}
           {selectedProject === "Lainnya" && (
             <div className="flex flex-col gap-2 animate-in fade-in">
               <Label htmlFor="custom_project">Sebutkan Proyek Lainnya</Label>
@@ -194,7 +237,7 @@ export default function BuatPermintaanDesainPage() {
                 value={customProject}
                 onChange={(e) => setCustomProject(e.target.value)}
                 placeholder="Contoh: Desain Kalender"
-                required={selectedProject === "Lainnya"} // Wajib diisi jika "Lainnya" dipilih
+                required={selectedProject === "Lainnya"}
                 disabled={loading}
               />
             </div>
@@ -208,7 +251,7 @@ export default function BuatPermintaanDesainPage() {
               name="deskripsi"
               required
               disabled={loading}
-              placeholder="Jelaskan detail desain yang Anda butuhkan..."
+              placeholder="Jelaskan detail desain yang Anda butuhkan (ukuran, teks, referensi warna, dll)..."
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -231,6 +274,57 @@ export default function BuatPermintaanDesainPage() {
               disabled={loading}
             />
           </div>
+
+          {/* BAGIAN LAMPIRAN BARU */}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="attachments">Lampiran (Opsional)</Label>
+            <Input
+              id="attachments"
+              type="file"
+              multiple
+              disabled={loading || isUploading}
+              onChange={handleFileUpload}
+            />
+            {isUploading && (
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mengunggah...
+              </div>
+            )}
+
+            {uploadedFiles.length > 0 && (
+              <div className="mt-2 rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama File</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {uploadedFiles.map((file, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="flex items-center gap-2 truncate max-w-xs">
+                          <Paperclip className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">{file.name}</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveFile(index, file.url)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
           {alertMessage && (
             <Alert
               variant={
@@ -240,7 +334,11 @@ export default function BuatPermintaanDesainPage() {
               <AlertDescription>{alertMessage}</AlertDescription>
             </Alert>
           )}
-          <Button type="submit" disabled={loading} className="w-full">
+          <Button
+            type="submit"
+            disabled={loading || isUploading}
+            className="w-full"
+          >
             {loading ? "Mengirim..." : "Kirim Permintaan"}
           </Button>
         </form>
