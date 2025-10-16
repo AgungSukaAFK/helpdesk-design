@@ -29,7 +29,7 @@ export default async function UserManagement() {
       <Content size="lg">
         <Table className="">
           <TableHeader>
-            <TableRow className="bg-gray-50 col-span-12">
+            <TableRow className="col-span-12">
               <TableHead>No</TableHead>
               <TableHead>Nama</TableHead>
               <TableHead>Email</TableHead>
