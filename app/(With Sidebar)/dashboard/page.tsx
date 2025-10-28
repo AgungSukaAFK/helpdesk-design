@@ -50,7 +50,11 @@ interface DashboardStats {
 interface PermintaanTerbaru {
   id: string;
   judul: string;
-  requester: string; // Awalnya berisi UUID, akan diganti dengan nama
+  admin: string;
+  requester: string;
+  project: string;
+  created_at: Date;
+  due_date: Date;
   status: string;
 }
 
@@ -79,7 +83,7 @@ export default function DashboardPage() {
           s.rpc("get_daily_request_trend", { days_limit: 30 }),
           s
             .from("permintaan")
-            .select("id, judul, requester, status")
+            .select("*")
             .order("created_at", { ascending: false })
             .limit(5),
         ]);
@@ -101,7 +105,8 @@ export default function DashboardPage() {
         // ==================================================================
 
         // 1. Kumpulkan semua ID pengguna dari kolom 'requester'
-        const userIds = terbaruResult.data.map((req) => req.requester);
+        let userIds = terbaruResult.data.map((req) => req.requester);
+        userIds = [...userIds, terbaruResult.data.map((req) => req.admin)];
         if (userIds.length === 0) {
           setPermintaanTerbaru([]);
           return;
@@ -127,8 +132,9 @@ export default function DashboardPage() {
         const permintaanDenganNama = terbaruResult.data.map((req) => ({
           ...req,
           requester: idToNameMap[req.requester] || "User Tidak Dikenal", // Ganti ID dengan nama
+          admin: idToNameMap[req.admin] || "User Tidak Dikenal", // Ganti ID dengan nama
         }));
-
+        console.log(permintaanDenganNama);
         setPermintaanTerbaru(permintaanDenganNama);
       } catch (error: any) {
         toast.error("Gagal memuat data dashboard: " + error.message);
@@ -154,7 +160,11 @@ export default function DashboardPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Judul Permintaan</TableHead>
+              <TableHead>Project</TableHead>
+              <TableHead>Tanggal permintaan</TableHead>
+              <TableHead>Due date</TableHead>
               <TableHead>Peminta</TableHead>
+              <TableHead>Admin</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
@@ -170,7 +180,29 @@ export default function DashboardPage() {
               permintaanTerbaru.map((req) => (
                 <TableRow key={req.id}>
                   <TableCell className="font-medium">{req.judul}</TableCell>
+                  <TableCell className="font-medium">{req.project}</TableCell>
+                  <TableCell className="font-medium">
+                    {new Date(req.created_at.toString()).toLocaleDateString(
+                      "id-ID",
+                      {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      }
+                    )}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {new Date(req.due_date.toString()).toLocaleDateString(
+                      "id-ID",
+                      {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      }
+                    )}
+                  </TableCell>
                   <TableCell>{req.requester}</TableCell>
+                  <TableCell>{req.admin}</TableCell>
                   <TableCell>
                     <Badge
                       variant={req.status === "DONE" ? "default" : "secondary"}
@@ -200,6 +232,7 @@ export default function DashboardPage() {
       <Content
         size="xs"
         title="Baru (Minggu Ini)"
+        className="bg-blue-300"
         description="Permintaan baru dalam 7 hari"
         cardAction={<FilePlus2 className="h-4 w-4 text-muted-foreground" />}
       >
@@ -210,6 +243,7 @@ export default function DashboardPage() {
       <Content
         size="xs"
         title="Sedang Dikerjakan"
+        className="bg-cyan-400"
         description="Status PROGRESS"
         cardAction={
           <GitPullRequest className="h-4 w-4 text-muted-foreground" />
@@ -222,6 +256,7 @@ export default function DashboardPage() {
       <Content
         size="xs"
         title="Menunggu Revisi"
+        className="bg-yellow-400"
         description="Status REVISION"
         cardAction={
           <MessageSquareQuote className="h-4 w-4 text-muted-foreground" />
@@ -231,9 +266,11 @@ export default function DashboardPage() {
           {loading ? renderLoading() : stats?.menungguRevisi ?? 0}
         </p>
       </Content>
+
       <Content
         size="xs"
         title="Selesai (Bulan Ini)"
+        className="bg-red-300"
         description="Permintaan selesai bulan ini"
         cardAction={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
       >

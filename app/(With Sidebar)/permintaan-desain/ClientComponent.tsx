@@ -31,6 +31,8 @@ import { toast } from "sonner";
 interface Permintaan {
   id: string;
   judul: string;
+  admin: string;
+  project: string;
   status: "PROGRESS" | "REVISION" | "REVIEW" | "DONE";
   due_date: string;
   created_at: string;
@@ -109,11 +111,41 @@ export function PermintaanClientContent() {
 
       const { data, error, count } = await query;
 
+      // 1. Kumpulkan semua ID pengguna dari kolom 'requester'
+      const userIds = data?.map((req) => req.admin) || [];
+      if (userIds.length === 0) {
+        setPermintaanList([]);
+        return;
+      }
+
+      // 2. Ambil data profil dari tabel 'user_profiles' berdasarkan ID
+      const { data: usersData, error: usersError } = await s
+        .from("user_profiles") // Pastikan nama tabel ini benar
+        .select("id, name") // Ambil id dan name
+        .in("id", userIds); // Cocokkan berdasarkan 'id'
+
+      if (usersError) throw usersError;
+
+      // 3. Buat peta (map) dari ID ke Nama untuk pencocokan cepat
+      const idToNameMap: Record<string, string> = {};
+      usersData?.forEach((user) => {
+        if (user.id && user.name) {
+          idToNameMap[user.id] = user.name;
+        }
+      });
+
+      // 4. Ganti ID requester dengan nama yang sesuai dari peta
+      const permintaanDenganNama =
+        data?.map((req) => ({
+          ...req,
+          admin: idToNameMap[req.admin] || "User Tidak Dikenal", // Ganti ID dengan nama
+        })) || [];
+
       if (error) {
         toast.error("Gagal mengambil data permintaan: " + error.message);
         setPermintaanList([]);
       } else {
-        setPermintaanList(data || []);
+        setPermintaanList(permintaanDenganNama || []);
         setTotalItems(count || 0);
       }
       setLoading(false);
@@ -194,6 +226,8 @@ export function PermintaanClientContent() {
               <TableRow>
                 <TableHead className="w-[50px]">No</TableHead>
                 <TableHead>Judul</TableHead>
+                <TableHead>Project</TableHead>
+                <TableHead>Desainer</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Due Date</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
@@ -217,6 +251,12 @@ export function PermintaanClientContent() {
                     </TableCell>
                     <TableCell className="font-semibold">
                       {permintaan.judul}
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      {permintaan.project}
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      {permintaan.admin}
                     </TableCell>
                     <TableCell>
                       <Badge variant={getStatusVariant(permintaan.status)}>
