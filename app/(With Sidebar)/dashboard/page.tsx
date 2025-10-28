@@ -156,83 +156,110 @@ export default function DashboardPage() {
         title="Aktivitas Terkini"
         description="5 permintaan desain terakhir yang masuk atau diupdate."
       >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Judul Permintaan</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Tanggal permintaan</TableHead>
-              <TableHead>Due date</TableHead>
-              <TableHead>Peminta</TableHead>
-              <TableHead>Admin</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
+        {/* PERBAIKAN 1: Tambahkan wrapper ini.
+    Ini adalah cara standar shadcn/ui agar tabel bisa di-scroll
+    horizontal di layar kecil (HP) dan tidak merusak layout.
+  */}
+        <div className="w-full overflow-x-auto rounded-md border">
+          {/* Kita beri lebar minimum agar kolom tidak terlalu sempit
+      sebelum scrolling-nya aktif.
+    */}
+          <Table className="min-w-[900px]">
+            <TableHeader>
+              {/* Struktur header Anda tetap sama (8 kolom) */}
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
-                  Memuat data...
-                </TableCell>
+                <TableHead>Judul Permintaan</TableHead>
+                <TableHead>Project</TableHead>
+                <TableHead>Tanggal permintaan</TableHead>
+                <TableHead>Due date</TableHead>
+                <TableHead>Peminta</TableHead>
+                <TableHead>Admin</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
-            ) : permintaanTerbaru.length > 0 ? (
-              permintaanTerbaru.map((req) => (
-                <TableRow key={req.id}>
-                  <TableCell className="font-medium">{req.judul}</TableCell>
-                  <TableCell className="font-medium">{req.project}</TableCell>
-                  <TableCell className="font-medium">
-                    {new Date(req.created_at.toString()).toLocaleDateString(
-                      "id-ID",
-                      {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                      }
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {new Date(req.due_date.toString()).toLocaleDateString(
-                      "id-ID",
-                      {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                      }
-                    )}
-                  </TableCell>
-                  <TableCell>{req.requester}</TableCell>
-                  <TableCell>{req.admin}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={req.status === "DONE" ? "default" : "secondary"}
-                    >
-                      {req.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={`/permintaan-desain-admin/${req.id}`}>Lihat</a>
-                    </Button>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  {/* PERBAIKAN 2: colSpan harus 8, sesuai jumlah kolom
+                   */}
+                  <TableCell colSpan={8} className="h-24 text-center">
+                    Memuat data...
                   </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
-                  Belum ada aktivitas.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ) : permintaanTerbaru.length > 0 ? (
+                permintaanTerbaru.map((req) => (
+                  <TableRow key={req.id}>
+                    <TableCell
+                      className="font-medium truncate max-w-xs"
+                      title={req.judul}
+                    >
+                      {req.judul}
+                    </TableCell>
+                    <TableCell
+                      className="font-medium truncate max-w-xs"
+                      title={req.project}
+                    >
+                      {req.project}
+                    </TableCell>
+                    {/* Beri min-w agar kolom tanggal tidak wrap aneh */}
+                    <TableCell className="font-medium min-w-[160px]">
+                      {new Date(req.created_at.toString()).toLocaleDateString(
+                        "id-ID",
+                        {
+                          day: "2-digit",
+                          month: "long", // Format asli Anda
+                          year: "numeric",
+                        }
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium min-w-[160px]">
+                      {new Date(req.due_date.toString()).toLocaleDateString(
+                        "id-ID",
+                        {
+                          day: "2-digit",
+                          month: "long", // Format asli Anda
+                          year: "numeric",
+                        }
+                      )}
+                    </TableCell>
+                    <TableCell>{req.requester}</TableCell>
+                    <TableCell>{req.admin || "-"}</TableCell>{" "}
+                    <TableCell>
+                      <Badge
+                        variant={
+                          req.status === "DONE" ? "default" : "secondary"
+                        }
+                      >
+                        {req.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={`/permintaan-desain-admin/${req.id}`}>Lihat</a>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  {/* PERBAIKAN 2: colSpan juga harus 8 di sini
+                   */}
+                  <TableCell colSpan={8} className="h-24 text-center">
+                    Belum ada aktivitas.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </Content>
 
       {/* KPI Cards */}
       <Content
         size="xs"
         title="Baru (Minggu Ini)"
-        className="bg-blue-300"
+        className="bg-blue-300 dark:bg-blue-950"
         description="Permintaan baru dalam 7 hari"
         cardAction={<FilePlus2 className="h-4 w-4 text-muted-foreground" />}
       >
@@ -243,7 +270,7 @@ export default function DashboardPage() {
       <Content
         size="xs"
         title="Sedang Dikerjakan"
-        className="bg-cyan-400"
+        className="bg-cyan-400 dark:bg-cyan-950"
         description="Status PROGRESS"
         cardAction={
           <GitPullRequest className="h-4 w-4 text-muted-foreground" />
@@ -256,7 +283,7 @@ export default function DashboardPage() {
       <Content
         size="xs"
         title="Menunggu Revisi"
-        className="bg-yellow-400"
+        className="bg-yellow-400 dark:bg-yellow-700"
         description="Status REVISION"
         cardAction={
           <MessageSquareQuote className="h-4 w-4 text-muted-foreground" />
@@ -270,7 +297,7 @@ export default function DashboardPage() {
       <Content
         size="xs"
         title="Selesai (Bulan Ini)"
-        className="bg-red-300"
+        className="bg-red-300 dark:bg-red-700"
         description="Permintaan selesai bulan ini"
         cardAction={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
       >
