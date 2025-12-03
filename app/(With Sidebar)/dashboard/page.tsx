@@ -168,8 +168,8 @@ export default function DashboardPage() {
             <TableHeader>
               {/* Struktur header Anda tetap sama (8 kolom) */}
               <TableRow>
-                <TableHead>Judul Permintaan</TableHead>
                 <TableHead>Project</TableHead>
+                <TableHead>Judul Permintaan</TableHead>
                 <TableHead>Tanggal permintaan</TableHead>
                 <TableHead>Due date</TableHead>
                 <TableHead>Peminta</TableHead>
@@ -192,15 +192,15 @@ export default function DashboardPage() {
                   <TableRow key={req.id}>
                     <TableCell
                       className="font-medium truncate max-w-xs"
-                      title={req.judul}
-                    >
-                      {req.judul}
-                    </TableCell>
-                    <TableCell
-                      className="font-medium truncate max-w-xs"
                       title={req.project}
                     >
                       {req.project}
+                    </TableCell>
+                    <TableCell
+                      className="font-medium truncate max-w-xs"
+                      title={req.judul}
+                    >
+                      {req.judul}
                     </TableCell>
                     {/* Beri min-w agar kolom tanggal tidak wrap aneh */}
                     <TableCell className="font-medium min-w-[160px]">
