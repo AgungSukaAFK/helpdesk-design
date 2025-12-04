@@ -64,7 +64,6 @@ const dataProject: ComboboxData = [
   { label: "Desain Poster", value: "Desain Poster" },
   { label: "Desain Logo", value: "Desain Logo" },
   { label: "Desain Flyer", value: "Desain Flyer" },
-  { label: "Desain Lowongan Kerja", value: "Desain Lowongan Kerja" },
   { label: "Desain Kemasan", value: "Desain Kemasan" },
   { label: "Desain Event", value: "Desain Event" },
   { label: "Lainnya...", value: "Lainnya" },
