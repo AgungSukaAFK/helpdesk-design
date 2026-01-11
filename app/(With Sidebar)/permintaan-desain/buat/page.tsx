@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import Router from "next/router";
 
 export interface PermintaanDesain {
   id: string;
@@ -79,6 +80,8 @@ export default function BuatPermintaanDesainPage() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]); // State untuk lampiran
 
   const s = createClient();
+
+  const { push } = Router;
 
   // --- FUNGSI UNTUK MENGELOLA LAMPIRAN ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -188,6 +191,7 @@ export default function BuatPermintaanDesainPage() {
       setUploadedFiles([]); // <-- Reset state lampiran
       toast.success("Permintaan desain berhasil dibuat.");
       setAlertMessage("Berhasil membuat permintaan desain.");
+      push("/permintaan-desain");
     } catch (error: any) {
       toast.error("Terjadi kesalahan: " + error.message);
     } finally {
