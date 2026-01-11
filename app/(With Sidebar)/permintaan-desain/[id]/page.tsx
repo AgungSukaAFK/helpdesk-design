@@ -13,6 +13,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -20,6 +29,7 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  Download,
   FileText,
   Loader2,
   RotateCcw,
@@ -30,18 +40,23 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-// Definisikan tipe data sesuai database Anda
+// Tipe Data
+interface FileItem {
+  name: string;
+  url: string;
+}
+
 interface PermintaanDetail {
   id: string;
   judul: string;
   deskripsi: string;
   project: string;
-  status: "PROGRESS" | "REVISION" | "REVIEW" | "DONE";
+  status: string;
   due_date: string;
   created_at: string;
-  catatan_revisi?: string; // Asumsi ada kolom ini untuk log revisi terakhir
   admin?: string;
-  admin_data?: { name: string }; // Untuk join nama admin
+  admin_data?: { name: string; email: string; role: string };
+  files?: FileItem[] | null; // Kolom file
 }
 
 export default function DetailPermintaanPage() {
@@ -54,7 +69,6 @@ export default function DetailPermintaanPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // State untuk dialog revisi
   const [isRevisionOpen, setIsRevisionOpen] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
 
@@ -62,7 +76,6 @@ export default function DetailPermintaanPage() {
     async function fetchData() {
       setLoading(true);
 
-      // 1. Ambil data permintaan
       const { data: requestData, error } = await s
         .from("permintaan")
         .select("*")
@@ -75,20 +88,21 @@ export default function DetailPermintaanPage() {
         return;
       }
 
-      // 2. Jika ada admin (desainer), ambil namanya
-      let adminName = "-";
+      // Ambil data desainer (admin) lengkap
+      let adminInfo = null;
       if (requestData.admin) {
+        // Ganti 'users' dengan 'user_profiles' jika itu nama tabel yang benar di DB Anda
         const { data: adminProfile } = await s
           .from("user_profiles")
-          .select("name")
+          .select("name, email, role")
           .eq("id", requestData.admin)
           .single();
-        if (adminProfile) adminName = adminProfile.name;
+        if (adminProfile) adminInfo = adminProfile;
       }
 
       setData({
         ...requestData,
-        admin_data: { name: adminName },
+        admin_data: adminInfo || undefined,
       });
       setLoading(false);
     }
@@ -96,10 +110,19 @@ export default function DetailPermintaanPage() {
     if (id) fetchData();
   }, [id, s, router]);
 
-  // Handler: Terima Hasil (Selesai)
+  // Handler: Download File
+  const handleDownloadFile = async (file: FileItem) => {
+    try {
+      // Buka di tab baru (cara paling aman dan cepat)
+      window.open(file.url, "_blank");
+    } catch (error) {
+      toast.error("Gagal membuka file.");
+    }
+  };
+
+  // Handler: Terima Hasil
   const handleAccept = async () => {
-    if (!confirm("Apakah Anda yakin ingin menyelesaikan permintaan ini?"))
-      return;
+    if (!confirm("Apakah Anda yakin hasil desain sudah sesuai?")) return;
 
     setIsSubmitting(true);
     const { error } = await s
@@ -108,26 +131,24 @@ export default function DetailPermintaanPage() {
       .eq("id", id);
 
     if (error) {
-      toast.error("Gagal memperbarui status: " + error.message);
+      toast.error("Gagal update status: " + error.message);
     } else {
       toast.success("Permintaan selesai! Terima kasih.");
-      // Update state lokal agar UI berubah langsung
       setData((prev) => (prev ? { ...prev, status: "DONE" } : null));
     }
     setIsSubmitting(false);
   };
 
   // Handler: Minta Revisi
-  // Handler: Minta Revisi (Versi Tanpa Kolom Tambahan)
   const handleRequestRevision = async () => {
     if (!revisionNote.trim()) {
-      toast.warning("Mohon isi catatan revisi agar desainer paham.");
+      toast.warning("Mohon isi catatan revisi.");
       return;
     }
 
     setIsSubmitting(true);
 
-    // Kita ambil deskripsi lama, lalu tambahkan catatan revisi baru di bawahnya
+    // Append catatan revisi ke deskripsi
     const oldDeskripsi = data?.deskripsi || "";
     const timeNow = new Date().toLocaleString("id-ID");
     const newDeskripsi = `${oldDeskripsi}\n\n[REVISI ${timeNow}]: ${revisionNote}`;
@@ -136,14 +157,14 @@ export default function DetailPermintaanPage() {
       .from("permintaan")
       .update({
         status: "REVISION",
-        deskripsi: newDeskripsi, // Simpan ke deskripsi
+        deskripsi: newDeskripsi,
       })
       .eq("id", id);
 
     if (error) {
-      toast.error("Gagal mengirim revisi: " + error.message);
+      toast.error("Gagal kirim revisi: " + error.message);
     } else {
-      toast.success("Permintaan revisi berhasil dikirim.");
+      toast.success("Revisi terkirim ke desainer.");
       setData((prev) =>
         prev ? { ...prev, status: "REVISION", deskripsi: newDeskripsi } : null
       );
@@ -153,29 +174,23 @@ export default function DetailPermintaanPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "DONE":
-        return <Badge className="bg-green-600">Selesai</Badge>;
-      case "PROGRESS":
-        return <Badge variant="secondary">Sedang Dikerjakan</Badge>;
-      case "REVISION":
-        return (
-          <Badge
-            variant="outline"
-            className="border-orange-500 text-orange-500"
-          >
-            Perlu Revisi
-          </Badge>
-        );
-      case "REVIEW":
-        return (
-          <Badge className="bg-blue-600 hover:bg-blue-700">
-            Menunggu Review Anda
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
+    const s = status?.toUpperCase();
+    if (s === "DONE") return <Badge className="bg-green-600">Selesai</Badge>;
+    if (s === "PROGRESS")
+      return <Badge variant="secondary">Sedang Dikerjakan</Badge>;
+    if (s === "REVISION")
+      return (
+        <Badge variant="outline" className="border-orange-500 text-orange-500">
+          Perlu Revisi
+        </Badge>
+      );
+    if (s === "REVIEW")
+      return (
+        <Badge className="bg-blue-600 hover:bg-blue-700">
+          Menunggu Review Anda
+        </Badge>
+      );
+    return <Badge variant="outline">{status}</Badge>;
   };
 
   if (loading) {
@@ -191,6 +206,8 @@ export default function DetailPermintaanPage() {
 
   if (!data) return null;
 
+  const isReviewStatus = data.status?.toUpperCase() === "REVIEW";
+
   return (
     <Content
       title="Detail Permintaan Desain"
@@ -204,83 +221,118 @@ export default function DetailPermintaanPage() {
       }
     >
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Kolom Kiri: Informasi Utama */}
+        {/* Kolom Kiri: Detail & Files */}
         <div className="md:col-span-2 space-y-6">
-          <div className="border rounded-lg p-6 bg-card text-card-foreground shadow-sm">
-            <div className="flex justify-between items-start mb-4">
-              <h2 className="text-2xl font-bold">{data.judul}</h2>
+          <div className="border rounded-lg p-6 bg-card shadow-sm space-y-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-2xl font-bold">{data.judul}</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Project: {data.project}
+                </p>
+              </div>
               {getStatusBadge(data.status)}
             </div>
 
-            <div className="prose dark:prose-invert max-w-none">
-              <h4 className="text-sm font-semibold text-muted-foreground mb-1">
+            <Separator />
+
+            <div>
+              <Label className="text-base font-semibold mb-2 block">
                 Deskripsi & Brief
-              </h4>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">
+              </Label>
+              <div className="prose dark:prose-invert max-w-none text-sm p-3 bg-muted/30 rounded-md whitespace-pre-wrap leading-relaxed">
                 {data.deskripsi || "Tidak ada deskripsi."}
-              </p>
+              </div>
             </div>
 
-            {/* Bagian Catatan Revisi (Jika ada) */}
-            {data.catatan_revisi && (
-              <div className="mt-6 p-4 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-md">
-                <h4 className="text-sm font-semibold text-orange-700 dark:text-orange-400 mb-1 flex items-center gap-2">
-                  <RotateCcw className="h-4 w-4" /> Catatan Revisi Terakhir
-                </h4>
-                <p className="text-sm text-orange-800 dark:text-orange-300">
-                  {data.catatan_revisi}
-                </p>
-              </div>
-            )}
+            {/* TABEL FILE LAMPIRAN (User Upload + Desainer Upload) */}
+            <div>
+              <Label className="text-base font-semibold mb-3 block">
+                File Lampiran & Hasil Desain
+              </Label>
+              {data.files && data.files.length > 0 ? (
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[50px]">No</TableHead>
+                        <TableHead>Nama File</TableHead>
+                        <TableHead className="text-right">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.files.map((f, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell
+                            className="font-medium truncate max-w-[200px]"
+                            title={f.name}
+                          >
+                            {f.name}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDownloadFile(f)}
+                            >
+                              <Download className="mr-2 h-4 w-4" /> Unduh
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center p-6 border border-dashed rounded-md text-muted-foreground text-sm">
+                  Tidak ada file yang dilampirkan.
+                </div>
+              )}
+            </div>
           </div>
 
           {/* AREA TINDAKAN: Muncul HANYA jika status REVIEW */}
-          {data.status === "REVIEW" && (
+          {isReviewStatus && (
             <div className="border rounded-lg p-6 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 flex flex-col md:flex-row items-center justify-between gap-4">
               <div>
                 <h3 className="font-semibold text-blue-900 dark:text-blue-100">
-                  Konfirmasi Hasil Desain
+                  Cek Hasil Desain
                 </h3>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Desainer telah menyelesaikan pekerjaan. Silakan cek hasil,
-                  lalu tentukan langkah selanjutnya.
+                  Silakan unduh file di atas. Jika sudah sesuai klik "Selesai",
+                  jika belum klik "Minta Revisi".
                 </p>
               </div>
               <div className="flex gap-3 w-full md:w-auto">
-                {/* Tombol Revisi */}
                 <Dialog open={isRevisionOpen} onOpenChange={setIsRevisionOpen}>
                   <DialogTrigger asChild>
                     <Button
                       variant="outline"
-                      className="flex-1 md:flex-none border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900"
+                      className="border-blue-300 hover:bg-blue-100 dark:border-blue-700"
                     >
-                      <RotateCcw className="mr-2 h-4 w-4" />
-                      Minta Revisi
+                      <RotateCcw className="mr-2 h-4 w-4" /> Revisi
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Permintaan Revisi</DialogTitle>
+                      <DialogTitle>Catatan Revisi</DialogTitle>
                       <DialogDescription>
-                        Berikan catatan yang jelas kepada desainer mengenai apa
-                        yang perlu diperbaiki.
+                        Jelaskan bagian yang perlu diperbaiki.
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="note">Catatan Revisi</Label>
-                        <Textarea
-                          id="note"
-                          placeholder="Contoh: Tolong ganti warna background jadi biru, dan font judul diperbesar..."
-                          value={revisionNote}
-                          onChange={(e) => setRevisionNote(e.target.value)}
-                          rows={5}
-                        />
-                      </div>
+                    <div className="py-4">
+                      <Label>Isi Revisi</Label>
+                      <Textarea
+                        placeholder="Contoh: Warna terlalu gelap..."
+                        value={revisionNote}
+                        onChange={(e) => setRevisionNote(e.target.value)}
+                        rows={4}
+                      />
                     </div>
                     <DialogFooter>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => setIsRevisionOpen(false)}
                       >
                         Batal
@@ -289,47 +341,36 @@ export default function DetailPermintaanPage() {
                         onClick={handleRequestRevision}
                         disabled={isSubmitting}
                       >
-                        {isSubmitting && (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        Kirim Revisi
+                        Kirim
                       </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
 
-                {/* Tombol Selesai */}
                 <Button
-                  className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white"
                   onClick={handleAccept}
                   disabled={isSubmitting}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  {isSubmitting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                  )}
-                  Terima / Selesai
+                  <CheckCircle2 className="mr-2 h-4 w-4" /> Selesai
                 </Button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Kolom Kanan: Meta Data */}
+        {/* Kolom Kanan: Info Project */}
         <div className="space-y-6">
-          <div className="border rounded-lg p-4 bg-card shadow-sm space-y-4">
+          <div className="border rounded-lg p-5 bg-card shadow-sm space-y-5">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
-              Informasi Project
+              Info Project
             </h3>
 
             <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-primary mt-0.5" />
+              <Calendar className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-xs text-muted-foreground">
-                  Deadline (Due Date)
-                </p>
-                <p className="font-medium">
+                <p className="text-xs text-muted-foreground">Deadline</p>
+                <p className="font-medium text-sm">
                   {new Date(data.due_date).toLocaleDateString("id-ID", {
                     weekday: "long",
                     day: "numeric",
@@ -341,34 +382,47 @@ export default function DetailPermintaanPage() {
             </div>
 
             <div className="flex items-start gap-3">
-              <Clock className="h-5 w-5 text-primary mt-0.5" />
+              <Clock className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-xs text-muted-foreground">Tanggal Dibuat</p>
-                <p className="font-medium">
+                <p className="text-xs text-muted-foreground">Dibuat Pada</p>
+                <p className="font-medium text-sm">
                   {new Date(data.created_at).toLocaleDateString("id-ID", {
                     day: "numeric",
-                    month: "short",
+                    month: "long",
                     year: "numeric",
                   })}
                 </p>
               </div>
             </div>
 
+            <Separator />
+
             <div className="flex items-start gap-3">
-              <User className="h-5 w-5 text-primary mt-0.5" />
+              <User className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-xs text-muted-foreground">Dikerjakan Oleh</p>
-                <p className="font-medium">
-                  {data.admin_data?.name || "Belum ditentukan"}
-                </p>
+                <p className="text-xs text-muted-foreground">Desainer (PIC)</p>
+                {data.admin_data ? (
+                  <div className="mt-1">
+                    <p className="font-medium text-sm">
+                      {data.admin_data.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {data.admin_data.email}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="font-medium text-sm text-orange-600">
+                    Belum ditentukan
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="flex items-start gap-3">
-              <FileText className="h-5 w-5 text-primary mt-0.5" />
+              <FileText className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-xs text-muted-foreground">Nama Project</p>
-                <p className="font-medium">{data.project}</p>
+                <p className="text-xs text-muted-foreground">Project</p>
+                <p className="font-medium text-sm">{data.project}</p>
               </div>
             </div>
           </div>
