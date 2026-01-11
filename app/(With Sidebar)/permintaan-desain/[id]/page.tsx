@@ -300,8 +300,8 @@ export default function DetailPermintaanPage() {
                   Cek Hasil Desain
                 </h3>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Silakan unduh file di atas. Jika sudah sesuai klik "Selesai",
-                  jika belum klik "Minta Revisi".
+                  Silakan unduh file di atas. Jika sudah sesuai klik
+                  &quot;Selesai&quot;, jika belum klik &quot;Minta Revisi&quot;.
                 </p>
               </div>
               <div className="flex gap-3 w-full md:w-auto">
