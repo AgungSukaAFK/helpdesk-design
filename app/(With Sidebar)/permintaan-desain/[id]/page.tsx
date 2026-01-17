@@ -33,12 +33,14 @@ import {
   FileText,
   Loader2,
   RotateCcw,
+  Star, // Import icon Star
   User,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils"; // Pastikan ada utility cn untuk conditional class
 
 // Tipe Data
 interface FileItem {
@@ -56,7 +58,9 @@ interface PermintaanDetail {
   created_at: string;
   admin?: string;
   admin_data?: { name: string; email: string; role: string };
-  files?: FileItem[] | null; // Kolom file
+  files?: FileItem[] | null;
+  rating?: string;
+  review?: string;
 }
 
 export default function DetailPermintaanPage() {
@@ -69,8 +73,14 @@ export default function DetailPermintaanPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // State untuk Revisi
   const [isRevisionOpen, setIsRevisionOpen] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
+
+  // State untuk Finish/Review
+  const [isFinishOpen, setIsFinishOpen] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
 
   useEffect(() => {
     async function fetchData() {
@@ -88,12 +98,10 @@ export default function DetailPermintaanPage() {
         return;
       }
 
-      // Ambil data desainer (admin) lengkap
       let adminInfo = null;
       if (requestData.admin) {
-        // Ganti 'users' dengan 'user_profiles' jika itu nama tabel yang benar di DB Anda
         const { data: adminProfile } = await s
-          .from("user_profiles")
+          .from("user_profiles") // Sesuaikan nama tabel user profile Anda
           .select("name, email, role")
           .eq("id", requestData.admin)
           .single();
@@ -113,28 +121,35 @@ export default function DetailPermintaanPage() {
   // Handler: Download File
   const handleDownloadFile = async (file: FileItem) => {
     try {
-      // Buka di tab baru (cara paling aman dan cepat)
       window.open(file.url, "_blank");
     } catch (error) {
       toast.error("Gagal membuka file.");
     }
   };
 
-  // Handler: Terima Hasil
-  const handleAccept = async () => {
-    if (!confirm("Apakah Anda yakin hasil desain sudah sesuai?")) return;
+  // Handler: Selesai & Kirim Review
+  const handleFinishAndReview = async () => {
+    if (rating === 0) {
+      toast.warning("Mohon berikan penilaian bintang (1-5).");
+      return;
+    }
 
     setIsSubmitting(true);
     const { error } = await s
       .from("permintaan")
-      .update({ status: "DONE" })
+      .update({
+        status: "DONE",
+        rating: rating.toString(), // Simpan sebagai string sesuai schema
+        review: reviewText,
+      })
       .eq("id", id);
 
     if (error) {
-      toast.error("Gagal update status: " + error.message);
+      toast.error("Gagal menyelesaikan permintaan: " + error.message);
     } else {
-      toast.success("Permintaan selesai! Terima kasih.");
+      toast.success("Terima kasih! Penilaian Anda telah disimpan.");
       setData((prev) => (prev ? { ...prev, status: "DONE" } : null));
+      setIsFinishOpen(false);
     }
     setIsSubmitting(false);
   };
@@ -148,7 +163,6 @@ export default function DetailPermintaanPage() {
 
     setIsSubmitting(true);
 
-    // Append catatan revisi ke deskripsi
     const oldDeskripsi = data?.deskripsi || "";
     const timeNow = new Date().toLocaleString("id-ID");
     const newDeskripsi = `${oldDeskripsi}\n\n[REVISI ${timeNow}]: ${revisionNote}`;
@@ -245,7 +259,7 @@ export default function DetailPermintaanPage() {
               </div>
             </div>
 
-            {/* TABEL FILE LAMPIRAN (User Upload + Desainer Upload) */}
+            {/* TABEL FILE LAMPIRAN */}
             <div>
               <Label className="text-base font-semibold mb-3 block">
                 File Lampiran & Hasil Desain
@@ -292,7 +306,7 @@ export default function DetailPermintaanPage() {
             </div>
           </div>
 
-          {/* AREA TINDAKAN: Muncul HANYA jika status REVIEW */}
+          {/* AREA TINDAKAN: Status REVIEW */}
           {isReviewStatus && (
             <div className="border rounded-lg p-6 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 flex flex-col md:flex-row items-center justify-between gap-4">
               <div>
@@ -305,6 +319,7 @@ export default function DetailPermintaanPage() {
                 </p>
               </div>
               <div className="flex gap-3 w-full md:w-auto">
+                {/* DIALOG REVISI */}
                 <Dialog open={isRevisionOpen} onOpenChange={setIsRevisionOpen}>
                   <DialogTrigger asChild>
                     <Button
@@ -318,13 +333,13 @@ export default function DetailPermintaanPage() {
                     <DialogHeader>
                       <DialogTitle>Catatan Revisi</DialogTitle>
                       <DialogDescription>
-                        Jelaskan bagian yang perlu diperbaiki.
+                        Jelaskan bagian yang perlu diperbaiki oleh desainer.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
-                      <Label>Isi Revisi</Label>
+                      <Label className="mb-2 block">Detail Revisi</Label>
                       <Textarea
-                        placeholder="Contoh: Warna terlalu gelap..."
+                        placeholder="Contoh: Warna logo terlalu gelap, tolong dicerahkan..."
                         value={revisionNote}
                         onChange={(e) => setRevisionNote(e.target.value)}
                         rows={4}
@@ -341,19 +356,91 @@ export default function DetailPermintaanPage() {
                         onClick={handleRequestRevision}
                         disabled={isSubmitting}
                       >
-                        Kirim
+                        {isSubmitting ? (
+                          <Loader2 className="animate-spin h-4 w-4" />
+                        ) : (
+                          "Kirim Revisi"
+                        )}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
 
-                <Button
-                  onClick={handleAccept}
-                  disabled={isSubmitting}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <CheckCircle2 className="mr-2 h-4 w-4" /> Selesai
-                </Button>
+                {/* DIALOG SELESAI (Rating & Review) */}
+                <Dialog open={isFinishOpen} onOpenChange={setIsFinishOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                      <CheckCircle2 className="mr-2 h-4 w-4" /> Selesai
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Terima Hasil Desain</DialogTitle>
+                      <DialogDescription>
+                        Mohon berikan penilaian dan ulasan sebelum menyelesaikan
+                        permintaan ini.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex flex-col items-center gap-4 py-4">
+                      {/* Star Rating Input */}
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setRating(star)}
+                            className="focus:outline-none transition-transform hover:scale-110"
+                          >
+                            <Star
+                              className={cn(
+                                "h-8 w-8 cursor-pointer transition-colors",
+                                star <= rating
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-muted-foreground/40"
+                              )}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {rating > 0
+                          ? `Anda memberi ${rating} Bintang`
+                          : "Klik bintang untuk menilai"}
+                      </p>
+
+                      <div className="w-full space-y-2 mt-2">
+                        <Label>Ulasan (Opsional)</Label>
+                        <Textarea
+                          placeholder="Tulis ulasan tentang hasil kerja desainer ini..."
+                          value={reviewText}
+                          onChange={(e) => setReviewText(e.target.value)}
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+
+                    <DialogFooter className="sm:justify-between">
+                      <Button
+                        variant="ghost"
+                        onClick={() => setIsFinishOpen(false)}
+                      >
+                        Batal
+                      </Button>
+                      <Button
+                        onClick={handleFinishAndReview}
+                        disabled={isSubmitting}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        {isSubmitting ? (
+                          <Loader2 className="animate-spin h-4 w-4" />
+                        ) : (
+                          "Kirim & Selesai"
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
           )}
