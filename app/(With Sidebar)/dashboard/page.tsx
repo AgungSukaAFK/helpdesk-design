@@ -118,7 +118,7 @@ export default function DashboardPage() {
         // Base Query Helper
         const getCount = async (
           status: string,
-          filter?: (query: any) => any
+          filter?: (query: any) => any,
         ) => {
           let query = s
             .from("permintaan")
@@ -150,17 +150,17 @@ export default function DashboardPage() {
             getCount("PROGRESS"),
             getCount("REVIEW"),
             getCount("DONE", (q) =>
-              q.gte("created_at", startOfDay(now).toISOString())
+              q.gte("created_at", startOfDay(now).toISOString()),
             ), // Asumsi selesai berdasarkan created_at atau updated_at? Biasanya ada kolom updated_at/finished_at. Jika tidak ada, kita pakai created_at untuk contoh ini atau perlu kolom khusus. (Disini saya pakai created_at sebagai proxy jika updated_at tidak ada, NAMUN idealnya 'updated_at' saat status berubah jadi DONE)
             // *Catatan*: Jika tabel permintaan tidak punya kolom 'updated_at', logic "Selesai Hari Ini" mungkin tidak akurat jika hanya melihat 'created_at'.
             // Mari kita asumsikan kita hitung yang statusnya DONE dan created_at dalam rentang waktu (untuk simplifikasi) atau Anda perlu menambahkan logic tracking waktu selesai.
             getCount("DONE", (q) =>
-              q.gte("created_at", startOfWeek(now).toISOString())
+              q.gte("created_at", startOfWeek(now).toISOString()),
             ),
             getCount("DONE", (q) =>
               q
                 .gte("created_at", startOfMonth(now).toISOString())
-                .lte("created_at", endOfMonth(now).toISOString())
+                .lte("created_at", endOfMonth(now).toISOString()),
             ),
             s.rpc("get_dashboard_stats"), // Pakai RPC lama hanya untuk rating
           ]);
@@ -317,7 +317,7 @@ export default function DashboardPage() {
                           day: "2-digit",
                           month: "long",
                           year: "numeric",
-                        }
+                        },
                       )}
                     </TableCell>
                     <TableCell className="font-medium min-w-[160px]">
@@ -327,7 +327,7 @@ export default function DashboardPage() {
                           day: "2-digit",
                           month: "long",
                           year: "numeric",
-                        }
+                        },
                       )}
                     </TableCell>
                     <TableCell>{req.requester}</TableCell>
@@ -343,15 +343,7 @@ export default function DashboardPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" asChild>
-                        <a
-                          href={
-                            role === "admin"
-                              ? `/permintaan-desain-admin/${req.id}`
-                              : `/permintaan-desain/${req.id}`
-                          }
-                        >
-                          Lihat
-                        </a>
+                        <a href={`/permintaan-desain/${req.id}`}>Lihat</a>
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -377,7 +369,7 @@ export default function DashboardPage() {
         cardAction={<FilePlus2 className="h-4 w-4 text-muted-foreground" />}
       >
         <p className="text-2xl font-bold">
-          {loading ? renderLoading() : stats?.baru ?? 0}
+          {loading ? renderLoading() : (stats?.baru ?? 0)}
         </p>
       </Content>
 
@@ -392,7 +384,7 @@ export default function DashboardPage() {
         }
       >
         <p className="text-2xl font-bold">
-          {loading ? renderLoading() : stats?.sedangDikerjakan ?? 0}
+          {loading ? renderLoading() : (stats?.sedangDikerjakan ?? 0)}
         </p>
       </Content>
 
@@ -408,7 +400,7 @@ export default function DashboardPage() {
             cardAction={<Eye className="h-4 w-4 text-muted-foreground" />}
           >
             <p className="text-2xl font-bold">
-              {loading ? renderLoading() : stats?.reviewUser ?? 0}
+              {loading ? renderLoading() : (stats?.reviewUser ?? 0)}
             </p>
           </Content>
 
@@ -423,7 +415,7 @@ export default function DashboardPage() {
             }
           >
             <p className="text-2xl font-bold">
-              {loading ? renderLoading() : stats?.selesaiHariIni ?? 0}
+              {loading ? renderLoading() : (stats?.selesaiHariIni ?? 0)}
             </p>
           </Content>
 
@@ -438,7 +430,7 @@ export default function DashboardPage() {
             }
           >
             <p className="text-2xl font-bold">
-              {loading ? renderLoading() : stats?.selesaiMingguIni ?? 0}
+              {loading ? renderLoading() : (stats?.selesaiMingguIni ?? 0)}
             </p>
           </Content>
 
@@ -453,7 +445,7 @@ export default function DashboardPage() {
             }
           >
             <p className="text-2xl font-bold">
-              {loading ? renderLoading() : stats?.selesaiBulanIni ?? 0}
+              {loading ? renderLoading() : (stats?.selesaiBulanIni ?? 0)}
             </p>
           </Content>
         </>
@@ -470,7 +462,7 @@ export default function DashboardPage() {
             }
           >
             <p className="text-2xl font-bold">
-              {loading ? renderLoading() : stats?.revisi ?? 0}
+              {loading ? renderLoading() : (stats?.revisi ?? 0)}
             </p>
           </Content>
 
@@ -485,7 +477,7 @@ export default function DashboardPage() {
             }
           >
             <p className="text-2xl font-bold">
-              {loading ? renderLoading() : stats?.selesai ?? 0}
+              {loading ? renderLoading() : (stats?.selesai ?? 0)}
             </p>
           </Content>
         </>

@@ -12,6 +12,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -23,6 +33,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import {
   ArrowLeft,
@@ -32,20 +50,48 @@ import {
   Download,
   FileText,
   Loader2,
+  Paperclip,
   RotateCcw,
-  Star, // Import icon Star
+  Send,
+  Star,
+  Trash2,
+  UploadCloud,
   User,
+  ShieldCheck,
+  RefreshCw, // Icon Refresh
+  AlertTriangle, // Icon Warning
+  Quote, // Icon Review
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils"; // Pastikan ada utility cn untuk conditional class
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-// Tipe Data
+// --- TIPE DATA ---
+
 interface FileItem {
   name: string;
   url: string;
+}
+
+interface UserProfile {
+  id: string;
+  name: string;
+  email?: string;
+  role: string;
+}
+
+interface KomentarItem {
+  id: number;
+  created_at: string;
+  message: string;
+  user_id: string;
+  user_name?: string;
+  sender_role?: string;
 }
 
 interface PermintaanDetail {
@@ -56,12 +102,23 @@ interface PermintaanDetail {
   status: string;
   due_date: string;
   created_at: string;
+  requester: string;
+  requester_data?: UserProfile;
   admin?: string;
-  admin_data?: { name: string; email: string; role: string };
+  admin_data?: UserProfile;
   files?: FileItem[] | null;
   rating?: string;
   review?: string;
+  departemen?: string;
 }
+
+const statusOptions = [
+  { label: "TO DO", value: "TO DO" },
+  { label: "PROGRESS", value: "PROGRESS" },
+  { label: "REVIEW", value: "REVIEW" },
+  { label: "REVISION", value: "REVISION" },
+  { label: "DONE", value: "DONE" },
+];
 
 export default function DetailPermintaanPage() {
   const params = useParams();
@@ -69,100 +126,361 @@ export default function DetailPermintaanPage() {
   const s = createClient();
   const id = params.id as string;
 
+  // State Data Utama
   const [data, setData] = useState<PermintaanDetail | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  // State untuk Revisi
+  // State Revisi & Review (User)
   const [isRevisionOpen, setIsRevisionOpen] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
-
-  // State untuk Finish/Review
   const [isFinishOpen, setIsFinishOpen] = useState(false);
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
+  // State Admin Guard (Konfirmasi ubah status DONE)
+  const [showStatusAlert, setShowStatusAlert] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string>("");
 
+  // State Diskusi
+  const [komentar, setKomentar] = useState<KomentarItem[]>([]);
+  const [pesanBaru, setPesanBaru] = useState("");
+  const [loadingKomentar, setLoadingKomentar] = useState(false);
+  const bottomChatRef = useRef<HTMLDivElement>(null);
+
+  // State Upload
+  const [isUploading, setIsUploading] = useState(false);
+
+  // --- FETCH DATA ---
+
+  // Fungsi dipisahkan agar bisa dipanggil ulang untuk Quick Refresh
+  const fetchAllData = async () => {
+    // setLoading(true); // Opsional: Matikan loading full screen jika hanya refresh parsial
+    try {
+      // 1. Get Current User & Role
+      const {
+        data: { user },
+      } = await s.auth.getUser();
+
+      if (user) {
+        const { data: myProfile } = await s
+          .from("user_profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        setCurrentUser(myProfile);
+      }
+
+      // 2. Get Detail Permintaan
       const { data: requestData, error } = await s
         .from("permintaan")
         .select("*")
         .eq("id", id)
         .single();
 
-      if (error) {
-        toast.error("Gagal memuat detail: " + error.message);
-        router.push("/permintaan-desain");
-        return;
-      }
+      if (error) throw error;
 
+      // 3. Fetch Relations
       let adminInfo = null;
+      let requesterInfo = null;
+
       if (requestData.admin) {
-        const { data: adminProfile } = await s
-          .from("user_profiles") // Sesuaikan nama tabel user profile Anda
+        const { data: a } = await s
+          .from("user_profiles")
           .select("name, email, role")
           .eq("id", requestData.admin)
           .single();
-        if (adminProfile) adminInfo = adminProfile;
+        if (a) adminInfo = a;
+      }
+
+      if (requestData.requester) {
+        const { data: r } = await s
+          .from("user_profiles")
+          .select("name, email, role")
+          .eq("id", requestData.requester)
+          .single();
+        if (r) requesterInfo = r;
       }
 
       setData({
         ...requestData,
         admin_data: adminInfo || undefined,
+        requester_data: requesterInfo || undefined,
+        files: Array.isArray(requestData.files) ? requestData.files : [],
       });
+    } catch (e: any) {
+      toast.error("Gagal memuat data: " + e.message);
+    } finally {
       setLoading(false);
-    }
-
-    if (id) fetchData();
-  }, [id, s, router]);
-
-  // Handler: Download File
-  const handleDownloadFile = async (file: FileItem) => {
-    try {
-      window.open(file.url, "_blank");
-    } catch (error) {
-      toast.error("Gagal membuka file.");
     }
   };
 
-  // Handler: Selesai & Kirim Review
-  const handleFinishAndReview = async () => {
-    if (rating === 0) {
-      toast.warning("Mohon berikan penilaian bintang (1-5).");
-      return;
+  const fetchKomentar = async (reqId: string) => {
+    setLoadingKomentar(true);
+    const { data: chatData, error } = await s
+      .from("komentar")
+      .select(
+        `
+        id, created_at, message, user_id,
+        user_profiles ( name, role ) 
+      `,
+      )
+      .eq("permintaan_id", reqId)
+      .order("created_at", { ascending: true });
+
+    if (!error && chatData) {
+      const mappedComments = chatData.map((c: any) => ({
+        id: c.id,
+        created_at: c.created_at,
+        message: c.message,
+        user_id: c.user_id,
+        user_name: c.user_profiles?.name || "Unknown",
+        sender_role: c.user_profiles?.role || "user",
+      }));
+      setKomentar(mappedComments);
+      setTimeout(
+        () => bottomChatRef.current?.scrollIntoView({ behavior: "smooth" }),
+        100,
+      );
+    }
+    setLoadingKomentar(false);
+  };
+
+  useEffect(() => {
+    if (id) {
+      fetchAllData();
+      fetchKomentar(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, s, router]);
+
+  // --- QUICK REFRESH HANDLERS ---
+  const handleRefreshData = async () => {
+    const toastId = toast.loading("Menyegarkan data...");
+    await fetchAllData();
+    toast.dismiss(toastId);
+    toast.success("Data diperbarui");
+  };
+
+  const handleRefreshChat = async () => {
+    await fetchKomentar(id);
+    toast.success("Chat diperbarui");
+  };
+
+  // --- HANDLERS ADMIN ---
+
+  const handleAmbilPermintaan = async () => {
+    if (!currentUser || !data) return;
+    setIsSubmitting(true);
+    try {
+      const { error } = await s
+        .from("permintaan")
+        .update({
+          admin: currentUser.id,
+          status: "PROGRESS",
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast.success("Berhasil mengambil permintaan!");
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              admin: currentUser.id,
+              status: "PROGRESS",
+              admin_data: currentUser,
+            }
+          : null,
+      );
+    } catch (e: any) {
+      toast.error("Gagal: " + e.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Logic: Jika status sebelumnya DONE, minta konfirmasi dulu
+  const handleStatusChangeRequest = (val: string) => {
+    if (data?.status === "DONE") {
+      setPendingStatus(val);
+      setShowStatusAlert(true);
+    } else {
+      executeStatusChange(val);
+    }
+  };
+
+  const executeStatusChange = async (val: string) => {
+    if (!data) return;
+    setIsSubmitting(true);
+    try {
+      const { error } = await s
+        .from("permintaan")
+        .update({ status: val })
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success(`Status diubah menjadi ${val}`);
+      setData((prev) => (prev ? { ...prev, status: val } : null));
+    } catch (e: any) {
+      toast.error("Gagal update status: " + e.message);
+    } finally {
+      setIsSubmitting(false);
+      setShowStatusAlert(false);
+    }
+  };
+
+  const handleDeleteFile = async (fileToDelete: FileItem) => {
+    if (!data || !window.confirm(`Hapus file ${fileToDelete.name}?`)) return;
+
+    setIsDeleting(fileToDelete.name);
+    try {
+      const updatedFiles = (data.files || []).filter(
+        (f) => f.name !== fileToDelete.name,
+      );
+
+      const { error } = await s
+        .from("permintaan")
+        .update({ files: updatedFiles })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast.success("File dihapus.");
+      setData((prev) => (prev ? { ...prev, files: updatedFiles } : null));
+    } catch (e: any) {
+      toast.error("Gagal hapus file: " + e.message);
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  // --- HANDLERS SHARED (User & Admin) ---
+
+  const handleDownloadFile = (file: FileItem) => {
+    window.open(file.url, "_blank");
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !data) return;
+
+    setIsUploading(true);
+    const toastId = toast.loading("Mengunggah file...");
+
+    const uploadPromises = Array.from(files).map(async (file) => {
+      const filePath = `${id}/${Date.now()}_${file.name}`;
+      const { data: uploadData, error } = await s.storage
+        .from("permintaan")
+        .upload(filePath, file);
+
+      if (error) return { error, file };
+
+      const { data: urlData } = s.storage
+        .from("permintaan")
+        .getPublicUrl(filePath);
+
+      return {
+        data: { name: file.name, url: urlData.publicUrl },
+        error: null,
+      };
+    });
+
+    const results = await Promise.all(uploadPromises);
+    const successfulUploads = results
+      .filter((r) => !r.error)
+      .map((r) => r.data!);
+
+    if (successfulUploads.length > 0) {
+      const currentFiles = data.files || [];
+      const newFilesList = [...currentFiles, ...successfulUploads];
+
+      const { error: dbError } = await s
+        .from("permintaan")
+        .update({ files: newFilesList })
+        .eq("id", id);
+
+      if (dbError) {
+        toast.error("Gagal simpan ke database", { id: toastId });
+      } else {
+        toast.success("File berhasil diunggah", { id: toastId });
+        setData((prev) => (prev ? { ...prev, files: newFilesList } : null));
+      }
+    } else {
+      toast.error("Gagal mengunggah", { id: toastId });
     }
 
+    setIsUploading(false);
+    e.target.value = "";
+  };
+
+  // --- HANDLERS DISKUSI ---
+
+  const handleSendComment = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!pesanBaru.trim() || !currentUser) return;
+
+    const tempMessage = pesanBaru;
+    setPesanBaru("");
+
+    const { error } = await s.from("komentar").insert({
+      permintaan_id: id,
+      user_id: currentUser.id,
+      message: tempMessage,
+    });
+
+    if (error) {
+      toast.error("Gagal kirim pesan");
+      setPesanBaru(tempMessage);
+    } else {
+      await fetchKomentar(id);
+    }
+  };
+
+  // --- HANDLERS USER ACTIONS ---
+
+  const handleFinishAndReview = async () => {
+    if (rating === 0) {
+      toast.warning("Berikan rating bintang.");
+      return;
+    }
     setIsSubmitting(true);
     const { error } = await s
       .from("permintaan")
       .update({
         status: "DONE",
-        rating: rating.toString(), // Simpan sebagai string sesuai schema
+        rating: rating.toString(),
         review: reviewText,
       })
       .eq("id", id);
 
-    if (error) {
-      toast.error("Gagal menyelesaikan permintaan: " + error.message);
-    } else {
-      toast.success("Terima kasih! Penilaian Anda telah disimpan.");
-      setData((prev) => (prev ? { ...prev, status: "DONE" } : null));
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Permintaan selesai!");
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "DONE",
+              rating: rating.toString(),
+              review: reviewText,
+            }
+          : null,
+      );
       setIsFinishOpen(false);
     }
     setIsSubmitting(false);
   };
 
-  // Handler: Minta Revisi
   const handleRequestRevision = async () => {
     if (!revisionNote.trim()) {
-      toast.warning("Mohon isi catatan revisi.");
+      toast.warning("Isi catatan revisi.");
       return;
     }
-
     setIsSubmitting(true);
-
     const oldDeskripsi = data?.deskripsi || "";
     const timeNow = new Date().toLocaleString("id-ID");
     const newDeskripsi = `${oldDeskripsi}\n\n[REVISI ${timeNow}]: ${revisionNote}`;
@@ -175,95 +493,218 @@ export default function DetailPermintaanPage() {
       })
       .eq("id", id);
 
-    if (error) {
-      toast.error("Gagal kirim revisi: " + error.message);
-    } else {
-      toast.success("Revisi terkirim ke desainer.");
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Revisi dikirim.");
       setData((prev) =>
-        prev ? { ...prev, status: "REVISION", deskripsi: newDeskripsi } : null
+        prev ? { ...prev, status: "REVISION", deskripsi: newDeskripsi } : null,
       );
       setIsRevisionOpen(false);
+      // Auto kirim chat notifikasi juga agar jelas
+      await s.from("komentar").insert({
+        permintaan_id: id,
+        user_id: currentUser?.id,
+        message: `[SYSTEM] Mengirim permintaan REVISI: "${revisionNote}"`,
+      });
+      fetchKomentar(id);
     }
     setIsSubmitting(false);
   };
 
+  // --- RENDER HELPERS ---
+
   const getStatusBadge = (status: string) => {
     const s = status?.toUpperCase();
-    if (s === "DONE") return <Badge className="bg-green-600">Selesai</Badge>;
+    if (s === "DONE")
+      return <Badge className="bg-green-600 hover:bg-green-700">Selesai</Badge>;
     if (s === "PROGRESS")
       return <Badge variant="secondary">Sedang Dikerjakan</Badge>;
     if (s === "REVISION")
       return (
-        <Badge variant="outline" className="border-orange-500 text-orange-500">
+        <Badge
+          variant="outline"
+          className="border-orange-500 text-orange-500 bg-orange-50 dark:bg-orange-950/20"
+        >
           Perlu Revisi
         </Badge>
       );
     if (s === "REVIEW")
       return (
-        <Badge className="bg-blue-600 hover:bg-blue-700">
-          Menunggu Review Anda
-        </Badge>
+        <Badge className="bg-blue-600 hover:bg-blue-700">Menunggu Review</Badge>
       );
+    if (s === "TO DO") return <Badge variant="outline">Menunggu</Badge>;
     return <Badge variant="outline">{status}</Badge>;
   };
 
   if (loading) {
     return (
-      <Content title="Detail Permintaan" size="lg">
-        <div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          Memuat detail...
+      <Content title="Memuat Data..." size="lg">
+        <div className="flex h-40 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </Content>
     );
   }
 
-  if (!data) return null;
+  if (!data) return <Content title="404" description="Data tidak ditemukan." />;
 
-  const isReviewStatus = data.status?.toUpperCase() === "REVIEW";
+  const isAdmin = currentUser?.role === "admin";
+  const isReviewStatus = data.status === "REVIEW";
+  const isDoneStatus = data.status === "DONE";
+  const isRevisionStatus = data.status === "REVISION";
 
   return (
     <Content
       title="Detail Permintaan Desain"
       size="lg"
       cardAction={
-        <Button variant="outline" asChild>
-          <Link href="/permintaan-desain">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Kembali
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          {/* Quick Refresh Data Utama */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleRefreshData}
+            title="Refresh Data"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/permintaan-desain">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Kembali
+            </Link>
+          </Button>
+        </div>
       }
     >
+      {/* ADMIN ALERT DIALOG: Ubah Status dari DONE */}
+      <AlertDialog open={showStatusAlert} onOpenChange={setShowStatusAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ubah Status Selesai?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Permintaan ini sudah ditandai <b>SELESAI (DONE)</b>. Mengubah
+              status akan membuka kembali tiket ini. Apakah Anda yakin ingin
+              mengubahnya menjadi <b>{pendingStatus}</b>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowStatusAlert(false);
+                setPendingStatus("");
+              }}
+            >
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => executeStatusChange(pendingStatus)}
+            >
+              Ya, Ubah Status
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Kolom Kiri: Detail & Files */}
+        {/* KOLOM KIRI: Detail, Files, Chat */}
         <div className="md:col-span-2 space-y-6">
+          {/* ALERT REVISI: Muncul jika status Revision */}
+          {isRevisionStatus && (
+            <Alert
+              variant="default"
+              className="border-orange-500 bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-200"
+            >
+              <AlertTriangle className="h-4 w-4 stroke-orange-600" />
+              <AlertTitle>Permintaan Revisi</AlertTitle>
+              <AlertDescription>
+                User meminta perbaikan desain. Cek detail revisi di deskripsi
+                atau kolom diskusi di bawah.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* CARD DETAIL UTAMA */}
           <div className="border rounded-lg p-6 bg-card shadow-sm space-y-4">
             <div className="flex justify-between items-start">
               <div>
                 <h2 className="text-2xl font-bold">{data.judul}</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Project: {data.project}
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline">{data.project}</Badge>
+                  {data.departemen && (
+                    <Badge variant="secondary">{data.departemen}</Badge>
+                  )}
+                </div>
               </div>
               {getStatusBadge(data.status)}
             </div>
 
             <Separator />
 
+            {/* Jika DONE, Tampilkan Review */}
+            {isDoneStatus && data.rating && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 p-4 rounded-md space-y-2">
+                <div className="flex items-center gap-2">
+                  <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                  <span className="font-bold text-lg">{data.rating} / 5</span>
+                  <span className="text-muted-foreground text-sm ml-1">
+                    • Penilaian User
+                  </span>
+                </div>
+                {data.review ? (
+                  <div className="flex gap-2 items-start mt-2">
+                    <Quote className="h-4 w-4 text-muted-foreground rotate-180 flex-shrink-0 mt-1" />
+                    <p className="text-sm italic text-muted-foreground">
+                      {data.review}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    Tidak ada ulasan tertulis.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <Label className="text-base font-semibold mb-2 block">
-                Deskripsi & Brief
+                Deskripsi
               </Label>
-              <div className="prose dark:prose-invert max-w-none text-sm p-3 bg-muted/30 rounded-md whitespace-pre-wrap leading-relaxed">
-                {data.deskripsi || "Tidak ada deskripsi."}
+              <div className="prose dark:prose-invert max-w-none text-sm p-4 bg-muted/30 rounded-md whitespace-pre-wrap leading-relaxed">
+                {data.deskripsi || "-"}
               </div>
             </div>
 
-            {/* TABEL FILE LAMPIRAN */}
+            {/* SECTION FILES */}
             <div>
-              <Label className="text-base font-semibold mb-3 block">
-                File Lampiran & Hasil Desain
-              </Label>
+              <div className="flex justify-between items-center mb-3">
+                <Label className="text-base font-semibold">Lampiran</Label>
+                <div className="relative">
+                  <Input
+                    type="file"
+                    id="file-upload"
+                    className="hidden"
+                    multiple
+                    onChange={handleUpload}
+                    disabled={isUploading}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    disabled={isUploading}
+                  >
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      {isUploading ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-2" />
+                      ) : (
+                        <UploadCloud className="h-3 w-3 mr-2" />
+                      )}
+                      {isAdmin ? "Upload Hasil/File" : "Upload Tambahan"}
+                    </label>
+                  </Button>
+                </div>
+              </div>
+
               {data.files && data.files.length > 0 ? (
                 <div className="border rounded-md overflow-hidden">
                   <Table>
@@ -278,20 +719,37 @@ export default function DetailPermintaanPage() {
                       {data.files.map((f, idx) => (
                         <TableRow key={idx}>
                           <TableCell>{idx + 1}</TableCell>
-                          <TableCell
-                            className="font-medium truncate max-w-[200px]"
-                            title={f.name}
-                          >
-                            {f.name}
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2 max-w-[200px] truncate">
+                              <Paperclip className="h-3 w-3 text-muted-foreground" />
+                              <span title={f.name}>{f.name}</span>
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDownloadFile(f)}
-                            >
-                              <Download className="mr-2 h-4 w-4" /> Unduh
-                            </Button>
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDownloadFile(f)}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              {isAdmin && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteFile(f)}
+                                  disabled={isDeleting === f.name}
+                                >
+                                  {isDeleting === f.name ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -300,32 +758,138 @@ export default function DetailPermintaanPage() {
                 </div>
               ) : (
                 <div className="text-center p-6 border border-dashed rounded-md text-muted-foreground text-sm">
-                  Tidak ada file yang dilampirkan.
+                  Belum ada file.
                 </div>
               )}
             </div>
           </div>
 
-          {/* AREA TINDAKAN: Status REVIEW */}
-          {isReviewStatus && (
-            <div className="border rounded-lg p-6 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* CHAT SECTION */}
+          <div className="border rounded-lg bg-card shadow-sm flex flex-col h-[500px]">
+            <div className="p-4 border-b bg-muted/20 flex justify-between items-center">
+              <h3 className="font-semibold flex items-center gap-2">
+                <FileText className="h-4 w-4" /> Diskusi & Revisi
+              </h3>
+              {/* Quick Refresh Chat */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleRefreshChat}
+                title="Refresh Chat"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-950/50">
+              {loadingKomentar ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="animate-spin text-muted-foreground" />
+                </div>
+              ) : komentar.length === 0 ? (
+                <div className="text-center text-sm text-muted-foreground py-10 opacity-60">
+                  Belum ada diskusi.
+                </div>
+              ) : (
+                komentar.map((k) => {
+                  const isMe = k.user_id === currentUser?.id;
+                  const isSystem = k.message.startsWith("[SYSTEM]"); // Deteksi pesan sistem
+                  return (
+                    <div
+                      key={k.id}
+                      className={cn(
+                        "flex gap-3 max-w-[85%]",
+                        isMe ? "ml-auto flex-row-reverse" : "",
+                        isSystem ? "mx-auto max-w-full justify-center" : "",
+                      )}
+                    >
+                      {!isSystem && (
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback
+                            className={cn(
+                              "text-xs",
+                              isMe ? "bg-primary text-primary-foreground" : "",
+                            )}
+                          >
+                            {k.user_name?.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+
+                      <div
+                        className={cn(
+                          "p-3 rounded-lg text-sm shadow-sm",
+                          isSystem
+                            ? "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200 border border-orange-200 text-xs py-1"
+                            : isMe
+                              ? "bg-primary text-primary-foreground rounded-tr-none"
+                              : "bg-white dark:bg-slate-800 border rounded-tl-none",
+                        )}
+                      >
+                        {!isSystem && (
+                          <div className="flex items-center gap-2 mb-1 opacity-80 text-xs font-medium">
+                            <span>{k.user_name}</span>
+                            {k.sender_role === "admin" && (
+                              <Badge
+                                variant="secondary"
+                                className="h-4 px-1 text-[9px]"
+                              >
+                                ADMIN
+                              </Badge>
+                            )}
+                            <span className="font-normal text-[10px] opacity-70">
+                              {new Date(k.created_at).toLocaleTimeString(
+                                "id-ID",
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </span>
+                          </div>
+                        )}
+
+                        <p className="whitespace-pre-wrap leading-relaxed">
+                          {k.message}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={bottomChatRef} />
+            </div>
+            <div className="p-4 border-t bg-card">
+              <form onSubmit={handleSendComment} className="flex gap-2">
+                <Input
+                  placeholder="Ketik pesan..."
+                  value={pesanBaru}
+                  onChange={(e) => setPesanBaru(e.target.value)}
+                  className="flex-1"
+                />
+                <Button type="submit" size="icon" disabled={!pesanBaru.trim()}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              </form>
+            </div>
+          </div>
+
+          {/* USER ACTION AREA (Only for Requester when REVIEW) */}
+          {!isAdmin && isReviewStatus && (
+            <div className="border rounded-lg p-6 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-bottom-5">
               <div>
-                <h3 className="font-semibold text-blue-900 dark:text-blue-100">
-                  Cek Hasil Desain
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100 flex items-center gap-2">
+                  <Info className="h-4 w-4" /> Konfirmasi Hasil
                 </h3>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Silakan unduh file di atas. Jika sudah sesuai klik
-                  &quot;Selesai&quot;, jika belum klik &quot;Minta Revisi&quot;.
+                  Cek file di atas. Klik &quot;Selesai&quot; jika sudah oke,
+                  atau &quot;Revisi&quot; jika belum.
                 </p>
               </div>
-              <div className="flex gap-3 w-full md:w-auto">
-                {/* DIALOG REVISI */}
+              <div className="flex gap-3">
                 <Dialog open={isRevisionOpen} onOpenChange={setIsRevisionOpen}>
                   <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="border-blue-300 hover:bg-blue-100 dark:border-blue-700"
-                    >
+                    <Button variant="outline">
                       <RotateCcw className="mr-2 h-4 w-4" /> Revisi
                     </Button>
                   </DialogTrigger>
@@ -333,18 +897,17 @@ export default function DetailPermintaanPage() {
                     <DialogHeader>
                       <DialogTitle>Catatan Revisi</DialogTitle>
                       <DialogDescription>
-                        Jelaskan bagian yang perlu diperbaiki oleh desainer.
+                        Berikan detail revisi yang jelas agar desainer dapat
+                        memperbaiki dengan cepat.
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="py-4">
-                      <Label className="mb-2 block">Detail Revisi</Label>
-                      <Textarea
-                        placeholder="Contoh: Warna logo terlalu gelap, tolong dicerahkan..."
-                        value={revisionNote}
-                        onChange={(e) => setRevisionNote(e.target.value)}
-                        rows={4}
-                      />
-                    </div>
+                    <Label>Detail Perbaikan</Label>
+                    <Textarea
+                      placeholder="Contoh: Ubah warna font menjadi biru, logo diperbesar sedikit..."
+                      value={revisionNote}
+                      onChange={(e) => setRevisionNote(e.target.value)}
+                      rows={4}
+                    />
                     <DialogFooter>
                       <Button
                         variant="ghost"
@@ -366,77 +929,48 @@ export default function DetailPermintaanPage() {
                   </DialogContent>
                 </Dialog>
 
-                {/* DIALOG SELESAI (Rating & Review) */}
                 <Dialog open={isFinishOpen} onOpenChange={setIsFinishOpen}>
                   <DialogTrigger asChild>
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Button className="bg-green-600 hover:bg-green-700">
                       <CheckCircle2 className="mr-2 h-4 w-4" /> Selesai
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
+                  <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Terima Hasil Desain</DialogTitle>
-                      <DialogDescription>
-                        Mohon berikan penilaian dan ulasan sebelum menyelesaikan
-                        permintaan ini.
-                      </DialogDescription>
+                      <DialogTitle>Terima Hasil & Rating</DialogTitle>
                     </DialogHeader>
-
                     <div className="flex flex-col items-center gap-4 py-4">
-                      {/* Star Rating Input */}
+                      <Label>Seberapa puas Anda dengan hasil desain ini?</Label>
                       <div className="flex gap-2">
                         {[1, 2, 3, 4, 5].map((star) => (
-                          <button
+                          <Star
                             key={star}
-                            type="button"
                             onClick={() => setRating(star)}
-                            className="focus:outline-none transition-transform hover:scale-110"
-                          >
-                            <Star
-                              className={cn(
-                                "h-8 w-8 cursor-pointer transition-colors",
-                                star <= rating
-                                  ? "fill-yellow-400 text-yellow-400"
-                                  : "text-muted-foreground/40"
-                              )}
-                            />
-                          </button>
+                            className={cn(
+                              "h-8 w-8 cursor-pointer transition-colors hover:scale-110",
+                              star <= rating
+                                ? "fill-yellow-400 text-yellow-400"
+                                : "text-muted-foreground/40",
+                            )}
+                          />
                         ))}
                       </div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {rating > 0
-                          ? `Anda memberi ${rating} Bintang`
-                          : "Klik bintang untuk menilai"}
-                      </p>
-
-                      <div className="w-full space-y-2 mt-2">
-                        <Label>Ulasan (Opsional)</Label>
+                      <div className="w-full">
+                        <Label>Ulasan / Masukan (opsional)</Label>
                         <Textarea
-                          placeholder="Tulis ulasan tentang hasil kerja desainer ini..."
+                          placeholder="Tulis ulasan Anda..."
                           value={reviewText}
                           onChange={(e) => setReviewText(e.target.value)}
-                          rows={3}
+                          className="mt-2"
                         />
                       </div>
                     </div>
-
-                    <DialogFooter className="sm:justify-between">
-                      <Button
-                        variant="ghost"
-                        onClick={() => setIsFinishOpen(false)}
-                      >
-                        Batal
-                      </Button>
+                    <DialogFooter>
                       <Button
                         onClick={handleFinishAndReview}
                         disabled={isSubmitting}
-                        className="bg-green-600 hover:bg-green-700 text-white"
                       >
-                        {isSubmitting ? (
-                          <Loader2 className="animate-spin h-4 w-4" />
-                        ) : (
-                          "Kirim & Selesai"
-                        )}
+                        Kirim
                       </Button>
                     </DialogFooter>
                   </DialogContent>
@@ -446,9 +980,64 @@ export default function DetailPermintaanPage() {
           )}
         </div>
 
-        {/* Kolom Kanan: Info Project */}
+        {/* KOLOM KANAN: Sidebar Info */}
         <div className="space-y-6">
-          <div className="border rounded-lg p-5 bg-card shadow-sm space-y-5">
+          {/* ADMIN CONTROL PANEL */}
+          {isAdmin && (
+            <div className="border rounded-lg p-5 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="h-5 w-5 text-indigo-600" />
+                <h3 className="font-bold text-sm uppercase tracking-wider text-indigo-900 dark:text-indigo-300">
+                  Admin Control
+                </h3>
+              </div>
+
+              {/* Tombol Ambil Job */}
+              {!data.admin && data.status === "TO DO" && (
+                <div className="p-3 bg-white dark:bg-slate-800 rounded border text-center space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Permintaan ini belum ada yang mengerjakan.
+                  </p>
+                  <Button
+                    className="w-full"
+                    size="sm"
+                    onClick={handleAmbilPermintaan}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="animate-spin h-4 w-4" />
+                    ) : (
+                      "Ambil Permintaan Ini"
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* Ganti Status Manual */}
+              <div className="space-y-2">
+                <Label className="text-xs">Update Status</Label>
+                <Select
+                  value={data.status}
+                  onValueChange={handleStatusChangeRequest} // Menggunakan handler baru (ada konfirmasi)
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Pilih Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {/* INFO PROJECT */}
+          <div className="border rounded-lg p-5 bg-card shadow-sm space-y-5 sticky top-6">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
               Info Project
             </h3>
@@ -484,8 +1073,23 @@ export default function DetailPermintaanPage() {
 
             <Separator />
 
+            {/* Info Requester */}
             <div className="flex items-start gap-3">
               <User className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-xs text-muted-foreground">Requester</p>
+                <p className="font-medium text-sm">
+                  {data.requester_data?.name || "Memuat..."}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {data.requester_data?.email}
+                </p>
+              </div>
+            </div>
+
+            {/* Info Admin */}
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-xs text-muted-foreground">Desainer (PIC)</p>
                 {data.admin_data ? (
@@ -493,23 +1097,15 @@ export default function DetailPermintaanPage() {
                     <p className="font-medium text-sm">
                       {data.admin_data.name}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {data.admin_data.email}
-                    </p>
+                    <Badge variant="outline" className="text-[10px] px-1 h-5">
+                      Admin
+                    </Badge>
                   </div>
                 ) : (
                   <p className="font-medium text-sm text-orange-600">
-                    Belum ditentukan
+                    Belum ada
                   </p>
                 )}
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <FileText className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Project</p>
-                <p className="font-medium text-sm">{data.project}</p>
               </div>
             </div>
           </div>

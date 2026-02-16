@@ -39,7 +39,7 @@ const data = {
     },
     {
       title: "Permintaan Desain",
-      url: "/permintaan-desain-admin",
+      url: "/permintaan-desain",
       icon: FileBox,
     },
     {
