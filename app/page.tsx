@@ -40,6 +40,12 @@ export default function LandingPageV3() {
             >
               Kata Mereka
             </a>
+            <a
+              href="/artikel"
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+            >
+              Artikel
+            </a>
           </nav>
           <div className="flex items-center gap-2">
             <ThemeSwitcher />

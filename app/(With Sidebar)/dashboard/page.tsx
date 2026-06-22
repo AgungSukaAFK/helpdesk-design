@@ -38,6 +38,9 @@ import {
   CalendarDays,
   CalendarRange,
   Eye,
+  Newspaper,
+  FileCheck2,
+  FileClock,
 } from "lucide-react";
 
 // Interfaces
@@ -72,6 +75,21 @@ interface TrenHarian {
   total: number;
 }
 
+interface ArticleStats {
+  total: number;
+  published: number;
+  draft: number;
+  totalViews: number;
+}
+
+interface ArtikelPopuler {
+  id: string;
+  title: string;
+  slug: string;
+  views: number;
+  status: string;
+}
+
 export default function DashboardPage() {
   const s = createClient();
 
@@ -81,6 +99,8 @@ export default function DashboardPage() {
     PermintaanTerbaru[]
   >([]);
   const [trenHarian, setTrenHarian] = useState<TrenHarian[]>([]);
+  const [articleStats, setArticleStats] = useState<ArticleStats | null>(null);
+  const [artikelPopuler, setArtikelPopuler] = useState<ArtikelPopuler[]>([]);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
 
@@ -206,6 +226,41 @@ export default function DashboardPage() {
             days_limit: 30,
           });
           setTrenHarian(trendData || []);
+
+          // Statistik Artikel
+          const [totalArt, publishedArt, draftArt, viewsRes, populerRes] =
+            await Promise.all([
+              s
+                .from("articles")
+                .select("*", { count: "exact", head: true }),
+              s
+                .from("articles")
+                .select("*", { count: "exact", head: true })
+                .eq("status", "published"),
+              s
+                .from("articles")
+                .select("*", { count: "exact", head: true })
+                .eq("status", "draft"),
+              s.from("articles").select("views"),
+              s
+                .from("articles")
+                .select("id, title, slug, views, status")
+                .order("views", { ascending: false })
+                .limit(5),
+            ]);
+
+          const totalViews = (viewsRes.data || []).reduce(
+            (sum, row: { views: number }) => sum + (row.views || 0),
+            0,
+          );
+
+          setArticleStats({
+            total: totalArt.count || 0,
+            published: publishedArt.count || 0,
+            draft: draftArt.count || 0,
+            totalViews,
+          });
+          setArtikelPopuler((populerRes.data as ArtikelPopuler[]) || []);
         }
 
         // Fetch Terbaru
@@ -498,6 +553,142 @@ export default function DashboardPage() {
               : `${stats?.rataRataRating?.toFixed(1) ?? "N/A"} / 10`}
           </p>
         </Content>
+      )}
+
+      {/* SECTION: STATISTIK ARTIKEL (Admin) */}
+      {role === "admin" && (
+        <>
+          {/* Total Artikel */}
+          <Content
+            size="xs"
+            title="Total Artikel"
+            className="bg-indigo-300 dark:bg-indigo-950 col-span-1 mt-6"
+            description="Semua status"
+            cardAction={<Newspaper className="h-4 w-4 text-muted-foreground" />}
+          >
+            <p className="text-2xl font-bold">
+              {loading ? renderLoading() : (articleStats?.total ?? 0)}
+            </p>
+          </Content>
+
+          {/* Published */}
+          <Content
+            size="xs"
+            title="Artikel Terbit"
+            className="bg-green-300 dark:bg-green-800 col-span-1 mt-6"
+            description="Status PUBLISHED"
+            cardAction={<FileCheck2 className="h-4 w-4 text-muted-foreground" />}
+          >
+            <p className="text-2xl font-bold">
+              {loading ? renderLoading() : (articleStats?.published ?? 0)}
+            </p>
+          </Content>
+
+          {/* Draft */}
+          <Content
+            size="xs"
+            title="Draft"
+            className="bg-slate-300 dark:bg-slate-800 col-span-1 mt-6"
+            description="Belum dipublikasikan"
+            cardAction={<FileClock className="h-4 w-4 text-muted-foreground" />}
+          >
+            <p className="text-2xl font-bold">
+              {loading ? renderLoading() : (articleStats?.draft ?? 0)}
+            </p>
+          </Content>
+
+          {/* Total Views */}
+          <Content
+            size="xs"
+            title="Total Dilihat"
+            className="bg-purple-300 dark:bg-purple-950 col-span-1 mt-6"
+            description="Akumulasi semua artikel"
+            cardAction={<Eye className="h-4 w-4 text-muted-foreground" />}
+          >
+            <p className="text-2xl font-bold">
+              {loading
+                ? renderLoading()
+                : (articleStats?.totalViews ?? 0).toLocaleString("id-ID")}
+            </p>
+          </Content>
+
+          {/* Tabel Artikel Terpopuler */}
+          <Content
+            size="lg"
+            title="Artikel Terpopuler"
+            description="5 artikel dengan jumlah dilihat terbanyak."
+            className="mt-6"
+            cardAction={
+              <Button variant="outline" size="sm" asChild>
+                <a href="/artikel-admin">Kelola Artikel</a>
+              </Button>
+            }
+          >
+            <div className="w-full overflow-x-auto rounded-md border">
+              <Table className="min-w-[600px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">No</TableHead>
+                    <TableHead>Judul</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Dilihat</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        Memuat data...
+                      </TableCell>
+                    </TableRow>
+                  ) : artikelPopuler.length > 0 ? (
+                    artikelPopuler.map((art, index) => (
+                      <TableRow key={art.id}>
+                        <TableCell className="font-medium">
+                          {index + 1}
+                        </TableCell>
+                        <TableCell
+                          className="font-medium truncate max-w-xs"
+                          title={art.title}
+                        >
+                          {art.title}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              art.status === "published"
+                                ? "default"
+                                : art.status === "draft"
+                                  ? "secondary"
+                                  : "outline"
+                            }
+                          >
+                            {art.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {(art.views ?? 0).toLocaleString("id-ID")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={`/artikel-admin/${art.id}`}>Edit</a>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        Belum ada artikel.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Content>
+        </>
       )}
     </>
   );

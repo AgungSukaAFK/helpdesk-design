@@ -20,6 +20,7 @@ import {
   BookOpen,
   Info,
   Clock,
+  Newspaper,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -46,6 +47,11 @@ const data = {
       title: "Riwayat Pengerjaan",
       url: "/riwayat-pengerjaan",
       icon: Clock,
+    },
+    {
+      title: "Artikel",
+      url: "/artikel-admin",
+      icon: Newspaper,
     },
     {
       title: "User Management",
