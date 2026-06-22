@@ -279,16 +279,20 @@ export default function DashboardPage() {
 
         // Map User Names
         if (terbaruData && terbaruData.length > 0) {
-          let userIds = terbaruData.map((req) => req.requester);
-          userIds = [
-            ...userIds,
-            terbaruData.map((req) => req.admin).filter(Boolean),
-          ];
+          const userIds = Array.from(
+            new Set(
+              [
+                ...terbaruData.map((req) => req.requester),
+                ...terbaruData.map((req) => req.admin),
+              ].filter(Boolean),
+            ),
+          );
 
-          const { data: usersData } = await s
+          const { data: usersData, error: usersError } = await s
             .from("user_profiles")
             .select("id, name")
             .in("id", userIds);
+          if (usersError) throw usersError;
 
           const idToNameMap: Record<string, string> = {};
           usersData?.forEach((u) => {
