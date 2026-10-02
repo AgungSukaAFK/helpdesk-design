@@ -21,19 +21,28 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
-import { Loader2, Newspaper, Search } from "lucide-react";
+import { Loader2, Newspaper, Search, Pencil } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useTransition } from "react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx"; // Impor library Excel
+import { EditPermintaanDialog } from "@/components/edit-permintaan-dialog";
 
 // Definisikan tipe data untuk konsistensi
 interface Permintaan {
   id: string;
   judul: string;
-  status: "PROGRESS" | "REVISION" | "REVIEW" | "DONE";
+  status: "TO DO" | "PROGRESS" | "REVISION" | "REVIEW" | "DONE" | string;
   due_date: string;
   created_at: string;
+  project?: string;
+  departemen?: string;
+  admin?: string | null;
+  admin_name?: string;
+  deskripsi?: string;
+  requester?: string;
+  requester_name?: string;
 }
 
 // Tipe data untuk ekspor Excel yang lebih lengkap
@@ -46,10 +55,7 @@ interface PermintaanExport {
   status: string;
   departemen: string;
   project: string;
-  // Relasi untuk mengambil nama requester
-  requester: {
-    name: string;
-  } | null;
+  requester?: string | null;
 }
 
 const LIMIT_OPTIONS = [10, 25, 50, 100];
@@ -80,6 +86,18 @@ export function PermintaanAdminClientContent() {
   const [startDateInput, setStartDateInput] = useState(startDate);
   const [endDateInput, setEndDateInput] = useState(endDate);
 
+  // State Realtime
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState<boolean>(true);
+
+  // State Dialog Edit
+  const [editingItem, setEditingItem] = useState<Permintaan | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
+
+  const handleOpenEdit = (item: Permintaan) => {
+    setEditingItem(item);
+    setIsEditDialogOpen(true);
+  };
+
   const createQueryString = useCallback(
     (paramsToUpdate: Record<string, string | number | undefined>) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -98,37 +116,69 @@ export function PermintaanAdminClientContent() {
     [searchParams]
   );
 
-  useEffect(() => {
-    async function fetchPermintaan() {
-      setLoading(true);
+  const fetchPermintaan = useCallback(async () => {
+    setLoading(true);
 
-      const from = (currentPage - 1) * limit;
-      const to = from + limit - 1;
+    try {
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("limit", String(limit));
+      if (searchTerm) params.set("search", searchTerm);
+      if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
+      if (startDate) params.set("startDate", startDate);
+      if (endDate) params.set("endDate", endDate);
 
-      let query = s
-        .from("permintaan")
-        .select(`id, judul, status, due_date, created_at`, { count: "exact" });
-
-      if (searchTerm) query = query.ilike("judul", `%${searchTerm}%`);
-      if (statusFilter) query = query.eq("status", statusFilter);
-      if (startDate) query = query.gte("created_at", startDate);
-      if (endDate) query = query.lte("created_at", `${endDate} 23:59:59`);
-
-      query = query.range(from, to).order("created_at", { ascending: false });
-
-      const { data, error, count } = await query;
-
-      if (error) {
-        toast.error("Gagal mengambil data: " + error.message);
-        setPermintaanList([]);
-      } else {
-        setPermintaanList((data as Permintaan[]) || []);
-        setTotalItems(count || 0);
-      }
+      const res = await fetch(`/api/permintaan?${params.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setPermintaanList(json.data || []);
+      setTotalItems(json.total || 0);
+    } catch (error: any) {
+      toast.error("Gagal mengambil data: " + error.message);
+      setPermintaanList([]);
+    } finally {
       setLoading(false);
     }
+  }, [currentPage, searchTerm, statusFilter, startDate, endDate, limit]);
+
+  useEffect(() => {
     fetchPermintaan();
-  }, [s, currentPage, searchTerm, statusFilter, startDate, endDate, limit]);
+  }, [fetchPermintaan]);
+
+  // Realtime Subscription
+  useEffect(() => {
+    const channel = s
+      .channel("realtime-permintaan-admin")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "permintaan",
+        },
+        (payload) => {
+          fetchPermintaan();
+          if (payload.eventType === "INSERT") {
+            toast.info("Permintaan desain baru masuk!", { duration: 3000 });
+          } else if (payload.eventType === "UPDATE") {
+            toast.info("Status tiket permintaan diperbarui live", { duration: 2500 });
+          } else if (payload.eventType === "DELETE") {
+            toast.info("Tiket permintaan telah dihapus", { duration: 2500 });
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setIsRealtimeConnected(true);
+        } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+          setIsRealtimeConnected(false);
+        }
+      });
+
+    return () => {
+      s.removeChannel(channel);
+    };
+  }, [s, fetchPermintaan]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -166,7 +216,7 @@ export function PermintaanAdminClientContent() {
             status,
             departemen,
             project,
-            requester:user_profiles (name)
+            requester
             `
       );
 
@@ -188,6 +238,25 @@ export function PermintaanAdminClientContent() {
         return;
       }
 
+      // Ambil data profile pemohon (requester) secara terpisah
+      const requesterIds = Array.from(
+        new Set((data || []).map((item) => item.requester).filter(Boolean))
+      ) as string[];
+
+      const nameMap: Record<string, string> = {};
+      if (requesterIds.length > 0) {
+        const { data: profiles } = await s
+          .from("user_profiles")
+          .select("id, name")
+          .in("id", requesterIds);
+
+        if (profiles) {
+          profiles.forEach((p: any) => {
+            if (p.id && p.name) nameMap[p.id] = p.name;
+          });
+        }
+      }
+
       // REVISI: Format data sesuai kolom yang diminta
       const formattedData = data.map((item) => ({
         "Tanggal Dibuat": new Date(item.created_at).toLocaleString("id-ID", {
@@ -202,7 +271,7 @@ export function PermintaanAdminClientContent() {
         Status: item.status,
         Departemen: item.departemen,
         Project: item.project,
-        Requester: item.requester?.name || "N/A",
+        Requester: (item.requester ? nameMap[item.requester] : null) || "N/A",
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(formattedData);
@@ -239,7 +308,32 @@ export function PermintaanAdminClientContent() {
   };
 
   return (
-    <Content title="Daftar Semua Permintaan Desain" size="lg">
+    <Content
+      title="Daftar Semua Permintaan Desain"
+      size="lg"
+      cardAction={
+        <Badge
+          variant="outline"
+          className={`text-xs flex items-center gap-1.5 font-normal py-1 px-2.5 transition-all shadow-sm ${
+            isRealtimeConnected
+              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              : "border-amber-500/40 bg-amber-500/10 text-amber-600"
+          }`}
+        >
+          <span className="relative flex h-2 w-2">
+            {isRealtimeConnected && (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            )}
+            <span
+              className={`relative inline-flex rounded-full h-2 w-2 ${
+                isRealtimeConnected ? "bg-emerald-500" : "bg-amber-500"
+              }`}
+            ></span>
+          </span>
+          {isRealtimeConnected ? "Live Real-time" : "Connecting..."}
+        </Badge>
+      }
+    >
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-grow">
@@ -322,8 +416,8 @@ export function PermintaanAdminClientContent() {
         </div>
       </div>
 
-      <div className="border rounded-md">
-        <Table>
+      <div className="border rounded-md overflow-hidden">
+        <Table className="min-w-[700px]">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[50px]">No</TableHead>
@@ -365,11 +459,22 @@ export function PermintaanAdminClientContent() {
                     })}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={`/permintaan-desain-admin/${permintaan.id}`}>
-                        Lihat Detail
-                      </a>
-                    </Button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                        onClick={() => handleOpenEdit(permintaan)}
+                      >
+                        <Pencil className="h-3.5 w-3.5 mr-1" />
+                        Edit
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 px-2.5" asChild>
+                        <Link href={`/permintaan-desain-admin/${permintaan.id}`}>
+                          Lihat Detail
+                        </Link>
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -385,7 +490,7 @@ export function PermintaanAdminClientContent() {
       </div>
 
       <div className="mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <span>Tampilkan</span>
           <Select
             value={String(limit)}
@@ -411,6 +516,14 @@ export function PermintaanAdminClientContent() {
           itemsPerPage={limit}
         />
       </div>
+
+      {/* DIALOG EDIT PERMINTAAN ADMIN */}
+      <EditPermintaanDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        item={editingItem}
+        onSuccess={fetchPermintaan}
+      />
     </Content>
   );
 }

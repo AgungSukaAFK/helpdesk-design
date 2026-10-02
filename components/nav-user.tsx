@@ -1,4 +1,4 @@
-import { ChevronsUpDown, LogOut, SquareUserRound } from "lucide-react";
+import { ChevronsUpDown, LogOut, Moon, SquareUserRound, Sun } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -16,7 +16,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
 import { MyAlertDialog } from "./dialog-confirm";
 import { redirect } from "next/navigation";
@@ -31,8 +33,14 @@ export function NavUser({
   };
 }) {
   const [logoutDialog, setLogoutDialog] = useState<boolean>(false);
+  const [mounted, setMounted] = useState<boolean>(false);
+  const { setTheme, resolvedTheme } = useTheme();
 
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -87,12 +95,36 @@ export function NavUser({
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <SquareUserRound />
-                  <a href="/profile" className="w-full">
-                    My Profile
-                  </a>
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/profile"
+                    className="w-full flex items-center gap-2 cursor-pointer"
+                    onClick={() => {
+                      if (isMobile) setOpenMobile(false);
+                    }}
+                  >
+                    <SquareUserRound className="size-4" />
+                    <span>My Profile</span>
+                  </Link>
                 </DropdownMenuItem>
+                {mounted && (
+                  <DropdownMenuItem
+                    className="w-full flex items-center gap-2 cursor-pointer"
+                    onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                  >
+                    {resolvedTheme === "dark" ? (
+                      <>
+                        <Sun className="size-4 text-amber-500" />
+                        <span>Mode Terang (Light)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Moon className="size-4 text-sky-400" />
+                        <span>Mode Gelap (Dark)</span>
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setLogoutDialog(true)}>

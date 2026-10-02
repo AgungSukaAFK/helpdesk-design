@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Check, Palette, Rocket, Users, ArrowRight } from "lucide-react"; // Menambahkan ArrowRight
 import Image from "next/image";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { SiteMobileNav } from "@/components/site-mobile-nav";
 
 export default function LandingPageV3() {
   return (
@@ -52,6 +53,14 @@ export default function LandingPageV3() {
             <Button variant="ghost" size="sm" asChild>
               <a href="/auth/login">Masuk</a>
             </Button>
+            <SiteMobileNav
+              links={[
+                { label: "Fitur Unggulan", href: "#features" },
+                { label: "Cara Kerja", href: "#how-it-works" },
+                { label: "Kata Mereka", href: "#testimonials" },
+                { label: "Artikel", href: "/artikel" },
+              ]}
+            />
           </div>
         </div>
       </header>
@@ -71,17 +80,17 @@ export default function LandingPageV3() {
                   akhir? DesignDesk menyatukan semua permintaan, feedback, dan
                   file desain Anda di satu tempat yang rapi.
                 </p>
-                <div className="mt-10 flex items-center gap-4">
+                <div className="mt-10 flex flex-wrap items-center gap-3 sm:gap-4">
                   <Button
                     size="lg"
-                    className="shadow-lg shadow-primary/20"
+                    className="shadow-lg shadow-primary/20 w-full sm:w-auto"
                     asChild
                   >
                     <a href="/auth/sign-up">
                       Mulai Gratis <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                   </Button>
-                  <Button size="lg" variant="outline" asChild>
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto" asChild>
                     <a href="/dashboard">Lihat Dashboard</a>
                   </Button>
                 </div>

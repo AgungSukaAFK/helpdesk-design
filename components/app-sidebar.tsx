@@ -1,5 +1,4 @@
-"use client";
-
+import { Suspense } from "react";
 import * as React from "react";
 import { redirect, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -9,7 +8,9 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "./nav-user";
 import {
@@ -21,6 +22,14 @@ import {
   Info,
   Clock,
   Newspaper,
+  CalendarCheck2,
+  UserCheck,
+  FolderKanban,
+  ShieldCheck,
+  BarChart3,
+  Target,
+  X,
+  MessageSquareDot,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -39,14 +48,49 @@ const data = {
       icon: LayoutDashboard,
     },
     {
+      title: "Attendance",
+      url: "/attendance",
+      icon: UserCheck,
+    },
+    {
+      title: "Daily Activity",
+      url: "/daily-activity",
+      icon: CalendarCheck2,
+    },
+    {
+      title: "STB HSE",
+      url: "/stb-hse",
+      icon: ShieldCheck,
+    },
+    {
+      title: "Program Kerja",
+      url: "/program-kerja",
+      icon: FolderKanban,
+    },
+    {
       title: "Permintaan Desain",
       url: "/permintaan-desain",
       icon: FileBox,
     },
     {
+      title: "KPI",
+      url: "/kpi",
+      icon: Target,
+    },
+    {
+      title: "Rekap Bulanan",
+      url: "/rekap-bulanan",
+      icon: BarChart3,
+    },
+    {
       title: "Riwayat Pengerjaan",
       url: "/riwayat-pengerjaan",
       icon: Clock,
+    },
+    {
+      title: "Review & Rating",
+      url: "/feedback",
+      icon: MessageSquareDot,
     },
     {
       title: "Artikel",
@@ -75,6 +119,16 @@ const data = {
       url: "/riwayat",
       icon: Clock,
     },
+    {
+      title: "Review & Rating",
+      url: "/feedback",
+      icon: MessageSquareDot,
+    },
+    {
+      title: "Artikel",
+      url: "/artikel-admin",
+      icon: Newspaper,
+    },
   ],
   navSecondary: [
     {
@@ -94,6 +148,61 @@ const data = {
     },
   ],
 };
+
+function SidebarLogo() {
+  const { isMobile, setOpenMobile } = useSidebar();
+  const [imgError, setImgError] = React.useState(false);
+
+  return (
+    <div className="flex h-12 items-center justify-between px-3 w-full">
+      <div className="flex items-center gap-2 overflow-hidden">
+        {!imgError ? (
+          <Image
+            src="/lourdes.png"
+            width={32}
+            height={32}
+            alt="Lourdes Autoparts"
+            className="h-8 w-auto shrink-0 object-contain"
+            unoptimized
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs shrink-0">
+            L
+          </div>
+        )}
+        <span className={isMobile ? "text-sm font-semibold truncate inline" : "hidden text-sm font-semibold truncate group-data-[state=expanded]:inline"}>
+          Lourdes Autoparts
+        </span>
+      </div>
+      {isMobile && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
+          onClick={() => setOpenMobile(false)}
+          title="Tutup menu"
+        >
+          <X className="size-4" />
+          <span className="sr-only">Tutup menu</span>
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function UserAvatarFallback({ name }: { name: string }) {
+  return (
+    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-medium text-xs">
+      {name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)}
+    </div>
+  );
+}
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const currentPath = usePathname();
@@ -126,14 +235,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <div>
-          <Image
-            src={"/lourdes.png"}
-            width={500}
-            height={500}
-            alt="Lourdes Autoparts"
-          />
-        </div>
+        <SidebarLogo />
       </SidebarHeader>
 
       <SidebarContent>
@@ -157,7 +259,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         )}
       </SidebarFooter>
 
-      <SidebarRail />
+      <SidebarRail className="bg-transparent" />
     </Sidebar>
   );
 }

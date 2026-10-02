@@ -17,7 +17,7 @@ export async function updateSession(request: NextRequest) {
   // variable. Always create a new one on each request.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
       cookies: {
         getAll() {
@@ -51,12 +51,15 @@ export async function updateSession(request: NextRequest) {
   const isPublicArticle =
     pathname === "/artikel" || pathname.startsWith("/artikel/");
 
+  const isApi = pathname.startsWith("/api");
+
   if (
     pathname !== "/" &&
     !user &&
     !pathname.startsWith("/login") &&
     !pathname.startsWith("/auth") &&
-    !isPublicArticle
+    !isPublicArticle &&
+    !isApi
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
