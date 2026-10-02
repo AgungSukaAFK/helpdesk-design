@@ -8,8 +8,12 @@ import {
   AreaChart,
   Bar,
   BarChart,
+  CartesianGrid,
+  Legend,
+  ReferenceDot,
   ResponsiveContainer,
   XAxis,
+  YAxis,
   Tooltip,
 } from "recharts";
 import {
@@ -49,6 +53,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { exportRekapExcel } from "@/lib/rekap-bulanan";
 import { ExportDashboardDialog } from "@/components/export-dashboard-dialog";
+import { getAttendanceSeedForPeriod } from "@/lib/attendance-seed";
+import { getSafetyToolboxMeetingHseSeedForPeriod } from "@/lib/safety-toolbox-meeting-hse-seed";
 
 // Icons
 import {
@@ -113,6 +119,15 @@ interface RawPermintaanItem {
   due_date?: string | null;
 }
 
+interface IntegratedDashboardMonth {
+  monthName: string;
+  monthNum: string;
+  permintaan: { masuk: number };
+  daily: { total: number };
+  attendance: { totalRecords: number };
+  safetyToolboxMeeting: { totalStandby: number };
+}
+
 const monthNamesLong = [
   "Januari",
   "Februari",
@@ -144,11 +159,16 @@ export default function DashboardPage() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // Filter Month for Chart 1 (Area) & Chart 2 (Bar)
-  const [selectedMonthArea, setSelectedMonthArea] = useState<string>("all");
-  const [selectedMonthBar, setSelectedMonthBar] = useState<string>("all");
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonthIdx = String(today.getMonth());
+  const [selectedMonthArea, setSelectedMonthArea] = useState<string>(currentMonthIdx);
+  const [selectedMonthBar, setSelectedMonthBar] = useState<string>(currentMonthIdx);
 
   // Raw items state for dynamic chart calculations
-  const [allReqItems, setAllReqItems] = useState<RawPermintaanItem[]>([]);
+  const [integratedMonths, setIntegratedMonths] = useState<IntegratedDashboardMonth[]>([]);
+  const [dailyTrend, setDailyTrend] = useState<any[]>([]);
+  const [loadingDailyTrend, setLoadingDailyTrend] = useState(false);
   const [avgTurnaround, setAvgTurnaround] = useState<string>("0 Jam");
   const [avgResolution, setAvgResolution] = useState<string>("0 Jam");
 
@@ -171,6 +191,20 @@ export default function DashboardPage() {
         const userRole = userProfile?.role || "user";
         setRole(userRole);
 
+        try {
+          const rekapResponse = await fetch(
+            `/api/rekap-bulanan?year=${new Date().getFullYear()}`
+          );
+          if (!rekapResponse.ok) {
+            throw new Error(`HTTP ${rekapResponse.status}`);
+          }
+          const rekapJson = await rekapResponse.json();
+          setIntegratedMonths(rekapJson.data?.months || []);
+        } catch (error: any) {
+          setIntegratedMonths([]);
+          toast.error("Gagal memuat grafik bulanan: " + error.message);
+        }
+
         // 2. Fetch Stats berdasarkan Role
         let statsData: DashboardStats = {
           baru: 0,
@@ -189,9 +223,7 @@ export default function DashboardPage() {
             .from("permintaan")
             .select("*", { count: "exact", head: true })
             .eq("status", status);
-          if (userRole === "designer") {
-            query = query.eq("admin", user.id);
-          } else if (userRole !== "admin") {
+          if (userRole === "user") {
             query = query.eq("requester", user.id);
           }
           if (filter) {
@@ -305,15 +337,12 @@ export default function DashboardPage() {
           .order("created_at", { ascending: false })
           .limit(1000);
 
-        if (userRole === "designer") {
-          queryTrendAndDept = queryTrendAndDept.eq("admin", user.id);
-        } else if (userRole !== "admin") {
+        if (userRole === "user") {
           queryTrendAndDept = queryTrendAndDept.eq("requester", user.id);
         }
 
         const { data: allReqData } = await queryTrendAndDept;
         const reqItems = (allReqData || []) as RawPermintaanItem[];
-        setAllReqItems(reqItems);
 
         // Average turnaround calculation from real database records
         const completedReqs = reqItems.filter(
@@ -360,9 +389,7 @@ export default function DashboardPage() {
           .order("created_at", { ascending: false })
           .limit(5);
 
-        if (userRole === "designer") {
-          queryTerbaru = queryTerbaru.eq("admin", user.id);
-        } else if (userRole !== "admin") {
+        if (userRole === "user") {
           queryTerbaru = queryTerbaru.eq("requester", user.id);
         }
 
@@ -408,100 +435,108 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, [s]);
 
-  // Dynamic calculation for Area Chart (Chart 1 - Monthly / Daily Trend)
-  const monthlyTrend = useMemo(() => {
-    const currentYear = new Date().getFullYear();
+  useEffect(() => {
+    async function fetchDailyTrend() {
+      setLoadingDailyTrend(true);
+      try {
+        const monthNum = String(Number(selectedMonthArea) + 1).padStart(2, "0");
+        const periodMonth = `${currentYear}-${monthNum}`;
+        
+        const [dailyRes, attRes, safetyRes] = await Promise.all([
+          s
+            .from("daily_activities")
+            .select("activity_date")
+            .gte("activity_date", `${periodMonth}-01`)
+            .lte("activity_date", `${periodMonth}-31`),
+          s
+            .from("attendance")
+            .select("records")
+            .eq("period_month", periodMonth),
+          s
+            .from("safety_toolbox_meeting_hse_roster")
+            .select("schedule")
+            .eq("period_month", periodMonth),
+        ]);
 
-    if (selectedMonthArea === "all") {
-      const monthKeys = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "Mei",
-        "Jun",
-        "Jul",
-        "Agu",
-        "Sep",
-        "Okt",
-        "Nov",
-        "Des",
-      ];
-      return monthKeys.map((m, idx) => {
-        const inMonth = allReqItems.filter((r) => {
-          if (!r.created_at) return false;
-          const d = new Date(r.created_at);
-          return d.getFullYear() === currentYear && d.getMonth() === idx;
-        });
-        return {
-          name: m,
-          total: inMonth.length,
-          selesai: inMonth.filter((r) => r.status === "DONE").length,
-        };
-      });
-    } else {
-      const mIdx = parseInt(selectedMonthArea, 10);
-      const daysInMonth = new Date(currentYear, mIdx + 1, 0).getDate();
-      const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+        const daysInMonth = new Date(currentYear, Number(selectedMonthArea) + 1, 0).getDate();
+        
+        let attendanceRecords = attRes.data || [];
+        if (attendanceRecords.length === 0) {
+          const seed = getAttendanceSeedForPeriod(periodMonth);
+          const employeeMap = new Map();
+          seed.forEach((s: any) => {
+            const dayMatch = s.date.match(/,\s+(\d{1,2})\s+/);
+            if (dayMatch) {
+              const dayStr = String(parseInt(dayMatch[1], 10));
+              if (!employeeMap.has(s.employee_no)) {
+                 employeeMap.set(s.employee_no, { records: {} });
+              }
+              employeeMap.get(s.employee_no).records[dayStr] = { status: s.status };
+            }
+          });
+          attendanceRecords = Array.from(employeeMap.values());
+        }
 
-      return daysArray.map((day) => {
-        const inDay = allReqItems.filter((r) => {
-          if (!r.created_at) return false;
-          const d = new Date(r.created_at);
-          return (
-            d.getFullYear() === currentYear &&
-            d.getMonth() === mIdx &&
-            d.getDate() === day
-          );
-        });
-        return {
-          name: `${day}`,
-          total: inDay.length,
-          selesai: inDay.filter((r) => r.status === "DONE").length,
-        };
-      });
-    }
-  }, [allReqItems, selectedMonthArea]);
+        let safetyRecords = safetyRes.data || [];
+        if (safetyRecords.length === 0) {
+          safetyRecords = getSafetyToolboxMeetingHseSeedForPeriod(periodMonth);
+        }
 
-  // Dynamic calculation for Bar Chart (Chart 2 - Department Stats)
-  const deptStats = useMemo(() => {
-    const currentYear = new Date().getFullYear();
+        const chartData = [];
 
-    const filtered = allReqItems.filter((item) => {
-      if (!item.created_at) return false;
-      const d = new Date(item.created_at);
-      if (d.getFullYear() !== currentYear) return false;
-      if (selectedMonthBar !== "all") {
-        const mIdx = parseInt(selectedMonthBar, 10);
-        if (d.getMonth() !== mIdx) return false;
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${periodMonth}-${String(d).padStart(2, "0")}`;
+          
+          const dailyCount = (dailyRes.data || []).filter((row: any) => row.activity_date === dateStr).length;
+
+          let attCount = 0;
+          attendanceRecords.forEach((row: any) => {
+            if (row.records && row.records[String(d)]) {
+              const st = row.records[String(d)].status;
+              if (st && st !== "Off" && st !== "Alpa" && st !== "Cuti" && st !== "OFF") {
+                 attCount++;
+              }
+            }
+          });
+
+          let safetyCount = 0;
+          safetyRecords.forEach((row: any) => {
+            if (row.schedule && (row.schedule[String(d)] === "H" || row.schedule[String(d)] === "h")) {
+              safetyCount++;
+            }
+          });
+
+          chartData.push({
+            name: String(d),
+            dailyActivity: dailyCount,
+            attendance: attCount,
+            safetyToolboxMeetingHse: safetyCount,
+          });
+        }
+
+        setDailyTrend(chartData);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingDailyTrend(false);
       }
-      return true;
-    });
+    }
+    fetchDailyTrend();
+  }, [s, selectedMonthArea, currentYear]);
 
-    const countedDepts: Record<string, number> = {};
-    filtered.forEach((item) => {
-      let dept = (item.departemen || item.project || "Lainnya").trim();
-      if (!dept) dept = "Lainnya";
+  const moduleStats = useMemo(() => {
+    const months = integratedMonths.filter(
+        (month) => month.monthNum === String(Number(selectedMonthBar) + 1).padStart(2, "0")
+      );
+    const sum = (getValue: (month: IntegratedDashboardMonth) => number) =>
+      months.reduce((total, month) => total + getValue(month), 0);
 
-      if (/^(HR\/GA|HR-GA|HR & GA)$/i.test(dept)) dept = "HR/GA";
-      else if (/^(GENERAL AFFAIR|GA)$/i.test(dept)) dept = "General Affair";
-      else if (/^(HR|HUMAN RESOURCE|HUMAN RESOURCES)$/i.test(dept)) dept = "HR";
-      else if (/^(MARKETING|MAR)$/i.test(dept)) dept = "Marketing";
-      else if (/^(SERVICE|SER)$/i.test(dept)) dept = "Service";
-      else if (/^(IT|INFORMATION TECHNOLOGY)$/i.test(dept)) dept = "IT";
-      else if (/^(WAREHOUSE|GUDANG|WAR)$/i.test(dept)) dept = "Warehouse";
-      else if (/^(HSE|K3|SAFETY)$/i.test(dept)) dept = "HSE";
-      else if (/^(FINANCE|KEUANGAN|FIN)$/i.test(dept)) dept = "Finance";
-      else if (/^(SCM|SUPPLY CHAIN)$/i.test(dept)) dept = "SCM";
-      else if (/^(DESIGN|DESAIN)$/i.test(dept)) dept = "Design";
-
-      countedDepts[dept] = (countedDepts[dept] || 0) + 1;
-    });
-
-    return Object.entries(countedDepts)
-      .map(([name, total]) => ({ name, total }))
-      .sort((a, b) => b.total - a.total);
-  }, [allReqItems, selectedMonthBar]);
+    return [
+      { name: "Daily Activity", total: sum((month) => month.daily.total) },
+      { name: "Attendance", total: sum((month) => month.attendance.totalRecords) },
+      { name: "Safety Toolbox Meeting", total: sum((month) => month.safetyToolboxMeeting.totalStandby) },
+    ];
+  }, [integratedMonths, selectedMonthBar]);
 
   const renderLoading = () => (
     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground inline" />
@@ -511,20 +546,12 @@ export default function DashboardPage() {
     window.location.href = "/rekap-bulanan?print=1";
   };
 
-  const today = new Date();
   const currentMonthName = format(today, "MMMM", { locale: idLocale });
-  const currentYear = today.getFullYear();
   const defaultDateFooter = `Diambil dari tanggal 1 ${currentMonthName} ${currentYear}`;
 
-  const periodSubtitleArea =
-    selectedMonthArea === "all"
-      ? `Periode Januari - Desember ${currentYear}`
-      : `Periode ${monthNamesLong[parseInt(selectedMonthArea, 10)]} ${currentYear}`;
+  const periodSubtitleArea = `Tren harian bulan ${monthNamesLong[parseInt(selectedMonthArea, 10)]} ${currentYear}`;
 
-  const periodSubtitleBar =
-    selectedMonthBar === "all"
-      ? `Periode Januari - Desember ${currentYear}`
-      : `Periode ${monthNamesLong[parseInt(selectedMonthBar, 10)]} ${currentYear}`;
+  const periodSubtitleBar = `Periode ${monthNamesLong[parseInt(selectedMonthBar, 10)]} ${currentYear}`;
 
   return (
     <>
@@ -594,7 +621,7 @@ export default function DashboardPage() {
       {/* SECTION: DUA CHART UTAMA (Area Chart Kiri & Bar Chart Kanan)             */}
       {/* ========================================================================= */}
 
-      {/* CHART KIRI: Dual Area Chart (Tren Permintaan dan Selesai) */}
+      {/* CHART KIRI: Tren Bulanan Empat Modul */}
       <div className="col-span-12 lg:col-span-6 bg-card text-card-foreground rounded-xl border border-border/70 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
         {/* Top Filter Buttons */}
         <div className="flex items-center justify-between gap-2 mb-3">
@@ -606,7 +633,6 @@ export default function DashboardPage() {
               <SelectValue placeholder="Pilih Bulan" />
             </SelectTrigger>
             <SelectContent align="end">
-              <SelectItem value="all">Semua Bulan ({currentYear})</SelectItem>
               {monthNamesLong.map((m, idx) => (
                 <SelectItem key={idx} value={String(idx)}>
                   {m} {currentYear}
@@ -619,85 +645,109 @@ export default function DashboardPage() {
         {/* Smooth Natural Area Chart */}
         <div className="h-[270px] w-full pt-1">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={monthlyTrend}
-              margin={{ top: 12, right: 12, left: -24, bottom: 0 }}
-            >
-              <defs>
-                {/* Orange Gradient */}
-                <linearGradient id="gmiAreaOrange" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#fb923c" stopOpacity={0.45} />
-                  <stop offset="95%" stopColor="#fb923c" stopOpacity={0.02} />
-                </linearGradient>
-                {/* Teal Gradient */}
-                <linearGradient id="gmiAreaTeal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2dd4bf" stopOpacity={0.45} />
-                  <stop offset="95%" stopColor="#2dd4bf" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <XAxis
-                dataKey="name"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                dy={6}
-              />
-              <Tooltip
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    const tooltipHeader =
-                      selectedMonthArea === "all"
-                        ? label
-                        : `Tanggal ${label} ${
-                            monthNamesLong[parseInt(selectedMonthArea, 10)]
-                          } ${currentYear}`;
-                    return (
-                      <div className="rounded-lg border bg-popover/95 backdrop-blur-sm p-2 text-xs shadow-md space-y-1">
-                        <p className="font-semibold text-popover-foreground">
-                          {tooltipHeader}
-                        </p>
-                        <p className="text-[#ea580c] flex items-center justify-between gap-3">
-                          <span>Total Permintaan:</span>
-                          <span className="font-bold">
-                            {payload[0]?.value ?? 0}
-                          </span>
-                        </p>
-                        <p className="text-[#0d9488] flex items-center justify-between gap-3">
-                          <span>Selesai:</span>
-                          <span className="font-bold">
-                            {payload[1]?.value ?? 0}
-                          </span>
-                        </p>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Area
-                type="natural"
-                dataKey="total"
-                stroke="#fb923c"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#gmiAreaOrange)"
-              />
-              <Area
-                type="natural"
-                dataKey="selesai"
-                stroke="#2dd4bf"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#gmiAreaTeal)"
-              />
-            </AreaChart>
+            {loadingDailyTrend ? (
+              <div className="flex items-center justify-center w-full h-full">
+                <Loader2 className="size-8 animate-spin text-muted-foreground/50" />
+              </div>
+            ) : (
+              <AreaChart
+                data={dailyTrend}
+                margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="gmiAreaTeal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2dd4bf" stopOpacity={0.32} />
+                    <stop offset="95%" stopColor="#2dd4bf" stopOpacity={0.02} />
+                  </linearGradient>
+                  <linearGradient id="gmiAreaBlue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.32} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+                  </linearGradient>
+                  <linearGradient id="gmiAreaPurple" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#a855f7" stopOpacity={0.32} />
+                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  dy={6}
+                />
+
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  allowDecimals={false}
+                  width={32}
+                />
+                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="rounded-lg border bg-popover/95 backdrop-blur-sm p-2 text-xs shadow-md space-y-1">
+                          <p className="font-semibold text-popover-foreground">
+                            {label} {monthNamesLong[parseInt(selectedMonthArea, 10)]} {currentYear}
+                          </p>
+                          {payload.map((item) => (
+                            <p key={item.dataKey} style={{ color: item.color }} className="flex items-center justify-between gap-3">
+                              <span>{item.name}:</span>
+                              <span className="font-bold">{item.value ?? 0}</span>
+                            </p>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+
+                <Area
+                  type="natural"
+                  name="Daily Activity"
+                  dataKey="dailyActivity"
+                  stroke="#2dd4bf"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#gmiAreaTeal)"
+                  dot={{ r: 3, strokeWidth: 1 }}
+                  activeDot={{ r: 5 }}
+                />
+                <Area
+                  type="natural"
+                  name="Attendance"
+                  dataKey="attendance"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#gmiAreaBlue)"
+                  dot={{ r: 3, strokeWidth: 1 }}
+                  activeDot={{ r: 5 }}
+                />
+                <Area
+                  type="natural"
+                  name="Safety Toolbox Meeting HSE"
+                  dataKey="safetyToolboxMeetingHse"
+                  stroke="#a855f7"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#gmiAreaPurple)"
+                  dot={{ r: 3, strokeWidth: 1 }}
+                  activeDot={{ r: 5 }}
+                />
+                <Legend />
+              </AreaChart>
+            )}
           </ResponsiveContainer>
         </div>
 
         {/* Bottom Card Title & Subtitle */}
         <div className="mt-4 pt-3 border-t border-border/40">
           <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-foreground">
-            <span>Statistik tren permintaan dan penyelesaian</span>
+            <span>Tren bulanan empat modul</span>
             <TrendingUp className="size-3.5 text-foreground/80 inline" />
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -706,7 +756,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* CHART KANAN: Bar Chart Departemen */}
+      {/* CHART KANAN: Perbandingan Volume per Modul */}
       <div className="col-span-12 lg:col-span-6 bg-card text-card-foreground rounded-xl border border-border/70 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
         {/* Top Filter Buttons */}
         <div className="flex items-center justify-between gap-2 mb-3">
@@ -718,7 +768,6 @@ export default function DashboardPage() {
               <SelectValue placeholder="Pilih Bulan" />
             </SelectTrigger>
             <SelectContent align="end">
-              <SelectItem value="all">Semua Bulan ({currentYear})</SelectItem>
               {monthNamesLong.map((m, idx) => (
                 <SelectItem key={idx} value={String(idx)}>
                   {m} {currentYear}
@@ -732,8 +781,8 @@ export default function DashboardPage() {
         <div className="h-[270px] w-full pt-1">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={deptStats}
-              margin={{ top: 12, right: 12, left: -24, bottom: 0 }}
+              data={moduleStats}
+              margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
             >
               <XAxis
                 dataKey="name"
@@ -742,6 +791,14 @@ export default function DashboardPage() {
                 tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                 dy={6}
               />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                allowDecimals={false}
+                width={32}
+              />
+              <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -751,7 +808,7 @@ export default function DashboardPage() {
                           {label}
                         </p>
                         <p className="text-[#0e4854] dark:text-[#2dd4bf] font-bold mt-0.5">
-                          {payload[0]?.value} Permintaan
+                          {payload[0]?.value} data
                         </p>
                       </div>
                     );
@@ -772,7 +829,7 @@ export default function DashboardPage() {
         {/* Bottom Card Title & Subtitle */}
         <div className="mt-4 pt-3 border-t border-border/40">
           <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-foreground">
-            <span>Statistik permintaan berdasarkan departemen</span>
+            <span>Perbandingan volume per modul</span>
             <TrendingUp className="size-3.5 text-foreground/80 inline" />
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -844,8 +901,8 @@ export default function DashboardPage() {
               {loading
                 ? renderLoading()
                 : role === "admin"
-                ? (stats?.reviewUser ?? 0)
-                : (stats?.revisi ?? 0)}
+                  ? (stats?.reviewUser ?? 0)
+                  : (stats?.revisi ?? 0)}
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground">
@@ -868,8 +925,8 @@ export default function DashboardPage() {
               {loading
                 ? renderLoading()
                 : role === "admin"
-                ? (stats?.selesaiBulanIni ?? 0)
-                : (stats?.selesai ?? 0)}
+                  ? (stats?.selesaiBulanIni ?? 0)
+                  : (stats?.selesai ?? 0)}
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground">
@@ -895,8 +952,8 @@ export default function DashboardPage() {
               {loading
                 ? renderLoading()
                 : role === "admin"
-                ? (stats?.selesaiHariIni ?? 0)
-                : ((stats?.baru ?? 0) + (stats?.sedangDikerjakan ?? 0))}
+                  ? (stats?.selesaiHariIni ?? 0)
+                  : ((stats?.baru ?? 0) + (stats?.sedangDikerjakan ?? 0))}
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground">
@@ -919,10 +976,10 @@ export default function DashboardPage() {
               {loading
                 ? renderLoading()
                 : role === "admin"
-                ? (stats?.selesaiMingguIni ?? 0)
-                : ((stats?.baru ?? 0) +
-                   (stats?.sedangDikerjakan ?? 0) +
-                   (stats?.selesai ?? 0))}
+                  ? (stats?.selesaiMingguIni ?? 0)
+                  : ((stats?.baru ?? 0) +
+                    (stats?.sedangDikerjakan ?? 0) +
+                    (stats?.selesai ?? 0))}
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground">
@@ -948,8 +1005,8 @@ export default function DashboardPage() {
               <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-0.5">
                 {stats?.rataRataRating
                   ? `${avgResolution} (Rating Kepuasan: ${stats.rataRataRating.toFixed(
-                      1
-                    )} / 10)`
+                    1
+                  )} / 10)`
                   : avgResolution}
               </p>
             </div>
@@ -975,7 +1032,7 @@ export default function DashboardPage() {
               {role === "admin"
                 ? "5 permintaan terakhir di sistem."
                 : role === "designer"
-                  ? "5 permintaan yang ditugaskan kepada Anda."
+                  ? "5 permintaan terbaru di sistem."
                   : "5 permintaan terakhir Anda."}
             </p>
           </div>
@@ -1064,8 +1121,8 @@ export default function DashboardPage() {
                           req.status === "DONE"
                             ? "default"
                             : req.status === "PROGRESS"
-                            ? "secondary"
-                            : "outline"
+                              ? "secondary"
+                              : "outline"
                         }
                         className="text-[11px] font-medium"
                       >
@@ -1254,8 +1311,8 @@ export default function DashboardPage() {
                               art.status === "published"
                                 ? "default"
                                 : art.status === "draft"
-                                ? "secondary"
-                                : "outline"
+                                  ? "secondary"
+                                  : "outline"
                             }
                             className="text-[11px] font-medium"
                           >

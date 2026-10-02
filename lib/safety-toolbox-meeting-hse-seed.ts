@@ -1,4 +1,4 @@
-export interface StbHseRosterRecord {
+export interface SafetyToolboxMeetingHseRosterRecord {
   id: string;
   period_month: string; // Format: YYYY-MM (e.g. "2026-06")
   employee_no?: string;
@@ -98,9 +98,9 @@ export function calculatePersonStats(schedule: Record<number, string>) {
 /**
  * Data awal (Initial Seed) persis sesuai lampiran Excel untuk bulan Juni 2026
  */
-export const INITIAL_STB_HSE_DATA: StbHseRosterRecord[] = [
+export const INITIAL_SAFETY_TOOLBOX_MEETING_HSE_DATA: SafetyToolboxMeetingHseRosterRecord[] = [
   {
-    id: "stb-2026-06-01",
+    id: "safety-toolbox-meeting-2026-06-01",
     period_month: "2026-06",
     employee_no: "GIS19040039",
     name: "Paulus Petrus Parlindungan Sianipar",
@@ -122,7 +122,7 @@ export const INITIAL_STB_HSE_DATA: StbHseRosterRecord[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: "stb-2026-06-02",
+    id: "safety-toolbox-meeting-2026-06-02",
     period_month: "2026-06",
     employee_no: "GIS25100212",
     name: "Muhammad Farel Ramadhan",
@@ -146,7 +146,7 @@ export const INITIAL_STB_HSE_DATA: StbHseRosterRecord[] = [
 ];
 
 /**
- * Deteksi nama bulan dari teks (e.g. "Juni", "June", "06", "Jadwal STB HSE Juli 2026")
+ * Deteksi nama bulan dari teks (e.g. "Juni", "June", "06", "Jadwal Safety Toolbox Meeting HSE Juli 2026")
  * Mengembalikan format "01".."12" atau null jika tidak ditemukan.
  */
 export function detectMonthFromText(text: string): string | null {
@@ -190,9 +190,9 @@ export function detectYearFromText(text: string): number | null {
  * Buat jadwal roster standby operasional untuk 1 bulan tertentu (Paulus & Farel)
  * Hari Senin: Shift Siang (H), Hari Kamis: Shift Malam (h)
  */
-export function getStbHseSeedForPeriod(period: string): StbHseRosterRecord[] {
+export function getSafetyToolboxMeetingHseSeedForPeriod(period: string): SafetyToolboxMeetingHseRosterRecord[] {
   if (period === "2026-06") {
-    return INITIAL_STB_HSE_DATA;
+    return INITIAL_SAFETY_TOOLBOX_MEETING_HSE_DATA;
   }
 
   const [yearStr, monthStr] = period.split("-");
@@ -202,7 +202,11 @@ export function getStbHseSeedForPeriod(period: string): StbHseRosterRecord[] {
     return [];
   }
 
-  const totalDays = getDaysInMonth(year, month);
+  let totalDays = getDaysInMonth(year, month);
+  const today = new Date();
+  if (year === today.getFullYear() && month === today.getMonth() + 1) {
+    totalDays = today.getDate();
+  }
   const paulusSchedule: Record<number, string> = {};
   const farelSchedule: Record<number, string> = {};
 
@@ -223,7 +227,7 @@ export function getStbHseSeedForPeriod(period: string): StbHseRosterRecord[] {
 
   return [
     {
-      id: `stb-${period}-01`,
+      id: `safety-toolbox-meeting-${period}-01`,
       period_month: period,
       employee_no: "GIS19040039",
       name: "Paulus Petrus Parlindungan Sianipar",
@@ -235,7 +239,7 @@ export function getStbHseSeedForPeriod(period: string): StbHseRosterRecord[] {
       updated_at: new Date(year, month - 1, 1).toISOString(),
     },
     {
-      id: `stb-${period}-02`,
+      id: `safety-toolbox-meeting-${period}-02`,
       period_month: period,
       employee_no: "GIS25100212",
       name: "Muhammad Farel Ramadhan",
@@ -252,11 +256,11 @@ export function getStbHseSeedForPeriod(period: string): StbHseRosterRecord[] {
 /**
  * Dapatkan seluruh data roster standby tahunan terintegrasi (Jan - Des)
  */
-export function getAllStbHseSeedData(year: number = 2026): StbHseRosterRecord[] {
-  const result: StbHseRosterRecord[] = [];
+export function getAllSafetyToolboxMeetingHseSeedData(year: number = 2026): SafetyToolboxMeetingHseRosterRecord[] {
+  const result: SafetyToolboxMeetingHseRosterRecord[] = [];
   for (let m = 1; m <= 12; m++) {
     const period = `${year}-${String(m).padStart(2, "0")}`;
-    result.push(...getStbHseSeedForPeriod(period));
+    result.push(...getSafetyToolboxMeetingHseSeedForPeriod(period));
   }
   return result;
 }

@@ -4,12 +4,12 @@ import {
   getAttendanceSeedForPeriod,
 } from "@/lib/attendance-seed";
 import {
-  getStbHseSeedForPeriod,
+  getSafetyToolboxMeetingHseSeedForPeriod,
   calculatePersonStats,
   getDaysInMonth,
   isWeekend,
-  type StbHseRosterRecord,
-} from "@/lib/stb-hse-seed";
+  type SafetyToolboxMeetingHseRosterRecord,
+} from "@/lib/safety-toolbox-meeting-hse-seed";
 
 export const dynamic = "force-dynamic";
 
@@ -167,10 +167,10 @@ const KPI_DEFINITIONS: Omit<KpiRow, "realisasi" | "skor" | "skor_akhir" | "nilai
     id: "kpi-6",
     no: 6,
     perspektif_bsc: "Internal Process",
-    strategy: "Memastikan jadwal STB HSE terpenuhi untuk keamanan dan kepatuhan K3",
+    strategy: "Memastikan jadwal Safety Toolbox Meeting HSE terpenuhi untuk keamanan dan kepatuhan K3",
     tujuan_strategi: "Persentase pemenuhan jadwal standby HSE sesuai roster yang telah ditetapkan",
     area_kinerja_utama: "Resource",
-    kpi: "Tingkat pemenuhan roster standby HSE (STB HSE)",
+    kpi: "Tingkat pemenuhan roster standby HSE (Safety Toolbox Meeting HSE)",
     bobot: 10,
     polarity: "Max",
     cap: 100,
@@ -178,7 +178,7 @@ const KPI_DEFINITIONS: Omit<KpiRow, "realisasi" | "skor" | "skor_akhir" | "nilai
     keterangan: "Persentase",
     cara_pengukuran: "Jumlah hari standby terpenuhi (ada entri H/h) / Total hari wajib standby roster × 100%",
     divisi: "Creative",
-    data_source: "STB HSE",
+    data_source: "Safety Toolbox Meeting HSE",
     note: "A1",
   },
   {
@@ -319,29 +319,29 @@ export async function GET(request: NextRequest) {
     const expectedAttendanceDays = workingDays * employeeCount;
 
     // ================================================================
-    // 4. STB HSE ROSTER
+    // 4. Safety Toolbox Meeting HSE ROSTER
     // ================================================================
-    let stbList: StbHseRosterRecord[] = [];
+    let safetyToolboxMeetingList: SafetyToolboxMeetingHseRosterRecord[] = [];
     try {
-      const { data: stbDb, error: stbError } = await supabase
-        .from("stb_hse_roster")
+      const { data: safetyToolboxMeetingDb, error: safetyToolboxMeetingError } = await supabase
+        .from("safety_toolbox_meeting_hse_roster")
         .select("*")
         .eq("period_month", periodStr);
-      if (!stbError && stbDb && stbDb.length > 0) {
-        stbList = stbDb as StbHseRosterRecord[];
+      if (!safetyToolboxMeetingError && safetyToolboxMeetingDb && safetyToolboxMeetingDb.length > 0) {
+        safetyToolboxMeetingList = safetyToolboxMeetingDb as SafetyToolboxMeetingHseRosterRecord[];
       }
     } catch {
       // ignore
     }
 
     // Fallback ke seed
-    if (stbList.length === 0) {
-      stbList = getStbHseSeedForPeriod(periodStr);
+    if (safetyToolboxMeetingList.length === 0) {
+      safetyToolboxMeetingList = getSafetyToolboxMeetingHseSeedForPeriod(periodStr);
     }
 
     let totalStandbyDays = 0;
     let fulfilledStandbyDays = 0;
-    for (const person of stbList) {
+    for (const person of safetyToolboxMeetingList) {
       const stats = calculatePersonStats(person.schedule || {});
       totalStandbyDays += stats.totalStandby;
       fulfilledStandbyDays += stats.totalStandby;
@@ -352,7 +352,7 @@ export async function GET(request: NextRequest) {
       const dow = new Date(year, monthNum - 1, d).getDay();
       if (dow === 1 || dow === 4) expectedStandbyDays++; // Senin dan Kamis
     }
-    const totalExpectedStandby = expectedStandbyDays * (stbList.length || 2);
+    const totalExpectedStandby = expectedStandbyDays * (safetyToolboxMeetingList.length || 2);
 
     // ================================================================
     // HITUNG REALISASI, SKOR (CAPAIAN %), DAN SKOR AKHIR (TERTIMBANG)

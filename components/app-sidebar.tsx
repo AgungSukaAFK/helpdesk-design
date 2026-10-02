@@ -58,8 +58,8 @@ const data = {
       icon: CalendarCheck2,
     },
     {
-      title: "STB HSE",
-      url: "/stb-hse",
+      title: "Safety Toolbox Meeting HSE",
+      url: "/safety-toolbox-meeting-hse",
       icon: ShieldCheck,
     },
     {

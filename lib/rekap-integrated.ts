@@ -4,10 +4,10 @@ import {
   type AttendanceRecord,
 } from "@/lib/attendance-seed";
 import {
-  INITIAL_STB_HSE_DATA,
-  type StbHseRosterRecord,
+  INITIAL_SAFETY_TOOLBOX_MEETING_HSE_DATA,
+  type SafetyToolboxMeetingHseRosterRecord,
   calculatePersonStats,
-} from "@/lib/stb-hse-seed";
+} from "@/lib/safety-toolbox-meeting-hse-seed";
 
 export const MONTH_NAMES_ID = [
   "Januari",
@@ -71,8 +71,8 @@ export interface MonthIntegratedData {
     attendanceRate: number | null;
   };
 
-  // 4. STB HSE
-  stb: {
+  // 4. Safety Toolbox Meeting HSE
+  safetyToolboxMeeting: {
     personil: number;
     countH: number;
     countHSmall: number;
@@ -124,17 +124,17 @@ export interface YearIntegratedRekap {
     attendanceTotalMinutes: number;
     attendanceRate: number;
 
-    stbPersonil: number;
-    stbTotalStandby: number;
-    stbCountH: number;
-    stbCountHSmall: number;
+    safetyToolboxMeetingPersonil: number;
+    safetyToolboxMeetingTotalStandby: number;
+    safetyToolboxMeetingCountH: number;
+    safetyToolboxMeetingCountHSmall: number;
 
     overallKpiGrade: "Sangat Baik" | "Baik" | "Cukup Baik" | "Kurang Baik";
   };
 }
 
 const LOCAL_ATTENDANCE = "attendance_records_v2";
-const LOCAL_STB = "stb_hse_roster_records_v1";
+const LOCAL_SAFETY_TOOLBOX_MEETING = "safety_toolbox_meeting_hse_roster_records_v1";
 const LOCAL_DAILY = "daily_activity_records_v2";
 
 function readLocalJSON<T>(key: string): T | null {
@@ -154,9 +154,9 @@ export async function fetchIntegratedRekap(year: number = 2026): Promise<YearInt
       if (json.data && json.data.months) {
         const rekapData: YearIntegratedRekap = json.data;
 
-        // Cek apakah ada data lokal di localStorage untuk Attendance, STB HSE, atau Daily Activity
+        // Cek apakah ada data lokal di localStorage untuk Attendance, Safety Toolbox Meeting HSE, atau Daily Activity
         const localAttendance = readLocalJSON<AttendanceRecord[]>(LOCAL_ATTENDANCE);
-        const localStb = readLocalJSON<StbHseRosterRecord[]>(LOCAL_STB);
+        const localSafetyToolboxMeeting = readLocalJSON<SafetyToolboxMeetingHseRosterRecord[]>(LOCAL_SAFETY_TOOLBOX_MEETING);
         const localDaily = readLocalJSON<any[]>(LOCAL_DAILY);
 
         let modified = false;
@@ -195,22 +195,22 @@ export async function fetchIntegratedRekap(year: number = 2026): Promise<YearInt
           });
         }
 
-        // 2. Overlay jika ada custom imported STB HSE di localStorage
-        if (localStb && localStb.length > 0) {
+        // 2. Overlay jika ada custom imported Safety Toolbox Meeting HSE di localStorage
+        if (localSafetyToolboxMeeting && localSafetyToolboxMeeting.length > 0) {
           rekapData.months.forEach((m) => {
-            const localMonthStb = localStb.filter((s) => s.period_month === m.period);
-            if (localMonthStb.length > 0) {
+            const localMonthSafetyToolboxMeeting = localSafetyToolboxMeeting.filter((s) => s.period_month === m.period);
+            if (localMonthSafetyToolboxMeeting.length > 0) {
               let countH = 0;
               let countHSmall = 0;
               let countOther = 0;
-              localMonthStb.forEach((r) => {
+              localMonthSafetyToolboxMeeting.forEach((r) => {
                 const stats = calculatePersonStats(r.schedule || {});
                 countH += stats.countH;
                 countHSmall += stats.countHSmall;
                 countOther += stats.countOther;
               });
-              m.stb = {
-                personil: localMonthStb.length,
+              m.safetyToolboxMeeting = {
+                personil: localMonthSafetyToolboxMeeting.length,
                 countH,
                 countHSmall,
                 countOther,
@@ -260,7 +260,7 @@ export async function fetchIntegratedRekap(year: number = 2026): Promise<YearInt
         if (modified) {
           // Rekalkulasi status aktif & KPI Grade dinamis per bulan
           rekapData.months.forEach((m) => {
-            m.active = m.permintaan.masuk > 0 || m.daily.total > 0 || m.attendance.prs > 0 || m.stb.totalStandby > 0;
+            m.active = m.permintaan.masuk > 0 || m.daily.total > 0 || m.attendance.prs > 0 || m.safetyToolboxMeeting.totalStandby > 0;
             if (m.active) {
               let weightedSum = 0;
               let totalWeight = 0;
@@ -316,10 +316,10 @@ export async function fetchIntegratedRekap(year: number = 2026): Promise<YearInt
               ? Math.round((rekapData.totals.attendancePrs / (rekapData.totals.attendancePrs + rekapData.totals.attendanceAbs)) * 1000) / 10
               : 100;
 
-          rekapData.totals.stbPersonil = Math.max(...activeMonths.map((m) => m.stb.personil), 0);
-          rekapData.totals.stbTotalStandby = activeMonths.reduce((acc, m) => acc + m.stb.totalStandby, 0);
-          rekapData.totals.stbCountH = activeMonths.reduce((acc, m) => acc + m.stb.countH, 0);
-          rekapData.totals.stbCountHSmall = activeMonths.reduce((acc, m) => acc + m.stb.countHSmall, 0);
+          rekapData.totals.safetyToolboxMeetingPersonil = Math.max(...activeMonths.map((m) => m.safetyToolboxMeeting.personil), 0);
+          rekapData.totals.safetyToolboxMeetingTotalStandby = activeMonths.reduce((acc, m) => acc + m.safetyToolboxMeeting.totalStandby, 0);
+          rekapData.totals.safetyToolboxMeetingCountH = activeMonths.reduce((acc, m) => acc + m.safetyToolboxMeeting.countH, 0);
+          rekapData.totals.safetyToolboxMeetingCountHSmall = activeMonths.reduce((acc, m) => acc + m.safetyToolboxMeeting.countHSmall, 0);
 
           const overallScore =
             rekapData.totals.permintaanSlaPct * 0.4 +
@@ -378,7 +378,7 @@ export async function fetchIntegratedRekap(year: number = 2026): Promise<YearInt
           overtimeHours: 0,
           attendanceRate: null,
         },
-        stb: {
+        safetyToolboxMeeting: {
           personil: 0,
           countH: 0,
           countHSmall: 0,
@@ -409,10 +409,10 @@ export async function fetchIntegratedRekap(year: number = 2026): Promise<YearInt
       attendanceAbs: 0,
       attendanceTotalMinutes: 0,
       attendanceRate: 100,
-      stbPersonil: 0,
-      stbTotalStandby: 0,
-      stbCountH: 0,
-      stbCountHSmall: 0,
+      safetyToolboxMeetingPersonil: 0,
+      safetyToolboxMeetingTotalStandby: 0,
+      safetyToolboxMeetingCountH: 0,
+      safetyToolboxMeetingCountHSmall: 0,
       overallKpiGrade: "Baik",
     },
   };
@@ -425,7 +425,7 @@ export function exportIntegratedExcel(data: YearIntegratedRekap): string {
   // 1. SHEET RINGKASAN EKSEKUTIF (4 MODUL)
   const summaryAoa = [
     [`Laporan Rekap Bulanan Terintegrasi ${year}`],
-    ["Departemen IT & Design Helpdesk — Permintaan Design, Daily Activity, Attendance, & STB HSE"],
+    ["Departemen IT & Design Helpdesk — Permintaan Design, Daily Activity, Attendance, & Safety Toolbox Meeting HSE"],
     [],
     ["Modul & Indikator", "Nilai Tahunan", "Keterangan"],
     ["1. PERMINTAAN DESIGN", "", ""],
@@ -448,11 +448,11 @@ export function exportIntegratedExcel(data: YearIntegratedRekap): string {
     ["Total Jam Lembur", `${Math.round(data.totals.attendanceTotalMinutes / 60)} Jam`, `${data.totals.attendanceTotalMinutes} menit`],
     ["Tingkat Kehadiran", `${data.totals.attendanceRate}%`, "Disiplin kehadiran"],
     [],
-    ["4. STB HSE (ROSTER STANDBY)", "", ""],
-    ["Personil Terdaftar", data.totals.stbPersonil, "Personil HSE standby"],
-    ["Total Hari Standby", data.totals.stbTotalStandby, "Shift Siang & Malam"],
-    ["Shift Siang (H)", data.totals.stbCountH, "Standby 08:00 - 17:00"],
-    ["Shift Malam (h)", data.totals.stbCountHSmall, "Standby 17:00 - 08:00"],
+    ["4. Safety Toolbox Meeting HSE (ROSTER STANDBY)", "", ""],
+    ["Personil Terdaftar", data.totals.safetyToolboxMeetingPersonil, "Personil HSE standby"],
+    ["Total Hari Standby", data.totals.safetyToolboxMeetingTotalStandby, "Shift Siang & Malam"],
+    ["Shift Siang (H)", data.totals.safetyToolboxMeetingCountH, "Standby 08:00 - 17:00"],
+    ["Shift Malam (h)", data.totals.safetyToolboxMeetingCountHSmall, "Standby 17:00 - 08:00"],
   ];
   const wsSummary = XLSX.utils.aoa_to_sheet(summaryAoa);
   wsSummary["!cols"] = [{ wch: 30 }, { wch: 20 }, { wch: 38 }];
@@ -470,7 +470,7 @@ export function exportIntegratedExcel(data: YearIntegratedRekap): string {
       "Daily Done",
       "Hadir (PRS)",
       "Lembur (Jam)",
-      "STB Standby (Hari)",
+      "Safety Toolbox Meeting Standby (Hari)",
       "KPI Grade",
     ],
     ...data.months.map((m) => [
@@ -483,7 +483,7 @@ export function exportIntegratedExcel(data: YearIntegratedRekap): string {
       m.daily.done,
       m.attendance.prs,
       m.attendance.overtimeHours,
-      m.stb.totalStandby,
+      m.safetyToolboxMeeting.totalStandby,
       m.kpiGrade || "-",
     ]),
     [
@@ -496,7 +496,7 @@ export function exportIntegratedExcel(data: YearIntegratedRekap): string {
       data.totals.dailyDone,
       data.totals.attendancePrs,
       Math.round(data.totals.attendanceTotalMinutes / 60),
-      data.totals.stbTotalStandby,
+      data.totals.safetyToolboxMeetingTotalStandby,
       data.totals.overallKpiGrade,
     ],
   ];
@@ -566,20 +566,20 @@ export function exportIntegratedExcel(data: YearIntegratedRekap): string {
   const wsAtt = XLSX.utils.aoa_to_sheet(attAoa);
   XLSX.utils.book_append_sheet(wb, wsAtt, "Attendance");
 
-  // 6. SHEET DETAIL STB HSE
-  const stbAoa: (string | number)[][] = [
+  // 6. SHEET DETAIL Safety Toolbox Meeting HSE
+  const safetyToolboxMeetingAoa: (string | number)[][] = [
     ["Bulan", "Personil Terdaftar", "Shift Siang (H)", "Shift Malam (h)", "Standby Lainnya", "Total Hari Standby"],
     ...data.months.map((m) => [
       m.monthName,
-      m.stb.personil,
-      m.stb.countH,
-      m.stb.countHSmall,
-      m.stb.countOther,
-      m.stb.totalStandby,
+      m.safetyToolboxMeeting.personil,
+      m.safetyToolboxMeeting.countH,
+      m.safetyToolboxMeeting.countHSmall,
+      m.safetyToolboxMeeting.countOther,
+      m.safetyToolboxMeeting.totalStandby,
     ]),
   ];
-  const wsStb = XLSX.utils.aoa_to_sheet(stbAoa);
-  XLSX.utils.book_append_sheet(wb, wsStb, "STB HSE Roster");
+  const wsSafetyToolboxMeeting = XLSX.utils.aoa_to_sheet(safetyToolboxMeetingAoa);
+  XLSX.utils.book_append_sheet(wb, wsSafetyToolboxMeeting, "Safety Toolbox Meeting HSE Roster");
 
   const fileName = `Rekap-Bulanan-Terintegrasi-${year}.xlsx`;
   XLSX.writeFile(wb, fileName);

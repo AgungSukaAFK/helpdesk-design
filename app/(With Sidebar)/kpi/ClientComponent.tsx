@@ -156,7 +156,7 @@ const DATA_SOURCE_COLORS: Record<string, string> = {
   "Permintaan Desain": "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30",
   "Daily Activity": "bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/30",
   "Attendance": "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/30",
-  "STB HSE": "bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/30",
+  "Safety Toolbox Meeting HSE": "bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/30",
 };
 
 // =====================================================================
@@ -480,8 +480,8 @@ export default function KpiClientComponent() {
         { "Info": "Hari Ada Aktivitas Done", "Nilai": data.meta.daysWithDoneActivity },
         { "Info": "Hari Hadir (Attendance)", "Nilai": data.meta.presentDays },
         { "Info": "Expected Hari Hadir", "Nilai": data.meta.expectedAttendanceDays },
-        { "Info": "STB HSE Terpenuhi", "Nilai": data.meta.fulfilledStandbyDays },
-        { "Info": "STB HSE Expected", "Nilai": data.meta.totalExpectedStandby },
+        { "Info": "Safety Toolbox Meeting HSE Terpenuhi", "Nilai": data.meta.fulfilledStandbyDays },
+        { "Info": "Safety Toolbox Meeting HSE Expected", "Nilai": data.meta.totalExpectedStandby },
       ];
 
       const ws1 = XLSX.utils.json_to_sheet(kpiRows);
@@ -695,10 +695,10 @@ export default function KpiClientComponent() {
               <div className="text-[11px] text-muted-foreground">dari {data.meta.expectedAttendanceDays} hari hadir</div>
             </div>
 
-            {/* STB HSE */}
+            {/* Safety Toolbox Meeting HSE */}
             <div className="p-4 rounded-xl border bg-card flex flex-col gap-1">
               <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
-                <Target className="h-3 w-3" /> STB HSE
+                <Target className="h-3 w-3" /> Safety Toolbox Meeting HSE
               </div>
               <div className="text-2xl font-bold text-foreground">{data.meta.fulfilledStandbyDays}</div>
               <div className="text-[11px] text-muted-foreground">dari {data.meta.totalExpectedStandby} standby terpenuhi</div>
@@ -1047,13 +1047,12 @@ export default function KpiClientComponent() {
                   </div>
                   <div className="w-full h-4 bg-muted/40 rounded-full overflow-hidden border">
                     <div
-                      className={`h-full rounded-full transition-all duration-700 ${
-                        totalScore >= 90 ? "bg-gradient-to-r from-emerald-400 to-emerald-500" :
+                      className={`h-full rounded-full transition-all duration-700 ${totalScore >= 90 ? "bg-gradient-to-r from-emerald-400 to-emerald-500" :
                         totalScore >= 75 ? "bg-gradient-to-r from-blue-400 to-blue-500" :
-                        totalScore >= 60 ? "bg-gradient-to-r from-amber-400 to-amber-500" :
-                        totalScore >= 40 ? "bg-gradient-to-r from-orange-400 to-orange-500" :
-                        "bg-gradient-to-r from-rose-400 to-rose-500"
-                      }`}
+                          totalScore >= 60 ? "bg-gradient-to-r from-amber-400 to-amber-500" :
+                            totalScore >= 40 ? "bg-gradient-to-r from-orange-400 to-orange-500" :
+                              "bg-gradient-to-r from-rose-400 to-rose-500"
+                        }`}
                       style={{ width: `${Math.min(100, Math.max(0, totalScore))}%` }}
                     />
                   </div>
@@ -1118,9 +1117,8 @@ export default function KpiClientComponent() {
                   <Badge variant="outline" className={`text-xs ${DATA_SOURCE_COLORS[detailRow.data_source] || "bg-muted/50"}`}>
                     {detailRow.data_source}
                   </Badge>
-                  <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border ${
-                    detailRow.polarity === "Max" ? "text-emerald-600 border-emerald-300" : "text-rose-600 border-rose-300"
-                  }`}>
+                  <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border ${detailRow.polarity === "Max" ? "text-emerald-600 border-emerald-300" : "text-rose-600 border-rose-300"
+                    }`}>
                     {detailRow.polarity === "Max" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                     Polarity: {detailRow.polarity}
                   </span>
@@ -1150,11 +1148,10 @@ export default function KpiClientComponent() {
                   </div>
                   <div className="rounded-lg border bg-primary/5 border-primary/20 p-3 text-center">
                     <div className="text-[11px] font-medium text-muted-foreground uppercase">Realisasi</div>
-                    <div className={`text-lg font-bold mt-0.5 ${
-                      detailRow.realisasi !== null && detailRow.realisasi >= detailRow.target
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-rose-600 dark:text-rose-400"
-                    }`}>
+                    <div className={`text-lg font-bold mt-0.5 ${detailRow.realisasi !== null && detailRow.realisasi >= detailRow.target
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-rose-600 dark:text-rose-400"
+                      }`}>
                       {detailRow.realisasi !== null ? `${detailRow.realisasi}%` : "—"}
                     </div>
                   </div>
@@ -1183,9 +1180,8 @@ export default function KpiClientComponent() {
                     </div>
                     <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all ${
-                          detailRow.realisasi >= detailRow.target ? "bg-emerald-500" : "bg-rose-500"
-                        }`}
+                        className={`h-full rounded-full transition-all ${detailRow.realisasi >= detailRow.target ? "bg-emerald-500" : "bg-rose-500"
+                          }`}
                         style={{ width: `${Math.min(100, (detailRow.realisasi / detailRow.target) * 100)}%` }}
                       />
                     </div>
@@ -1328,7 +1324,7 @@ export default function KpiClientComponent() {
                     <SelectItem value="Permintaan Desain">Permintaan Desain</SelectItem>
                     <SelectItem value="Daily Activity">Daily Activity</SelectItem>
                     <SelectItem value="Attendance">Attendance</SelectItem>
-                    <SelectItem value="STB HSE">STB HSE</SelectItem>
+                    <SelectItem value="Safety Toolbox Meeting HSE">Safety Toolbox Meeting HSE</SelectItem>
                     <SelectItem value="Manual">Manual</SelectItem>
                   </SelectContent>
                 </Select>

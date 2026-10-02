@@ -50,7 +50,7 @@ export function RekapBulananPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedModule, setSelectedModule] = useState<string>("all");
   const [slaReferenceOpen, setSlaReferenceOpen] = useState<boolean>(true);
-  const [activeDetailTab, setActiveDetailTab] = useState<"permintaan" | "daily" | "attendance" | "stb">("permintaan");
+  const [activeDetailTab, setActiveDetailTab] = useState<"permintaan" | "daily" | "attendance" | "safetyToolboxMeeting">("permintaan");
 
   const [loading, setLoading] = useState<boolean>(true);
   const [exporting, setExporting] = useState<boolean>(false);
@@ -260,10 +260,10 @@ export function RekapBulananPage() {
         attendancePrs: rekap.totals.attendancePrs ?? 0,
         attendanceOvt: rekap.totals.attendanceOvt ?? 0,
         attendanceRate: rekap.totals.attendanceRate ?? 0,
-        stbPersonil: rekap.totals.stbPersonil ?? 0,
-        stbTotalStandby: rekap.totals.stbTotalStandby ?? 0,
-        stbCountH: rekap.totals.stbCountH ?? 0,
-        stbCountHSmall: rekap.totals.stbCountHSmall ?? 0,
+        safetyToolboxMeetingPersonil: rekap.totals.safetyToolboxMeetingPersonil ?? 0,
+        safetyToolboxMeetingTotalStandby: rekap.totals.safetyToolboxMeetingTotalStandby ?? 0,
+        safetyToolboxMeetingCountH: rekap.totals.safetyToolboxMeetingCountH ?? 0,
+        safetyToolboxMeetingCountHSmall: rekap.totals.safetyToolboxMeetingCountHSmall ?? 0,
       };
     }
 
@@ -279,10 +279,10 @@ export function RekapBulananPage() {
         attendancePrs: 0,
         attendanceOvt: 0,
         attendanceRate: 0,
-        stbPersonil: 0,
-        stbTotalStandby: 0,
-        stbCountH: 0,
-        stbCountHSmall: 0,
+        safetyToolboxMeetingPersonil: 0,
+        safetyToolboxMeetingTotalStandby: 0,
+        safetyToolboxMeetingCountH: 0,
+        safetyToolboxMeetingCountHSmall: 0,
       };
     }
 
@@ -296,10 +296,10 @@ export function RekapBulananPage() {
       attendancePrs: m.attendance.prs,
       attendanceOvt: m.attendance.ovt,
       attendanceRate: m.attendance.attendanceRate ?? 0,
-      stbPersonil: m.stb.personil,
-      stbTotalStandby: m.stb.totalStandby,
-      stbCountH: m.stb.countH,
-      stbCountHSmall: m.stb.countHSmall,
+      safetyToolboxMeetingPersonil: m.safetyToolboxMeeting.personil,
+      safetyToolboxMeetingTotalStandby: m.safetyToolboxMeeting.totalStandby,
+      safetyToolboxMeetingCountH: m.safetyToolboxMeeting.countH,
+      safetyToolboxMeetingCountHSmall: m.safetyToolboxMeeting.countHSmall,
     };
   }, [rekap, selectedMonth]);
 
@@ -321,7 +321,7 @@ export function RekapBulananPage() {
         </div>
         <h2 className="text-xl font-bold tracking-tight text-foreground">Akses Terbatas (Admin Only)</h2>
         <p className="text-sm text-muted-foreground mt-2 max-w-md">
-          Halaman Rekap Bulanan Terintegrasi 4 Modul (Permintaan Desain, Attendance, Daily Activity, dan Safety Toolbox / STB HSE) hanya dapat diakses oleh pengguna dengan role Administrator.
+          Halaman Rekap Bulanan Terintegrasi 4 Modul (Permintaan Desain, Attendance, Daily Activity, dan Safety Toolbox / Safety Toolbox Meeting HSE) hanya dapat diakses oleh pengguna dengan role Administrator.
         </p>
         <Link
           href="/dashboard"
@@ -351,11 +351,11 @@ export function RekapBulananPage() {
                   Rekap Bulanan Terintegrasi {year}
                 </h1>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800">
-                  KPI 4 Modul: Design · Daily · Attendance · STB HSE
+                  KPI 4 Modul: Design · Daily · Attendance · Safety Toolbox Meeting HSE
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Laporan komprehensif terintegrasi Permintaan Design, Daily Activity, Attendance, &amp; Safety Toolbox (STB HSE) sesuai target SLA.
+                Laporan komprehensif terintegrasi Permintaan Design, Daily Activity, Attendance, &amp; Safety Toolbox (Safety Toolbox Meeting HSE) sesuai target SLA.
               </p>
             </div>
           </div>
@@ -407,7 +407,7 @@ export function RekapBulananPage() {
               <option value="permintaan">1. Permintaan Design</option>
               <option value="daily">2. Daily Activity</option>
               <option value="attendance">3. Attendance</option>
-              <option value="stb">4. STB HSE</option>
+              <option value="safetyToolboxMeeting">4. Safety Toolbox Meeting HSE</option>
             </select>
           </div>
 
@@ -714,15 +714,15 @@ export function RekapBulananPage() {
         {/* Modul 4 */}
         <div className="bg-card border rounded-xl p-3.5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">4. STB HSE</span>
+            <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">4. Safety Toolbox Meeting HSE</span>
             <Users className="size-3.5 text-indigo-500" />
           </div>
           <div className="text-2xl font-bold text-foreground mt-1">
-            {highlightTotals?.stbTotalStandby ?? 0}
-            <span className="text-sm font-medium text-muted-foreground ml-1">sesi STB</span>
+            {highlightTotals?.safetyToolboxMeetingTotalStandby ?? 0}
+            <span className="text-sm font-medium text-muted-foreground ml-1">sesi Safety Toolbox Meeting</span>
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
-            {highlightTotals?.stbCountH ?? 0} Siang (H) · {highlightTotals?.stbCountHSmall ?? 0} Malam (h) · {highlightTotals?.stbPersonil ?? 0} personil
+            {highlightTotals?.safetyToolboxMeetingCountH ?? 0} Siang (H) · {highlightTotals?.safetyToolboxMeetingCountHSmall ?? 0} Malam (h) · {highlightTotals?.safetyToolboxMeetingPersonil ?? 0} personil
           </div>
         </div>
       </div>
@@ -739,7 +739,7 @@ export function RekapBulananPage() {
               <ShieldCheck className="size-3.5 inline text-emerald-600 mr-1 -mt-0.5" />
               SLA Terintegrasi
             </span>{" "}
-            memadukan kecepatan pengerjaan desain, penyelesaian checklist aktivitas harian, tingkat disiplin kehadiran staf, dan konsistensi pelaksanaan Safety Toolbox (STB HSE).
+            memadukan kecepatan pengerjaan desain, penyelesaian checklist aktivitas harian, tingkat disiplin kehadiran staf, dan konsistensi pelaksanaan Safety Toolbox (Safety Toolbox Meeting HSE).
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
@@ -1064,9 +1064,9 @@ export function RekapBulananPage() {
                     {m.attendance.overtimeHours > 0 ? `${m.attendance.overtimeHours} Jam` : "-"}
                   </td>
                   <td className="py-2.5 px-3 text-center font-medium">
-                    {m.stb.totalStandby > 0 ? (
+                    {m.safetyToolboxMeeting.totalStandby > 0 ? (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
-                        {m.stb.totalStandby}
+                        {m.safetyToolboxMeeting.totalStandby}
                       </span>
                     ) : (
                       <span className="text-muted-foreground">-</span>
@@ -1120,7 +1120,7 @@ export function RekapBulananPage() {
                     {Math.round(totals.attendanceTotalMinutes / 60)} Jam
                   </td>
                   <td className="py-2.5 px-3 text-center text-blue-600 dark:text-blue-400">
-                    {totals.stbTotalStandby}
+                    {totals.safetyToolboxMeetingTotalStandby}
                   </td>
                   <td className="py-2.5 px-3 text-center text-amber-600 dark:text-amber-400 font-bold">
                     {totals.permintaanSlaPct}%
@@ -1178,13 +1178,13 @@ export function RekapBulananPage() {
               3. Attendance
             </button>
             <button
-              onClick={() => setActiveDetailTab("stb")}
-              className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${activeDetailTab === "stb"
+              onClick={() => setActiveDetailTab("safetyToolboxMeeting")}
+              className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${activeDetailTab === "safetyToolboxMeeting"
                 ? "bg-card text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
                 }`}
             >
-              4. STB HSE
+              4. Safety Toolbox Meeting HSE
             </button>
           </div>
         </div>
@@ -1314,33 +1314,33 @@ export function RekapBulananPage() {
             </table>
           )}
 
-          {/* TAB 4: STB HSE */}
-          {activeDetailTab === "stb" && (
+          {/* TAB 4: Safety Toolbox Meeting HSE */}
+          {activeDetailTab === "safetyToolboxMeeting" && (
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-muted/50 text-muted-foreground text-[10px] uppercase font-semibold tracking-wider border-b">
                   <th className="py-2.5 px-4 text-left">Bulan</th>
                   <th className="py-2.5 px-3 text-center">Personil Aktif</th>
-                  <th className="py-2.5 px-3 text-center">STB Siang (H)</th>
-                  <th className="py-2.5 px-3 text-center">STB Malam (h)</th>
+                  <th className="py-2.5 px-3 text-center">Safety Toolbox Meeting Siang (H)</th>
+                  <th className="py-2.5 px-3 text-center">Safety Toolbox Meeting Malam (h)</th>
                   <th className="py-2.5 px-3 text-center">Lainnya</th>
-                  <th className="py-2.5 px-3 text-center">Total Sesi STB</th>
+                  <th className="py-2.5 px-3 text-center">Total Sesi Safety Toolbox Meeting</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
                 {displayedMonths.map((m) => (
                   <tr key={m.period} className="hover:bg-muted/20">
                     <td className="py-2.5 px-4 font-semibold text-foreground">{m.monthName}</td>
-                    <td className="py-2.5 px-3 text-center font-medium">{m.stb.personil} orang</td>
+                    <td className="py-2.5 px-3 text-center font-medium">{m.safetyToolboxMeeting.personil} orang</td>
                     <td className="py-2.5 px-3 text-center font-semibold text-blue-600 dark:text-blue-400">
-                      {m.stb.countH}
+                      {m.safetyToolboxMeeting.countH}
                     </td>
                     <td className="py-2.5 px-3 text-center font-semibold text-indigo-600 dark:text-indigo-400">
-                      {m.stb.countHSmall}
+                      {m.safetyToolboxMeeting.countHSmall}
                     </td>
-                    <td className="py-2.5 px-3 text-center text-muted-foreground">{m.stb.countOther}</td>
+                    <td className="py-2.5 px-3 text-center text-muted-foreground">{m.safetyToolboxMeeting.countOther}</td>
                     <td className="py-2.5 px-3 text-center font-bold text-foreground">
-                      {m.stb.totalStandby} Sesi
+                      {m.safetyToolboxMeeting.totalStandby} Sesi
                     </td>
                   </tr>
                 ))}

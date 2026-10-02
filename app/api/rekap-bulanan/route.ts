@@ -4,10 +4,10 @@ import {
   getAttendanceSeedForPeriod,
 } from "@/lib/attendance-seed";
 import {
-  getStbHseSeedForPeriod,
+  getSafetyToolboxMeetingHseSeedForPeriod,
   calculatePersonStats,
-  type StbHseRosterRecord,
-} from "@/lib/stb-hse-seed";
+  type SafetyToolboxMeetingHseRosterRecord,
+} from "@/lib/safety-toolbox-meeting-hse-seed";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     const supabase = getAdminClient();
     const { searchParams } = new URL(request.url);
     const year = Number(searchParams.get("year") || "2026");
+    const realDataOnly = searchParams.get("realDataOnly") === "true";
 
     // 1. Fetch Permintaan Desain (Real data from Supabase)
     const { data: dbPermintaan } = await supabase
@@ -71,19 +72,19 @@ export async function GET(request: NextRequest) {
       .lte("period_month", `${year}-12`)
       .order("period_month", { ascending: true });
 
-    // 4. Fetch STB HSE (Supabase or seed)
-    let dbStb: StbHseRosterRecord[] = [];
+    // 4. Fetch Safety Toolbox Meeting HSE (Supabase or seed)
+    let dbSafetyToolboxMeeting: SafetyToolboxMeetingHseRosterRecord[] = [];
     try {
-      const { data: stbData, error: stbError } = await supabase
-        .from("stb_hse_roster")
+      const { data: safetyToolboxMeetingData, error: safetyToolboxMeetingError } = await supabase
+        .from("safety_toolbox_meeting_hse_roster")
         .select("*")
         .gte("period_month", `${year}-01`)
         .lte("period_month", `${year}-12`);
-      if (!stbError && stbData && stbData.length > 0) {
-        dbStb = stbData as StbHseRosterRecord[];
+      if (!safetyToolboxMeetingError && safetyToolboxMeetingData && safetyToolboxMeetingData.length > 0) {
+        dbSafetyToolboxMeeting = safetyToolboxMeetingData as SafetyToolboxMeetingHseRosterRecord[];
       }
     } catch {
-      // ignore STB HSE errors — fallback to seed
+      // ignore Safety Toolbox Meeting HSE errors — fallback to seed
     }
 
     const permintaanList = dbPermintaan || [];
@@ -94,32 +95,36 @@ export async function GET(request: NextRequest) {
     // ATTENDANCE: Gabungkan data Supabase dengan seed per bulan
     // ============================================================
     const combinedAttendance: any[] = [...attendanceList];
-    for (let m = 1; m <= 12; m++) {
-      const p = `${year}-${String(m).padStart(2, "0")}`;
-      const hasDbData = combinedAttendance.some((a) => a.period_month === p);
-      if (!hasDbData) {
-        const seedForMonth = getAttendanceSeedForPeriod(p);
-        seedForMonth.forEach((seed) => {
-          combinedAttendance.push({
-            period_month: seed.period_month,
-            name: seed.name,
-            status: seed.status,
-            overtime: seed.overtime,
+    if (!realDataOnly) {
+      for (let m = 1; m <= 12; m++) {
+        const p = `${year}-${String(m).padStart(2, "0")}`;
+        const hasDbData = combinedAttendance.some((a) => a.period_month === p);
+        if (!hasDbData) {
+          const seedForMonth = getAttendanceSeedForPeriod(p);
+          seedForMonth.forEach((seed) => {
+            combinedAttendance.push({
+              period_month: seed.period_month,
+              name: seed.name,
+              status: seed.status,
+              overtime: seed.overtime,
+            });
           });
-        });
+        }
       }
     }
 
     // ============================================================
-    // STB HSE: Gabungkan data Supabase dengan seed per bulan
+    // Safety Toolbox Meeting HSE: Gabungkan data Supabase dengan seed per bulan
     // ============================================================
-    const combinedStb: StbHseRosterRecord[] = [...dbStb];
-    for (let m = 1; m <= 12; m++) {
-      const p = `${year}-${String(m).padStart(2, "0")}`;
-      const hasDbData = combinedStb.some((s) => s.period_month === p);
-      if (!hasDbData) {
-        const seedForMonth = getStbHseSeedForPeriod(p);
-        combinedStb.push(...seedForMonth);
+    const combinedSafetyToolboxMeeting: SafetyToolboxMeetingHseRosterRecord[] = [...dbSafetyToolboxMeeting];
+    if (!realDataOnly) {
+      for (let m = 1; m <= 12; m++) {
+        const p = `${year}-${String(m).padStart(2, "0")}`;
+        const hasDbData = combinedSafetyToolboxMeeting.some((s) => s.period_month === p);
+        if (!hasDbData) {
+          const seedForMonth = getSafetyToolboxMeetingHseSeedForPeriod(p);
+          combinedSafetyToolboxMeeting.push(...seedForMonth);
+        }
       }
     }
 
@@ -349,24 +354,24 @@ export async function GET(request: NextRequest) {
           ? 100
           : null;
 
-      // --- 4. STB HSE ---
-      const monthStb = combinedStb.filter((s) => s.period_month === period);
-      const stbPersonil = monthStb.length;
-      let stbH = 0;
-      let stbHSmall = 0;
-      let stbOther = 0;
+      // --- 4. Safety Toolbox Meeting HSE ---
+      const monthSafetyToolboxMeeting = combinedSafetyToolboxMeeting.filter((s) => s.period_month === period);
+      const safetyToolboxMeetingPersonil = monthSafetyToolboxMeeting.length;
+      let safetyToolboxMeeting = 0;
+      let safetyToolboxMeetingSmall = 0;
+      let safetyToolboxMeetingther = 0;
 
-      monthStb.forEach((r) => {
+      monthSafetyToolboxMeeting.forEach((r) => {
         const stats = calculatePersonStats(r.schedule || {});
-        stbH += stats.countH;
-        stbHSmall += stats.countHSmall;
-        stbOther += stats.countOther;
+        safetyToolboxMeeting += stats.countH;
+        safetyToolboxMeetingSmall += stats.countHSmall;
+        safetyToolboxMeetingther += stats.countOther;
       });
 
-      const stbTotal = stbH + stbHSmall + stbOther;
+      const safetyToolboxMeetingTotal = safetyToolboxMeeting + safetyToolboxMeetingSmall + safetyToolboxMeetingther;
 
       // Aktif jika ada data di setidaknya satu modul
-      const isActive = masuk > 0 || dailyTotal > 0 || attPrs > 0 || stbTotal > 0;
+      const isActive = masuk > 0 || dailyTotal > 0 || attPrs > 0 || safetyToolboxMeetingTotal > 0;
 
       // KPI Grade berbobot
       let kpiGrade: string | null = null;
@@ -412,7 +417,7 @@ export async function GET(request: NextRequest) {
           completionRate: dailyCompletionRate,
         },
         attendance: {
-          totalRecords: attPrs + attOff + attAbs,
+          totalRecords: monthAtt.length,
           prs: attPrs,
           ovt: attOvt,
           off: attOff,
@@ -421,12 +426,12 @@ export async function GET(request: NextRequest) {
           overtimeHours: Math.round((attOvtMin / 60) * 10) / 10,
           attendanceRate: attRate,
         },
-        stb: {
-          personil: stbPersonil,
-          countH: stbH,
-          countHSmall: stbHSmall,
-          countOther: stbOther,
-          totalStandby: stbTotal,
+        safetyToolboxMeeting: {
+          personil: safetyToolboxMeetingPersonil,
+          countH: safetyToolboxMeeting,
+          countHSmall: safetyToolboxMeetingSmall,
+          countOther: safetyToolboxMeetingther,
+          totalStandby: safetyToolboxMeetingTotal,
         },
         kpiGrade,
       });
@@ -481,10 +486,10 @@ export async function GET(request: NextRequest) {
         ? Math.round((attendancePrs / (attendancePrs + attendanceAbs)) * 1000) / 10
         : 100;
 
-    const stbPersonil = Math.max(...activeMonths.map((m) => m.stb.personil), 0);
-    const stbTotalStandby = activeMonths.reduce((acc, m) => acc + m.stb.totalStandby, 0);
-    const stbCountH = activeMonths.reduce((acc, m) => acc + m.stb.countH, 0);
-    const stbCountHSmall = activeMonths.reduce((acc, m) => acc + m.stb.countHSmall, 0);
+    const safetyToolboxMeetingPersonil = Math.max(...activeMonths.map((m) => m.safetyToolboxMeeting.personil), 0);
+    const safetyToolboxMeetingTotalStandby = activeMonths.reduce((acc, m) => acc + m.safetyToolboxMeeting.totalStandby, 0);
+    const safetyToolboxMeetingCountH = activeMonths.reduce((acc, m) => acc + m.safetyToolboxMeeting.countH, 0);
+    const safetyToolboxMeetingCountHSmall = activeMonths.reduce((acc, m) => acc + m.safetyToolboxMeeting.countHSmall, 0);
 
     let overallKpiGrade: "Sangat Baik" | "Baik" | "Cukup Baik" | "Kurang Baik" = "Baik";
     const overallScore = permintaanSlaPct * 0.4 + dailyRate * 0.35 + attendanceRate * 0.25;
@@ -559,10 +564,10 @@ export async function GET(request: NextRequest) {
         attendanceTotalMinutes,
         attendanceRate,
 
-        stbPersonil,
-        stbTotalStandby,
-        stbCountH,
-        stbCountHSmall,
+        safetyToolboxMeetingPersonil,
+        safetyToolboxMeetingTotalStandby,
+        safetyToolboxMeetingCountH,
+        safetyToolboxMeetingCountHSmall,
 
         overallKpiGrade,
       },

@@ -900,7 +900,12 @@ export function getAttendanceSeedForPeriod(period: string): AttendanceRecord[] {
     return [];
   }
 
-  const daysInMonth = new Date(year, month, 0).getDate();
+  let daysInMonth = new Date(year, month, 0).getDate();
+  const today = new Date();
+  if (year === today.getFullYear() && month === today.getMonth() + 1) {
+    daysInMonth = today.getDate();
+  }
+  
   const records: AttendanceRecord[] = [];
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const monthNamesShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

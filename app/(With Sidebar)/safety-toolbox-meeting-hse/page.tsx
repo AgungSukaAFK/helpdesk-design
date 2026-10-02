@@ -73,26 +73,26 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   INDONESIAN_MONTHS,
-  INITIAL_STB_HSE_DATA,
-  StbHseRosterRecord,
+  INITIAL_SAFETY_TOOLBOX_MEETING_HSE_DATA,
+  SafetyToolboxMeetingHseRosterRecord,
   calculatePersonStats,
   detectMonthFromText,
   detectYearFromText,
   formatMonthYearIndo,
   getDayNameIndo,
   getDaysInMonth,
-  getAllStbHseSeedData,
+  getAllSafetyToolboxMeetingHseSeedData,
   isWeekend,
-} from "@/lib/stb-hse-seed";
+} from "@/lib/safety-toolbox-meeting-hse-seed";
 
-const LOCAL_STORAGE_KEY = "stb_hse_roster_records_v1";
+const LOCAL_STORAGE_KEY = "safety_toolbox_meeting_hse_roster_records_v1";
 
-export default function StbHsePage() {
+export default function SafetyToolboxMeetingHsePage() {
   const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Core Data state
-  const [records, setRecords] = useState<StbHseRosterRecord[]>([]);
+  const [records, setRecords] = useState<SafetyToolboxMeetingHseRosterRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [supabaseConnected, setSupabaseConnected] = useState<boolean | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -118,8 +118,8 @@ export default function StbHsePage() {
 
   // Modals state
   const [isPersonModalOpen, setIsPersonModalOpen] = useState(false);
-  const [editingPerson, setEditingPerson] = useState<StbHseRosterRecord | null>(null);
-  const [personFormData, setPersonFormData] = useState<Partial<StbHseRosterRecord>>({
+  const [editingPerson, setEditingPerson] = useState<SafetyToolboxMeetingHseRosterRecord | null>(null);
+  const [personFormData, setPersonFormData] = useState<Partial<SafetyToolboxMeetingHseRosterRecord>>({
     name: "",
     employee_no: "",
     role: "HSE Officer",
@@ -128,7 +128,7 @@ export default function StbHsePage() {
     schedule: {},
   });
 
-  const [deletingRecord, setDeletingRecord] = useState<StbHseRosterRecord | null>(null);
+  const [deletingRecord, setDeletingRecord] = useState<SafetyToolboxMeetingHseRosterRecord | null>(null);
   const [isResetMonthOpen, setIsResetMonthOpen] = useState(false);
 
   // Quick Pattern Generator Modal
@@ -144,7 +144,7 @@ export default function StbHsePage() {
 
   // Import Modal (Per-Bulan)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importPreviewRows, setImportPreviewRows] = useState<StbHseRosterRecord[]>([]);
+  const [importPreviewRows, setImportPreviewRows] = useState<SafetyToolboxMeetingHseRosterRecord[]>([]);
   const [targetImportMonth, setTargetImportMonth] = useState<string>("06");
   const [targetImportYear, setTargetImportYear] = useState<number>(2026);
   const [detectedImportMonth, setDetectedImportMonth] = useState<string | null>(null);
@@ -161,16 +161,16 @@ export default function StbHsePage() {
     let loadedFromDb = false;
 
     // Seed data lengkap 12 bulan sebagai fallback
-    const fullYearSeed = getAllStbHseSeedData(selectedYear);
+    const fullYearSeed = getAllSafetyToolboxMeetingHseSeedData(selectedYear);
 
     try {
       const { data, error } = await supabase
-        .from("stb_hse_roster")
+        .from("safety_toolbox_meeting_hse_roster")
         .select("*")
         .order("created_at", { ascending: true });
 
       if (!error && data && data.length > 0) {
-        const dbRecords: StbHseRosterRecord[] = data.map((item: any) => ({
+        const dbRecords: SafetyToolboxMeetingHseRosterRecord[] = data.map((item: any) => ({
           id: item.id,
           period_month: item.period_month || "2026-06",
           employee_no: item.employee_no || "",
@@ -201,7 +201,7 @@ export default function StbHsePage() {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed) && parsed.length > 0) {
             // Pastikan semua 12 bulan tersedia — tambahkan bulan yang belum ada dari seed
-            const existingPeriods = new Set(parsed.map((r: StbHseRosterRecord) => r.period_month));
+            const existingPeriods = new Set(parsed.map((r: SafetyToolboxMeetingHseRosterRecord) => r.period_month));
             const missingSeedRecords = fullYearSeed.filter(
               (r) => !existingPeriods.has(r.period_month)
             );
@@ -236,7 +236,7 @@ export default function StbHsePage() {
     loadData();
   }, []);
 
-  const saveRecords = async (newRecords: StbHseRosterRecord[]) => {
+  const saveRecords = async (newRecords: SafetyToolboxMeetingHseRosterRecord[]) => {
     setRecords(newRecords);
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newRecords));
   };
@@ -366,7 +366,7 @@ export default function StbHsePage() {
       delete updatedSchedule[day];
     }
 
-    const updatedRecord: StbHseRosterRecord = {
+    const updatedRecord: SafetyToolboxMeetingHseRosterRecord = {
       ...record,
       schedule: updatedSchedule,
       updated_at: new Date().toISOString(),
@@ -378,7 +378,7 @@ export default function StbHsePage() {
     // Sync with Supabase in background
     if (supabaseConnected) {
       supabase
-        .from("stb_hse_roster")
+        .from("safety_toolbox_meeting_hse_roster")
         .update({
           schedule: updatedRecord.schedule,
           updated_at: updatedRecord.updated_at,
@@ -403,7 +403,7 @@ export default function StbHsePage() {
   };
 
   // Open Edit Person modal
-  const handleOpenEditPerson = (record: StbHseRosterRecord) => {
+  const handleOpenEditPerson = (record: SafetyToolboxMeetingHseRosterRecord) => {
     setEditingPerson(record);
     setPersonFormData({
       name: record.name,
@@ -426,7 +426,7 @@ export default function StbHsePage() {
 
     try {
       if (editingPerson) {
-        const updatedRecord: StbHseRosterRecord = {
+        const updatedRecord: SafetyToolboxMeetingHseRosterRecord = {
           ...editingPerson,
           name: personFormData.name.trim(),
           employee_no: personFormData.employee_no?.trim() || "",
@@ -442,7 +442,7 @@ export default function StbHsePage() {
 
         if (supabaseConnected) {
           await supabase
-            .from("stb_hse_roster")
+            .from("safety_toolbox_meeting_hse_roster")
             .update({
               name: updatedRecord.name,
               employee_no: updatedRecord.employee_no,
@@ -457,8 +457,8 @@ export default function StbHsePage() {
 
         toast.success(`Data ${updatedRecord.name} berhasil diperbarui!`);
       } else {
-        const newRecord: StbHseRosterRecord = {
-          id: `stb-${currentPeriod}-${Date.now().toString(36)}`,
+        const newRecord: SafetyToolboxMeetingHseRosterRecord = {
+          id: `safety-toolbox-meeting-${currentPeriod}-${Date.now().toString(36)}`,
           period_month: currentPeriod,
           name: personFormData.name.trim(),
           employee_no: personFormData.employee_no?.trim() || "",
@@ -474,7 +474,7 @@ export default function StbHsePage() {
         await saveRecords(updatedList);
 
         if (supabaseConnected) {
-          await supabase.from("stb_hse_roster").insert({
+          await supabase.from("safety_toolbox_meeting_hse_roster").insert({
             period_month: newRecord.period_month,
             name: newRecord.name,
             employee_no: newRecord.employee_no,
@@ -502,7 +502,7 @@ export default function StbHsePage() {
       await saveRecords(updatedList);
 
       if (supabaseConnected) {
-        await supabase.from("stb_hse_roster").delete().eq("id", deletingRecord.id);
+        await supabase.from("safety_toolbox_meeting_hse_roster").delete().eq("id", deletingRecord.id);
       }
 
       toast.success(`Personil ${deletingRecord.name} telah dihapus dari roster.`);
@@ -520,7 +520,7 @@ export default function StbHsePage() {
       await saveRecords(updatedList);
 
       if (supabaseConnected) {
-        await supabase.from("stb_hse_roster").delete().eq("period_month", currentPeriod);
+        await supabase.from("safety_toolbox_meeting_hse_roster").delete().eq("period_month", currentPeriod);
       }
 
       toast.success(`Jadwal bulan ${formatMonthYearIndo(currentPeriod)} telah dibersihkan.`);
@@ -570,7 +570,7 @@ export default function StbHsePage() {
           const rec = updatedRecords.find((r) => r.id === target.id);
           if (rec) {
             await supabase
-              .from("stb_hse_roster")
+              .from("safety_toolbox_meeting_hse_roster")
               .update({ schedule: rec.schedule, updated_at: rec.updated_at })
               .eq("id", rec.id);
           }
@@ -598,8 +598,8 @@ export default function StbHsePage() {
     }
 
     try {
-      const newClones: StbHseRosterRecord[] = monthRecords.map((orig, idx) => ({
-        id: `stb-${targetPeriod}-${Date.now().toString(36)}-${idx}`,
+      const newClones: SafetyToolboxMeetingHseRosterRecord[] = monthRecords.map((orig, idx) => ({
+        id: `safety-toolbox-meeting-${targetPeriod}-${Date.now().toString(36)}-${idx}`,
         period_month: targetPeriod,
         name: orig.name,
         employee_no: orig.employee_no,
@@ -617,7 +617,7 @@ export default function StbHsePage() {
       await saveRecords(combined);
 
       if (supabaseConnected) {
-        await supabase.from("stb_hse_roster").delete().eq("period_month", targetPeriod);
+        await supabase.from("safety_toolbox_meeting_hse_roster").delete().eq("period_month", targetPeriod);
         const payload = newClones.map((c) => ({
           period_month: c.period_month,
           name: c.name,
@@ -627,7 +627,7 @@ export default function StbHsePage() {
           notes: c.notes,
           schedule: c.schedule,
         }));
-        await supabase.from("stb_hse_roster").insert(payload);
+        await supabase.from("safety_toolbox_meeting_hse_roster").insert(payload);
       }
 
       setSelectedMonth(targetCopyMonth);
@@ -658,7 +658,7 @@ export default function StbHsePage() {
       for (let d = 2; d <= totalDays; d++) {
         row1.push("");
       }
-      row1.push("Total H", "Total h", "Total STB");
+      row1.push("Total H", "Total h", "Total Safety Toolbox Meeting");
 
       // Row 2: Empty, Empty, 1, 2, ..., totalDays, Total cols
       const row2: (string | number)[] = ["", ""];
@@ -715,12 +715,12 @@ export default function StbHsePage() {
       ];
 
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, `STB HSE ${monthLabel}`);
+      XLSX.utils.book_append_sheet(workbook, worksheet, `Safety Toolbox Meeting HSE ${monthLabel}`);
 
-      const fileName = `STB_HSE_${monthLabel}_${selectedYear}.xlsx`;
+      const fileName = `Safety Toolbox Meeting HSE_${monthLabel}_${selectedYear}.xlsx`;
       XLSX.writeFile(workbook, fileName);
 
-      toast.success(`Jadwal STB HSE berhasil diunduh: ${fileName}`);
+      toast.success(`Jadwal Safety Toolbox Meeting HSE berhasil diunduh: ${fileName}`);
     } catch (err: any) {
       toast.error("Gagal mengekspor Excel: " + err.message);
     }
@@ -733,7 +733,7 @@ export default function StbHsePage() {
     e.target.value = "";
 
     try {
-      toast.loading("Menganalisis file STB HSE...", { id: "import-stb" });
+      toast.loading("Menganalisis file Safety Toolbox Meeting HSE...", { id: "import-safety toolbx meeting hse" });
 
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
@@ -754,11 +754,11 @@ export default function StbHsePage() {
       let detectedM: string | null = null;
       let detectedY: number | null = null;
 
-      // 1. Cek nama sheet (misal: "Juni", "STB HSE Juni")
+      // 1. Cek nama sheet (misal: "Juni", "Safety Toolbox Meeting HSE Juni")
       detectedM = detectMonthFromText(firstSheetName);
       detectedY = detectYearFromText(firstSheetName);
 
-      // 2. Cek nama file (misal: "STB_HSE_Juni_2026.xlsx")
+      // 2. Cek nama file (misal: "Safety Toolbox Meeting HSE_Juni_2026.xlsx")
       if (!detectedM) detectedM = detectMonthFromText(file.name);
       if (!detectedY) detectedY = detectYearFromText(file.name);
 
@@ -838,7 +838,7 @@ export default function StbHsePage() {
         dataStartRow = dateRowIdx + 2;
       }
 
-      const parsedRecords: StbHseRosterRecord[] = [];
+      const parsedRecords: SafetyToolboxMeetingHseRosterRecord[] = [];
       const targetPeriodStr = `${finalYear}-${finalMonth.padStart(2, "0")}`;
 
       for (let r = dataStartRow; r < rawRows.length; r++) {
@@ -861,7 +861,7 @@ export default function StbHsePage() {
         });
 
         parsedRecords.push({
-          id: `stb-import-${Date.now().toString(36)}-${r}`,
+          id: `safety-toolbox-meeting-import-${Date.now().toString(36)}-${r}`,
           period_month: targetPeriodStr,
           name: nameVal,
           employee_no: "",
@@ -881,13 +881,12 @@ export default function StbHsePage() {
       setImportPreviewRows(parsedRecords);
       setIsImportModalOpen(true);
       toast.success(
-        `${parsedRecords.length} personil berhasil dibaca dari file.${
-          detectedM ? ` Terdeteksi bulan: ${formatMonthYearIndo(targetPeriodStr)}.` : ""
+        `${parsedRecords.length} personil berhasil dibaca dari file.${detectedM ? ` Terdeteksi bulan: ${formatMonthYearIndo(targetPeriodStr)}.` : ""
         }`,
-        { id: "import-stb" }
+        { id: "import-safety-toolbox-meeting" }
       );
     } catch (err: any) {
-      toast.error(err.message || "Gagal memproses file import.", { id: "import-stb" });
+      toast.error(err.message || "Gagal memproses file import.", { id: "import-safety-toolbox-meeting" });
     }
   };
 
@@ -897,12 +896,12 @@ export default function StbHsePage() {
 
     try {
       const targetPeriod = `${targetImportYear}-${targetImportMonth.padStart(2, "0")}`;
-      const normalizedRows: StbHseRosterRecord[] = importPreviewRows.map((r) => ({
+      const normalizedRows: SafetyToolboxMeetingHseRosterRecord[] = importPreviewRows.map((r) => ({
         ...r,
         period_month: targetPeriod,
       }));
 
-      let finalRecords: StbHseRosterRecord[] = [];
+      let finalRecords: SafetyToolboxMeetingHseRosterRecord[] = [];
 
       if (importMode === "replace") {
         const otherMonths = records.filter((r) => r.period_month !== targetPeriod);
@@ -916,7 +915,7 @@ export default function StbHsePage() {
 
       if (supabaseConnected) {
         if (importMode === "replace") {
-          await supabase.from("stb_hse_roster").delete().eq("period_month", targetPeriod);
+          await supabase.from("safety_toolbox_meeting_hse_roster").delete().eq("period_month", targetPeriod);
         }
 
         const payload = normalizedRows.map((r) => ({
@@ -929,7 +928,7 @@ export default function StbHsePage() {
           schedule: r.schedule || {},
         }));
 
-        await supabase.from("stb_hse_roster").insert(payload);
+        await supabase.from("safety_toolbox_meeting_hse_roster").insert(payload);
       }
 
       // Otomatis pindahkan tampilan tabel ke bulan dan tahun target yang baru saja diimpor
@@ -937,7 +936,7 @@ export default function StbHsePage() {
       setSelectedYear(targetImportYear);
 
       toast.success(
-        `Jadwal STB HSE bulan ${formatMonthYearIndo(targetPeriod)} berhasil diimpor! (${normalizedRows.length} personil)`
+        `Jadwal Safety Toolbox Meeting HSE bulan ${formatMonthYearIndo(targetPeriod)} berhasil diimpor! (${normalizedRows.length} personil)`
       );
       setIsImportModalOpen(false);
     } catch (err: any) {
@@ -949,8 +948,8 @@ export default function StbHsePage() {
 
   // Copy SQL script to clipboard
   const handleCopySql = () => {
-    const sql = `-- Skema Database Supabase untuk Modul STB HSE (Standby HSE)
-create table if not exists public.stb_hse_roster (
+    const sql = `-- Skema Database Supabase untuk Modul Safety Toolbox Meeting HSE
+create table if not exists public.safety_toolbox_meeting_hse_roster (
   id uuid primary key default gen_random_uuid(),
   period_month text not null default to_char(now(), 'YYYY-MM'),
   employee_no text default '',
@@ -963,12 +962,12 @@ create table if not exists public.stb_hse_roster (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists stb_hse_roster_period_idx on public.stb_hse_roster (period_month);
-alter table public.stb_hse_roster enable row level security;
-create policy "stb_hse_roster authenticated read" on public.stb_hse_roster for select to authenticated using (true);
-create policy "stb_hse_roster authenticated insert" on public.stb_hse_roster for insert to authenticated with check (true);
-create policy "stb_hse_roster authenticated update" on public.stb_hse_roster for update to authenticated using (true);
-create policy "stb_hse_roster authenticated delete" on public.stb_hse_roster for delete to authenticated using (true);
+create index if not exists safety_toolbox_meeting_hse_roster_period_idx on public.safety_toolbox_meeting_hse_roster (period_month);
+alter table public.safety_toolbox_meeting_hse_roster enable row level security;
+create policy "safety_toolbox_meeting_hse_roster authenticated read" on public.safety_toolbox_meeting_hse_roster for select to authenticated using (true);
+create policy "safety_toolbox_meeting_hse_roster authenticated insert" on public.safety_toolbox_meeting_hse_roster for insert to authenticated with check (true);
+create policy "safety_toolbox_meeting_hse_roster authenticated update" on public.safety_toolbox_meeting_hse_roster for update to authenticated using (true);
+create policy "safety_toolbox_meeting_hse_roster authenticated delete" on public.safety_toolbox_meeting_hse_roster for delete to authenticated using (true);
 notify pgrst, 'reload schema';`;
 
     navigator.clipboard.writeText(sql);
@@ -995,7 +994,7 @@ notify pgrst, 'reload schema';`;
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                Jadwal Standby (STB) HSE
+                Safety Toolbox Meeting HSE
               </h1>
               <Badge variant="outline" className="text-xs font-semibold bg-primary/5 text-primary border-primary/20">
                 {formatMonthYearIndo(currentPeriod)}
@@ -1321,7 +1320,7 @@ notify pgrst, 'reload schema';`;
                   className="w-16 min-w-16 px-1 py-2 text-center font-bold border-r bg-primary/10 text-primary"
                   title="Total Shift Standby (H + h)"
                 >
-                  Total STB
+                  Total Safety Toolbox Meeting
                 </th>
                 <th rowSpan={3} className="w-16 min-w-16 px-2 py-2 text-center font-bold bg-muted/70">
                   Aksi
@@ -1338,13 +1337,12 @@ notify pgrst, 'reload schema';`;
                   return (
                     <th
                       key={`day-num-${day}`}
-                      className={`w-9 min-w-9 max-w-9 py-1 px-0.5 border-r font-bold text-[11px] ${
-                        isCurrentToday
-                          ? "bg-primary text-primary-foreground"
-                          : weekend
+                      className={`w-9 min-w-9 max-w-9 py-1 px-0.5 border-r font-bold text-[11px] ${isCurrentToday
+                        ? "bg-primary text-primary-foreground"
+                        : weekend
                           ? "bg-rose-500/10 text-rose-700 dark:text-rose-400"
                           : "text-foreground"
-                      }`}
+                        }`}
                     >
                       {day}
                     </th>
@@ -1363,13 +1361,12 @@ notify pgrst, 'reload schema';`;
                   return (
                     <th
                       key={`day-name-${day}`}
-                      className={`w-9 min-w-9 max-w-9 py-1 px-0.5 border-r ${
-                        isCurrentToday
-                          ? "bg-primary/90 text-primary-foreground font-bold"
-                          : weekend
+                      className={`w-9 min-w-9 max-w-9 py-1 px-0.5 border-r ${isCurrentToday
+                        ? "bg-primary/90 text-primary-foreground font-bold"
+                        : weekend
                           ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold"
                           : ""
-                      }`}
+                        }`}
                     >
                       {dayName}
                     </th>
@@ -1384,7 +1381,7 @@ notify pgrst, 'reload schema';`;
                 <tr>
                   <td colSpan={totalDays + 6} className="py-12 text-center text-muted-foreground">
                     <Loader2 className="size-6 animate-spin mx-auto mb-2 text-primary" />
-                    <span>Memuat data jadwal STB HSE...</span>
+                    <span>Memuat data jadwal Safety Toolbox Meeting HSE...</span>
                   </td>
                 </tr>
               ) : filteredMonthRecords.length === 0 ? (
@@ -1463,20 +1460,18 @@ notify pgrst, 'reload schema';`;
                           <td
                             key={`cell-${person.id}-${day}`}
                             onClick={() => handleToggleDayStatus(person.id, day)}
-                            title={`Tgl ${day}: ${
-                              cellVal === "H"
-                                ? "Standby Utama"
-                                : cellVal === "h"
+                            title={`Tgl ${day}: ${cellVal === "H"
+                              ? "Standby Utama"
+                              : cellVal === "h"
                                 ? "Standby Pendukung"
                                 : "Libur / Kosong"
-                            } (Klik untuk ubah)`}
-                            className={`w-9 min-w-9 max-w-9 py-1 px-0.5 text-center border-r select-none cursor-pointer transition-colors ${
-                              isCurrentToday
-                                ? "ring-1 ring-inset ring-primary/40 bg-primary/5"
-                                : weekend
+                              } (Klik untuk ubah)`}
+                            className={`w-9 min-w-9 max-w-9 py-1 px-0.5 text-center border-r select-none cursor-pointer transition-colors ${isCurrentToday
+                              ? "ring-1 ring-inset ring-primary/40 bg-primary/5"
+                              : weekend
                                 ? "bg-rose-500/5 dark:bg-rose-950/10 hover:bg-rose-500/15"
                                 : "hover:bg-primary/10"
-                            }`}
+                              }`}
                           >
                             {cellVal === "H" ? (
                               <span className="inline-flex items-center justify-center size-6 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/30 text-[11px] shadow-2xs">
@@ -1507,7 +1502,7 @@ notify pgrst, 'reload schema';`;
                         {pStats.countHSmall}
                       </td>
 
-                      {/* Total STB */}
+                      {/* Total Safety Toolbox Meeting */}
                       <td className="w-16 min-w-16 py-2 px-1 text-center border-r font-extrabold text-foreground bg-primary/5">
                         <Badge
                           variant="secondary"
@@ -1564,13 +1559,12 @@ notify pgrst, 'reload schema';`;
                     return (
                       <td
                         key={`total-day-${day}`}
-                        className={`py-2 text-center border-r font-bold text-xs ${
-                          totalCount > 0
-                            ? "text-primary font-extrabold bg-primary/10"
-                            : weekend
+                        className={`py-2 text-center border-r font-bold text-xs ${totalCount > 0
+                          ? "text-primary font-extrabold bg-primary/10"
+                          : weekend
                             ? "text-rose-600/70 dark:text-rose-400/70"
                             : "text-muted-foreground"
-                        }`}
+                          }`}
                       >
                         {totalCount}
                       </td>
@@ -1732,11 +1726,10 @@ notify pgrst, 'reload schema';`;
                           setPatternDaysOfWeek([...patternDaysOfWeek, d.id]);
                         }
                       }}
-                      className={`py-1.5 px-2 text-xs rounded-lg border font-medium transition-all ${
-                        isChecked
-                          ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                          : "bg-muted/40 text-foreground border-border hover:bg-muted"
-                      }`}
+                      className={`py-1.5 px-2 text-xs rounded-lg border font-medium transition-all ${isChecked
+                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                        : "bg-muted/40 text-foreground border-border hover:bg-muted"
+                        }`}
                     >
                       {d.name}
                     </button>
@@ -1841,7 +1834,7 @@ notify pgrst, 'reload schema';`;
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileSpreadsheet className="size-5 text-emerald-600" />
-              <span>Import Jadwal STB HSE Per-Bulan</span>
+              <span>Import Jadwal Safety Toolbox Meeting HSE Per-Bulan</span>
             </DialogTitle>
             <DialogDescription>
               Terbaca <strong>{importPreviewRows.length} personil</strong> dari file. Tentukan target periode bulan & tahun serta mode impor di bawah.
@@ -1928,11 +1921,10 @@ notify pgrst, 'reload schema';`;
                       setImportMode("replace");
                     }
                   }}
-                  className={`p-3 text-left rounded-xl border text-xs cursor-pointer select-none transition-all ${
-                    importMode === "replace"
-                      ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs"
-                      : "border-border hover:bg-muted text-muted-foreground"
-                  }`}
+                  className={`p-3 text-left rounded-xl border text-xs cursor-pointer select-none transition-all ${importMode === "replace"
+                    ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs"
+                    : "border-border hover:bg-muted text-muted-foreground"
+                    }`}
                 >
                   <div className="font-semibold text-foreground">Ganti (Replace)</div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">
@@ -1952,11 +1944,10 @@ notify pgrst, 'reload schema';`;
                       setImportMode("append");
                     }
                   }}
-                  className={`p-3 text-left rounded-xl border text-xs cursor-pointer select-none transition-all ${
-                    importMode === "append"
-                      ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs"
-                      : "border-border hover:bg-muted text-muted-foreground"
-                  }`}
+                  className={`p-3 text-left rounded-xl border text-xs cursor-pointer select-none transition-all ${importMode === "append"
+                    ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs"
+                    : "border-border hover:bg-muted text-muted-foreground"
+                    }`}
                 >
                   <div className="font-semibold text-foreground">Gabungkan (Append)</div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">
@@ -2021,16 +2012,16 @@ notify pgrst, 'reload schema';`;
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="size-5 text-primary" />
-              <span>Skema Database Supabase STB HSE</span>
+              <span>Skema Database Supabase Safety Toolbox Meeting HSE</span>
             </DialogTitle>
             <DialogDescription>
-              Salin dan jalankan skema SQL ini di Supabase SQL Editor agar data jadwal STB HSE tersinkronisasi permanen ke cloud.
+              Salin dan jalankan skema SQL ini di Supabase SQL Editor agar data jadwal Safety Toolbox Meeting HSE tersinkronisasi permanen ke cloud.
             </DialogDescription>
           </DialogHeader>
 
           <div className="my-2 bg-muted p-4 rounded-xl font-mono text-xs overflow-x-auto max-h-72">
             <pre>{`-- Salin dan jalankan di SQL Editor Supabase:
-create table if not exists public.stb_hse_roster (
+create table if not exists public.safety_toolbox_meeting_hse_roster (
   id uuid primary key default gen_random_uuid(),
   period_month text not null default to_char(now(), 'YYYY-MM'),
   employee_no text default '',
@@ -2043,12 +2034,12 @@ create table if not exists public.stb_hse_roster (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists stb_hse_roster_period_idx on public.stb_hse_roster (period_month);
-alter table public.stb_hse_roster enable row level security;
-create policy "stb_hse_roster authenticated read" on public.stb_hse_roster for select to authenticated using (true);
-create policy "stb_hse_roster authenticated insert" on public.stb_hse_roster for insert to authenticated with check (true);
-create policy "stb_hse_roster authenticated update" on public.stb_hse_roster for update to authenticated using (true);
-create policy "stb_hse_roster authenticated delete" on public.stb_hse_roster for delete to authenticated using (true);
+create index if not exists safety_toolbox_meeting_hse_roster_period_idx on public.safety_toolbox_meeting_hse_roster (period_month);
+alter table public.safety_toolbox_meeting_hse_roster enable row level security;
+create policy "safety_toolbox_meeting_hse_roster authenticated read" on public.safety_toolbox_meeting_hse_roster for select to authenticated using (true);
+create policy "safety_toolbox_meeting_hse_roster authenticated insert" on public.safety_toolbox_meeting_hse_roster for insert to authenticated with check (true);
+create policy "safety_toolbox_meeting_hse_roster authenticated update" on public.safety_toolbox_meeting_hse_roster for update to authenticated using (true);
+create policy "safety_toolbox_meeting_hse_roster authenticated delete" on public.safety_toolbox_meeting_hse_roster for delete to authenticated using (true);
 notify pgrst, 'reload schema';`}</pre>
           </div>
 

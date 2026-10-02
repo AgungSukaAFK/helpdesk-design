@@ -41,7 +41,7 @@ export default function RekapBulananRoute() {
       <div className="hidden print:block print:mb-4">
         <h1 className="text-xl font-bold">Rekap Bulanan Terintegrasi 2026</h1>
         <p className="text-xs text-foreground/70 mt-1">
-          Laporan Terpadu 4 Modul: Permintaan Design, Daily Activity, Attendance, &amp; Standby STB HSE.
+          Laporan Terpadu 4 Modul: Permintaan Design, Daily Activity, Attendance, &amp; Safety Toolbox Meeting HSE.
         </p>
         <div className="border-b border-foreground/30 mt-2" />
       </div>
