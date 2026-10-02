@@ -5,6 +5,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function Page() {
   return (
@@ -19,10 +21,13 @@ export default function Page() {
               <CardDescription>Check your email to confirm</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mb-6">
                 You&apos;ve successfully signed up. Please check your email to
                 confirm your account before signing in.
               </p>
+              <Button asChild className="w-full">
+                <Link href="/auth/login">Back to login</Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
