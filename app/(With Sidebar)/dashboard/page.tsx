@@ -189,7 +189,9 @@ export default function DashboardPage() {
             .from("permintaan")
             .select("*", { count: "exact", head: true })
             .eq("status", status);
-          if (userRole !== "admin") {
+          if (userRole === "designer") {
+            query = query.eq("admin", user.id);
+          } else if (userRole !== "admin") {
             query = query.eq("requester", user.id);
           }
           if (filter) {
@@ -303,7 +305,9 @@ export default function DashboardPage() {
           .order("created_at", { ascending: false })
           .limit(1000);
 
-        if (userRole !== "admin") {
+        if (userRole === "designer") {
+          queryTrendAndDept = queryTrendAndDept.eq("admin", user.id);
+        } else if (userRole !== "admin") {
           queryTrendAndDept = queryTrendAndDept.eq("requester", user.id);
         }
 
@@ -356,7 +360,9 @@ export default function DashboardPage() {
           .order("created_at", { ascending: false })
           .limit(5);
 
-        if (userRole !== "admin") {
+        if (userRole === "designer") {
+          queryTerbaru = queryTerbaru.eq("admin", user.id);
+        } else if (userRole !== "admin") {
           queryTerbaru = queryTerbaru.eq("requester", user.id);
         }
 
@@ -968,7 +974,9 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground mt-0.5">
               {role === "admin"
                 ? "5 permintaan terakhir di sistem."
-                : "5 permintaan terakhir Anda."}
+                : role === "designer"
+                  ? "5 permintaan yang ditugaskan kepada Anda."
+                  : "5 permintaan terakhir Anda."}
             </p>
           </div>
           <Button
@@ -977,7 +985,7 @@ export default function DashboardPage() {
             className="h-8 text-xs self-start sm:self-auto rounded-lg"
             asChild
           >
-            <Link href={role === "admin" ? "/permintaan-desain-admin" : "/riwayat"}>
+            <Link href={role === "admin" ? "/permintaan-desain-admin" : role === "designer" ? "/permintaan-desain" : "/riwayat"}>
               Lihat Semua
             </Link>
           </Button>
@@ -992,7 +1000,7 @@ export default function DashboardPage() {
                 <TableHead className="font-semibold text-xs">Tanggal Permintaan</TableHead>
                 <TableHead className="font-semibold text-xs">Due Date</TableHead>
                 <TableHead className="font-semibold text-xs">Peminta</TableHead>
-                <TableHead className="font-semibold text-xs">Admin</TableHead>
+                <TableHead className="font-semibold text-xs">{role === "designer" ? "Designer" : "Admin"}</TableHead>
                 <TableHead className="font-semibold text-xs">Status</TableHead>
                 <TableHead className="text-right font-semibold text-xs">Aksi</TableHead>
               </TableRow>

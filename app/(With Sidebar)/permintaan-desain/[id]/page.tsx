@@ -231,7 +231,6 @@ export default function DetailPermintaanPage() {
       fetchAllData();
       fetchKomentar(id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, s, router]);
 
   // --- QUICK REFRESH HANDLERS ---
@@ -527,6 +526,8 @@ export default function DetailPermintaanPage() {
   if (!data) return <Content title="404" description="Data tidak ditemukan." />;
 
   const isAdmin = currentUser?.role === "admin";
+  const isDesigner = currentUser?.role === "designer";
+  const canWorkTicket = isAdmin || (isDesigner && (!data.admin || data.admin === currentUser?.id));
   const isReviewStatus = data.status === "REVIEW";
   const isDoneStatus = data.status === "DONE";
   const isRevisionStatus = data.status === "REVISION";
@@ -663,7 +664,7 @@ export default function DetailPermintaanPage() {
                     className="hidden"
                     multiple
                     onChange={handleUpload}
-                    disabled={isUploading}
+                    disabled={isUploading || (isDesigner && data.admin !== currentUser?.id)}
                   />
                   <Button
                     variant="outline"
@@ -677,7 +678,7 @@ export default function DetailPermintaanPage() {
                       ) : (
                         <UploadCloud className="h-3 w-3 mr-2" />
                       )}
-                      {isAdmin ? "Upload Hasil/File" : "Upload Tambahan"}
+                      {isAdmin || isDesigner ? "Upload Hasil/File" : "Upload Tambahan"}
                     </label>
                   </Button>
                 </div>
@@ -853,7 +854,7 @@ export default function DetailPermintaanPage() {
           </div>
 
           {/* USER ACTION AREA (Only for Requester when REVIEW) */}
-          {!isAdmin && isReviewStatus && (
+          {!isAdmin && !isDesigner && isReviewStatus && (
             <div className="border rounded-lg p-6 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-bottom-5">
               <div>
                 <h3 className="font-semibold text-blue-900 dark:text-blue-100 flex items-center gap-2">
@@ -961,12 +962,12 @@ export default function DetailPermintaanPage() {
         {/* KOLOM KANAN: Sidebar Info */}
         <div className="space-y-6">
           {/* ADMIN CONTROL PANEL */}
-          {isAdmin && (
+          {canWorkTicket && (
             <div className="border rounded-lg p-5 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <ShieldCheck className="h-5 w-5 text-indigo-600" />
                 <h3 className="font-bold text-sm uppercase tracking-wider text-indigo-900 dark:text-indigo-300">
-                  Admin Control
+                  {isDesigner ? "Pengerjaan" : "Admin Control"}
                 </h3>
               </div>
 
@@ -997,7 +998,7 @@ export default function DetailPermintaanPage() {
                 <Select
                   value={data.status}
                   onValueChange={handleStatusChangeRequest} // Menggunakan handler baru (ada konfirmasi)
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (isDesigner && data.admin !== currentUser?.id)}
                 >
                   <SelectTrigger className="bg-background">
                     <SelectValue placeholder="Pilih Status" />

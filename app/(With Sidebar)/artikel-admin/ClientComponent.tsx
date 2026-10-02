@@ -65,6 +65,7 @@ type ArticleItem = Pick<
   | "created_at"
   | "published_at"
   | "views"
+  | "author"
 >;
 
 interface CategoryCount {
@@ -108,6 +109,7 @@ export function ArtikelAdminClientContent() {
 
   // Role
   const [userRole, setUserRole] = useState<string>("user");
+  const [userId, setUserId] = useState<string | null>(null);
   const [roleChecked, setRoleChecked] = useState(false);
 
   // Data
@@ -136,13 +138,14 @@ export function ArtikelAdminClientContent() {
   useEffect(() => {
     async function checkRole() {
       try {
-        const { data } = await s.auth.getUser();
-        if (data?.user) {
+        const { data: { user } } = await s.auth.getUser();
+        if (user) {
+          setUserId(user.id);
           const { data: profile } = await s
-            .from("users")
+            .from("user_profiles")
             .select("role")
-            .eq("id", data.user.id)
-            .single();
+            .eq("id", user.id)
+            .maybeSingle();
           if (profile?.role) {
             setUserRole(profile.role);
           }
@@ -157,6 +160,8 @@ export function ArtikelAdminClientContent() {
   }, [s]);
 
   const isAdmin = userRole === "admin";
+  const isDesigner = userRole === "designer";
+  const canManageArticles = isAdmin || isDesigner;
 
   // Helper query string
   const createQueryString = useCallback(
@@ -182,7 +187,9 @@ export function ArtikelAdminClientContent() {
   const fetchCategoryCounts = useCallback(async () => {
     try {
       let query = s.from("articles").select("tags, status");
-      if (!isAdmin) {
+      if (isDesigner && userId) {
+        query = query.eq("author", userId);
+      } else if (!isAdmin) {
         query = query.eq("status", "published");
       }
       const { data, error } = await query;
@@ -222,7 +229,7 @@ export function ArtikelAdminClientContent() {
     } catch (err) {
       console.error("Gagal fetch kategori:", err);
     }
-  }, [s, isAdmin]);
+  }, [s, isAdmin, isDesigner, userId]);
 
   // 3. Fetch Daftar Artikel Sesuai Filter
   const fetchArticles = useCallback(async () => {
@@ -231,11 +238,13 @@ export function ArtikelAdminClientContent() {
     const to = from + PAGE_SIZE - 1;
 
     let query = s.from("articles").select(
-      `id, title, slug, excerpt, cover_image, status, tags, featured, created_at, published_at, views`,
+      `id, title, slug, excerpt, cover_image, status, tags, featured, created_at, published_at, views, author`,
       { count: "exact" }
     );
 
-    if (!isAdmin) {
+    if (isDesigner && userId) {
+      query = query.eq("author", userId);
+    } else if (!isAdmin) {
       query = query.eq("status", "published");
     }
 
@@ -260,7 +269,7 @@ export function ArtikelAdminClientContent() {
       setTotalItems(count || 0);
     }
     setLoading(false);
-  }, [s, isAdmin, currentPage, searchTerm, selectedCategory]);
+  }, [s, isAdmin, isDesigner, userId, currentPage, searchTerm, selectedCategory]);
 
   useEffect(() => {
     if (roleChecked) {
@@ -407,7 +416,7 @@ export function ArtikelAdminClientContent() {
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          {isAdmin && (
+          {canManageArticles && (
             <Button asChild variant="outline" size="sm" className="shadow-xs">
               <Link href="/artikel-admin/buat">
                 <Plus className="mr-1.5 h-4 w-4" />
@@ -416,12 +425,14 @@ export function ArtikelAdminClientContent() {
             </Button>
           )}
 
-          <Button asChild size="sm" className="shadow-xs bg-primary text-primary-foreground hover:bg-primary/90">
-            <Link href="/permintaan-desain/buat">
-              <Plus className="mr-1.5 h-4 w-4" />
-              Buat Tiket Kendala
-            </Link>
-          </Button>
+          {!isDesigner && (
+            <Button asChild size="sm" className="shadow-xs bg-primary text-primary-foreground hover:bg-primary/90">
+              <Link href="/permintaan-desain/buat">
+                <Plus className="mr-1.5 h-4 w-4" />
+                Buat Tiket Kendala
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -493,7 +504,7 @@ export function ArtikelAdminClientContent() {
                       </div>
 
                       {/* Admin Quick Action Menu di Pojok Kanan Atas */}
-                      {isAdmin && (
+                      {canManageArticles && (
                         <div
                           className="absolute top-2 right-2 z-10"
                           onClick={(e) => e.stopPropagation()}
@@ -513,7 +524,7 @@ export function ArtikelAdminClientContent() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuLabel className="text-xs">
-                                Opsi Admin
+                                Opsi Artikel
                               </DropdownMenuLabel>
                               <DropdownMenuItem asChild>
                                 <Link href={`/artikel-admin/${article.id}`}>
@@ -528,39 +539,31 @@ export function ArtikelAdminClientContent() {
                                 Salin Tautan
                               </DropdownMenuItem>
 
-                              <DropdownMenuSeparator />
-                              <DropdownMenuLabel className="text-xs">
-                                Status Artikel
-                              </DropdownMenuLabel>
-                              {article.status !== "published" && (
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    handleQuickStatusChange(article, "published")
-                                  }
-                                >
-                                  <CheckCircle2 className="mr-2 h-3.5 w-3.5 text-emerald-500" />
-                                  Terbitkan
-                                </DropdownMenuItem>
-                              )}
-                              {article.status !== "draft" && (
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    handleQuickStatusChange(article, "draft")
-                                  }
-                                >
-                                  <Clock className="mr-2 h-3.5 w-3.5 text-amber-500" />
-                                  Jadikan Draft
-                                </DropdownMenuItem>
-                              )}
-                              {article.status !== "archived" && (
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    handleQuickStatusChange(article, "archived")
-                                  }
-                                >
-                                  <Archive className="mr-2 h-3.5 w-3.5 text-slate-500" />
-                                  Arsipkan
-                                </DropdownMenuItem>
+                              {isAdmin && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuLabel className="text-xs">
+                                    Status Artikel
+                                  </DropdownMenuLabel>
+                                  {article.status !== "published" && (
+                                    <DropdownMenuItem onClick={() => handleQuickStatusChange(article, "published")}>
+                                      <CheckCircle2 className="mr-2 h-3.5 w-3.5 text-emerald-500" />
+                                      Terbitkan
+                                    </DropdownMenuItem>
+                                  )}
+                                  {article.status !== "draft" && (
+                                    <DropdownMenuItem onClick={() => handleQuickStatusChange(article, "draft")}>
+                                      <Clock className="mr-2 h-3.5 w-3.5 text-amber-500" />
+                                      Jadikan Draft
+                                    </DropdownMenuItem>
+                                  )}
+                                  {article.status !== "archived" && (
+                                    <DropdownMenuItem onClick={() => handleQuickStatusChange(article, "archived")}>
+                                      <Archive className="mr-2 h-3.5 w-3.5 text-slate-500" />
+                                      Arsipkan
+                                    </DropdownMenuItem>
+                                  )}
+                                </>
                               )}
 
                               <DropdownMenuSeparator />

@@ -1,22 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getUserManagementAdminClient } from "@/lib/supabase/user-management-admin";
 
 export const dynamic = "force-dynamic";
-
-function getAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
-
-  return createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
 
 export async function GET(
   request: NextRequest,
@@ -28,7 +13,9 @@ export async function GET(
       return NextResponse.json({ error: "User ID diperlukan" }, { status: 400 });
     }
 
-    const supabase = getAdminClient();
+    const access = await getUserManagementAdminClient();
+    if (!access.client) return access.response;
+    const supabase = access.client;
 
     const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(id);
     if (authError || !authUser?.user) {
@@ -78,7 +65,13 @@ export async function PATCH(
     const body = await request.json();
     const { name, role, department } = body;
 
-    const supabase = getAdminClient();
+    if (role !== undefined && !["admin", "user", "designer"].includes(role)) {
+      return NextResponse.json({ error: "Role pengguna tidak valid" }, { status: 400 });
+    }
+
+    const access = await getUserManagementAdminClient();
+    if (!access.client) return access.response;
+    const supabase = access.client;
 
     // 1. Get existing auth user
     const { data: authUser, error: fetchErr } = await supabase.auth.admin.getUserById(id);
@@ -153,7 +146,9 @@ export async function DELETE(
       return NextResponse.json({ error: "User ID diperlukan" }, { status: 400 });
     }
 
-    const supabase = getAdminClient();
+    const access = await getUserManagementAdminClient();
+    if (!access.client) return access.response;
+    const supabase = access.client;
 
     // 1. Delete from auth.users (cascades or cleans up)
     const { error } = await supabase.auth.admin.deleteUser(id);

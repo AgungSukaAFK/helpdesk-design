@@ -80,8 +80,14 @@ function Toolbar({ editor }: { editor: Editor }) {
         return;
       }
 
+      const { data: { user } } = await s.auth.getUser();
+      if (!user) {
+        toast.error("Sesi berakhir, silakan login ulang.");
+        return;
+      }
+
       const toastId = toast.loading("Mengunggah gambar...");
-      const path = `content/${Date.now()}_${file.name.replace(/\s+/g, "-")}`;
+      const path = `authors/${user.id}/content/${Date.now()}_${file.name.replace(/\s+/g, "-")}`;
       const { error } = await s.storage
         .from(ARTICLES_BUCKET)
         .upload(path, file);

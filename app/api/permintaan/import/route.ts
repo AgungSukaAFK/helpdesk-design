@@ -1,22 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthorizedContext } from "@/lib/supabase/authorization";
 
 export const dynamic = "force-dynamic";
-
-function getAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
-
-  return createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
 
 const FAREL_ID = "54e6f310-813b-447b-aac0-9052423440da";
 const PAULUS_ID = "bcfdf89c-d1e2-4602-80aa-005a1beb1d3c";
@@ -68,7 +53,9 @@ function mapToDailyActivityStatus(status: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const access = await getAuthorizedContext(["admin"]);
+    if (!access.client) return access.response;
+    const supabase = access.client;
     const body = await request.json();
 
     const items: any[] = Array.isArray(body) ? body : body.items || [];

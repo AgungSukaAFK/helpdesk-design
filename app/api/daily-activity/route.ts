@@ -1,27 +1,14 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthorizedContext } from "@/lib/supabase/authorization";
 
 export const dynamic = "force-dynamic";
-
-function getAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
-
-  return createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
 
 // GET /api/daily-activity?month=YYYY-MM
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const access = await getAuthorizedContext(["admin", "designer"]);
+    if (!access.client) return access.response;
+    const supabase = access.client;
     const { searchParams } = new URL(request.url);
     const month = searchParams.get("month");
     const staff = searchParams.get("staff");
@@ -67,10 +54,15 @@ const DEFAULT_USER_ID = "bcfdf89c-d1e2-4602-80aa-005a1beb1d3c";
 // POST /api/daily-activity (insert single or batch)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const access = await getAuthorizedContext(["admin", "designer"]);
+    if (!access.client) return access.response;
+    const supabase = access.client;
     const body = await request.json();
 
     if (Array.isArray(body)) {
+      if (access.role !== "admin") {
+        return NextResponse.json({ error: "Designer hanya dapat menambahkan aktivitas satu per satu" }, { status: 403 });
+      }
       const sanitized = body.map((item) => ({
         ...item,
         user_id: item.user_id || DEFAULT_USER_ID,
@@ -85,6 +77,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.items && Array.isArray(body.items)) {
+      if (access.role !== "admin") {
+        return NextResponse.json({ error: "Designer tidak dapat mengimpor aktivitas" }, { status: 403 });
+      }
       const sanitized = body.items.map((item: any) => ({
         ...item,
         user_id: item.user_id || DEFAULT_USER_ID,
@@ -110,7 +105,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from("daily_activities")
       .insert({
-        user_id: user_id || DEFAULT_USER_ID,
+        user_id: access.role === "designer" ? access.user.id : user_id || DEFAULT_USER_ID,
         activity_date,
         name,
         task_description,
@@ -135,7 +130,9 @@ export async function POST(request: NextRequest) {
 // PUT / PATCH /api/daily-activity (update by id)
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const access = await getAuthorizedContext(["admin", "designer"]);
+    if (!access.client) return access.response;
+    const supabase = access.client;
     const body = await request.json();
     const { id, activity_date, name, task_description, status, remarks } = body;
 
@@ -171,7 +168,9 @@ export async function PATCH(request: NextRequest) {
 // DELETE /api/daily-activity?id=... OR ?month=YYYY-MM
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const access = await getAuthorizedContext(["admin"]);
+    if (!access.client) return access.response;
+    const supabase = access.client;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const month = searchParams.get("month");

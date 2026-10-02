@@ -96,6 +96,7 @@ export default function EditPermintaanDesainPage() {
   const id = params.id as string;
 
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [isDesigner, setIsDesigner] = useState(false);
   const [data, setData] = useState<PermintaanData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -117,6 +118,7 @@ export default function EditPermintaanDesainPage() {
         } = await s.auth.getUser();
 
         let isUserAdmin = false;
+        let isUserDesigner = false;
         if (user) {
           const { data: profile } = await s
             .from("user_profiles")
@@ -125,6 +127,8 @@ export default function EditPermintaanDesainPage() {
             .maybeSingle();
 
           isUserAdmin = profile?.role === "admin";
+          isUserDesigner = profile?.role === "designer";
+          setIsDesigner(isUserDesigner);
         }
 
         // Fetch detail permintaan via API (bypasses RLS & safely handles single record)
@@ -137,8 +141,8 @@ export default function EditPermintaanDesainPage() {
         const item = json.data;
         if (!item) throw new Error("Data permintaan tidak ditemukan");
 
-        // Izin edit: admin atau pemilik tiket
-        const canEdit = isUserAdmin || (user && item.requester === user.id) || !item.requester;
+        // Designers can edit only tickets assigned to them; requesters can edit their own.
+        const canEdit = isUserAdmin || (isUserDesigner && item.admin === user?.id) || (user && item.requester === user.id);
         if (!canEdit) {
           setIsAdmin(false);
           return;
@@ -208,9 +212,9 @@ export default function EditPermintaanDesainPage() {
           deskripsi,
           project: projectValue,
           departemen: selectedDepartment,
-          status,
+          status: isDesigner ? data?.status || status : status,
           due_date: new Date(dueDate).toISOString(),
-          admin: admin === "none" ? null : admin,
+          admin: isDesigner ? data?.admin : admin === "none" ? null : admin,
         }),
       });
       const json = await res.json();
@@ -240,7 +244,7 @@ export default function EditPermintaanDesainPage() {
         <Alert variant="destructive">
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription>
-            Hanya user dengan role admin yang dapat mengedit permintaan desain.
+            Anda tidak memiliki akses untuk mengedit permintaan desain ini.
           </AlertDescription>
         </Alert>
         <div className="mt-4">
@@ -343,7 +347,7 @@ export default function EditPermintaanDesainPage() {
           />
         </div>
 
-        <div className="flex flex-col gap-2">
+        {!isDesigner && <div className="flex flex-col gap-2">
           <Label htmlFor="status">Status</Label>
           <Select
             value={status}
@@ -361,16 +365,16 @@ export default function EditPermintaanDesainPage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </div>}
 
-        <div className="flex flex-col gap-2">
+        {!isDesigner && <div className="flex flex-col gap-2">
           <Label htmlFor="admin">Desainer (PIC)</Label>
           <Combobox
             data={[{ label: "Kosong (belum ada)", value: "none" }, ...dataDesigner]}
             onChange={setAdmin}
             defaultValue={admin}
           />
-        </div>
+        </div>}
 
         <Button type="submit" disabled={saving} className="w-full">
           {saving ? (

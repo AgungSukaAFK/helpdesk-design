@@ -1,26 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getUserManagementAdminClient } from "@/lib/supabase/user-management-admin";
+import { getSiteRedirectUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
-function getAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
-
-  return createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const access = await getUserManagementAdminClient();
+    if (!access.client) return access.response;
+    const supabase = access.client;
     const { searchParams } = new URL(request.url);
 
     const page = Math.max(1, Number(searchParams.get("page") || "1"));
@@ -107,6 +95,66 @@ export async function GET(request: NextRequest) {
       limit,
       departments,
     });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message || "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const access = await getUserManagementAdminClient();
+    if (!access.client) return access.response;
+
+    const body = await request.json();
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const role = ["admin", "user", "designer"].includes(body.role) ? body.role : "";
+    const department = typeof body.department === "string" ? body.department.trim() : "";
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "Alamat email tidak valid" }, { status: 400 });
+    }
+    if (!name) {
+      return NextResponse.json({ error: "Nama pengguna wajib diisi" }, { status: 400 });
+    }
+    if (!role) {
+      return NextResponse.json({ error: "Role pengguna tidak valid" }, { status: 400 });
+    }
+    if (!department) {
+      return NextResponse.json({ error: "Departemen wajib diisi" }, { status: 400 });
+    }
+
+    const supabase = access.client;
+    const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
+      data: { name, role, department },
+      redirectTo: getSiteRedirectUrl("/protected"),
+    });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (!data.user) {
+      return NextResponse.json({ error: "Undangan pengguna gagal dibuat" }, { status: 500 });
+    }
+
+    const profile = {
+      id: data.user.id,
+      email,
+      name,
+      role,
+      updated_at: new Date().toISOString(),
+    };
+    const { error: profileError } = await supabase.from("user_profiles").upsert(profile);
+    if (profileError) {
+      await supabase.auth.admin.deleteUser(data.user.id);
+      return NextResponse.json({ error: profileError.message }, { status: 500 });
+    }
+    await supabase.from("users").upsert(profile);
+
+    return NextResponse.json({ success: true, data: { ...profile, department } }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Internal server error" },

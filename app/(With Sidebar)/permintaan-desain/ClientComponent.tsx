@@ -832,7 +832,7 @@ export default function PermintaanList() {
             accept=".xlsx,.xls,.csv"
             className="hidden"
           />
-          <Button
+          {userRole === "admin" && <Button
             onClick={() => fileInputRef.current?.click()}
             disabled={isReadingFile || isProcessingImport}
             variant="outline"
@@ -845,10 +845,10 @@ export default function PermintaanList() {
               <Upload className="h-4 w-4" />
             )}
             <span>Import File</span>
-          </Button>
+          </Button>}
 
           {/* Export Excel (Untuk SEMUA Role Sesuai Bulan) */}
-          <Button
+          {userRole !== "designer" && <Button
             onClick={handleDownloadExcel}
             disabled={isExporting}
             variant="outline"
@@ -861,14 +861,13 @@ export default function PermintaanList() {
               <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
             )}
             <span>Export Excel</span>
-          </Button>
+          </Button>}
 
-          {/* Buat Baru (Untuk SEMUA Role) */}
-          <Button asChild>
+          {userRole !== "designer" && <Button asChild>
             <Link href="/permintaan-desain/buat" className="flex items-center gap-1.5">
               <Plus className="h-4 w-4" /> <span>Buat Baru</span>
             </Link>
-          </Button>
+          </Button>}
         </div>
       }
     >
@@ -1640,13 +1639,15 @@ export default function PermintaanList() {
                       <Button variant="outline" size="sm" className="h-8 text-xs px-2.5" asChild>
                         <Link href={`/permintaan-desain/${item.id}`}>Detail</Link>
                       </Button>
+                      {(userRole === "admin" || (userRole === "designer" && item.admin === currentUser?.id)) && (
+                        <Button variant="outline" size="sm" className="h-8 text-xs px-2" asChild>
+                          <Link href={`/permintaan-desain/${item.id}/edit`} title="Edit Permintaan">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                      )}
                       {userRole === "admin" && (
                         <>
-                          <Button variant="outline" size="sm" className="h-8 text-xs px-2" asChild>
-                            <Link href={`/permintaan-desain/${item.id}/edit`} title="Edit Permintaan">
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Link>
-                          </Button>
                           <Button
                             variant="outline"
                             size="sm"

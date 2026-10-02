@@ -16,12 +16,65 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { createClient } from "@/lib/supabase/client";
-import { redirect, usePathname } from "next/navigation";
-import { Fragment, ReactNode, useEffect } from "react";
+import { redirect, usePathname, useRouter } from "next/navigation";
+import { Fragment, ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { Loader2 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [accessCheckedPath, setAccessCheckedPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    async function verifyDesignerRoute() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.replace("/auth/login");
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profile?.role === "designer") {
+          const isRequestWorkRoute = pathname === "/permintaan-desain" || (
+            /^\/permintaan-desain\/[^/]+(?:\/edit)?$/.test(pathname) &&
+            pathname !== "/permintaan-desain/buat"
+          );
+          const isAllowedRoute =
+            pathname === "/dashboard" ||
+            pathname === "/daily-activity" ||
+            pathname === "/riwayat-pengerjaan" ||
+            pathname === "/artikel-admin" ||
+            pathname.startsWith("/artikel-admin/") ||
+            isRequestWorkRoute;
+
+          if (!isAllowedRoute) {
+            router.replace("/dashboard");
+            return;
+          }
+        }
+
+        if (active) setAccessCheckedPath(pathname);
+      } catch {
+        if (active) setAccessCheckedPath(pathname);
+      }
+    }
+
+    verifyDesignerRoute();
+    return () => {
+      active = false;
+    };
+  }, [pathname, router]);
+
   function urlToBreadcrumb(pathname: string) {
     const parts = pathname.split("/").filter(Boolean);
 
@@ -95,6 +148,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     fetch();
   }, []);
 
+  if (accessCheckedPath !== pathname) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <>
       <SidebarProvider>
@@ -116,7 +177,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator className="hidden sm:inline-flex" />
-                  {urlToBreadcrumb(usePathname())}
+                  {urlToBreadcrumb(pathname)}
                 </BreadcrumbList>
               </Breadcrumb>
               <div className="ml-auto flex items-center gap-2 shrink-0">

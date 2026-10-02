@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -58,6 +59,8 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
   const isEdit = Boolean(articleId);
 
   const [loading, setLoading] = useState(isEdit);
+  const [roleChecked, setRoleChecked] = useState(false);
+  const [userRole, setUserRole] = useState<string>("user");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -73,26 +76,30 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
   const [status, setStatus] = useState<ArticleStatus>("draft");
   const [featured, setFeatured] = useState(false);
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
+  const isAdmin = userRole === "admin";
 
-  // Pastikan hanya admin yang bisa mengakses form edit/buat
+  // Admin manages all articles; designers manage articles they authored.
   useEffect(() => {
-    async function checkAdmin() {
+    async function checkRole() {
       const { data } = await s.auth.getUser();
       if (!data?.user) {
-        router.push("/auth/login");
+        router.replace("/auth/login");
         return;
       }
       const { data: profile } = await s
-        .from("users")
+        .from("user_profiles")
         .select("role")
         .eq("id", data.user.id)
-        .single();
-      if (profile?.role !== "admin") {
-        toast.error("Hanya admin yang dapat mengelola artikel.");
-        router.push("/artikel-admin");
+        .maybeSingle();
+      if (profile?.role !== "admin" && profile?.role !== "designer") {
+        toast.error("Anda tidak memiliki akses untuk mengelola artikel.");
+        router.replace("/artikel-admin");
+        return;
       }
+      setUserRole(profile.role);
+      setRoleChecked(true);
     }
-    checkAdmin();
+    checkRole();
   }, [s, router]);
 
   // Muat artikel saat mode edit
@@ -147,7 +154,13 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
 
     setUploadingCover(true);
     const toastId = toast.loading("Mengunggah cover…");
-    const path = `cover/${Date.now()}_${file.name.replace(/\s+/g, "-")}`;
+    const { data: { user } } = await s.auth.getUser();
+    if (!user) {
+      setUploadingCover(false);
+      toast.error("Sesi berakhir, silakan login ulang.", { id: toastId });
+      return;
+    }
+    const path = `authors/${user.id}/cover/${Date.now()}_${file.name.replace(/\s+/g, "-")}`;
     const { error } = await s.storage.from(ARTICLES_BUCKET).upload(path, file);
     setUploadingCover(false);
 
@@ -254,7 +267,7 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
     }
   };
 
-  if (loading) {
+  if (loading || !roleChecked) {
     return (
       <Content title="Memuat artikel…" size="lg">
         <div className="flex h-40 items-center justify-center">
@@ -271,10 +284,10 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
       size="lg"
       cardAction={
         <Button variant="outline" size="sm" asChild>
-          <a href="/artikel-admin">
+          <Link href="/artikel-admin">
             <ArrowLeft className="mr-1.5 h-4 w-4" />
             Kembali ke Daftar
-          </a>
+          </Link>
         </Button>
       }
     >
@@ -378,6 +391,7 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
             <Select
               value={status}
               onValueChange={(v) => setStatus(v as ArticleStatus)}
+              disabled={!isAdmin}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -397,6 +411,7 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
               id="featured"
               checked={featured}
               onCheckedChange={(c) => setFeatured(Boolean(c))}
+              disabled={!isAdmin}
             />
             <Label htmlFor="featured" className="cursor-pointer font-normal">
               Jadikan artikel unggulan (featured)

@@ -30,6 +30,7 @@ import { toast } from "sonner";
 
 const ROLE_OPTIONS = [
   { label: "Admin", value: "admin" },
+  { label: "Designer", value: "designer" },
   { label: "User", value: "user" },
 ];
 
@@ -200,7 +201,7 @@ export default function EditUserPage({
 
           <Badge variant={role === "admin" ? "default" : "outline"} className="gap-1">
             {role === "admin" ? <ShieldCheck className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
-            {role === "admin" ? "Admin" : "User"}
+            {role === "admin" ? "Admin" : role === "designer" ? "Designer" : "User"}
           </Badge>
         </div>
 

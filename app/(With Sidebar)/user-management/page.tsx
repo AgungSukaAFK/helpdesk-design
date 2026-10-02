@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useTransition } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Content } from "@/components/content";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Search,
   Users,
@@ -40,6 +42,7 @@ import {
   Loader2,
   RefreshCw,
   UserCheck,
+  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -70,8 +73,17 @@ export default function UserManagementPage() {
   const [limit, setLimit] = useState<number>(25);
 
   // Delete Dialog States
-  const [userToDelete, setUserToDelete] = useState<UserItem | null>(null);
+  const [usersToDelete, setUsersToDelete] = useState<UserItem[]>([]);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [newUser, setNewUser] = useState({
+    email: "",
+    name: "",
+    role: "user",
+    department: "General Affair",
+  });
 
   // Fetch Users
   const fetchUsers = useCallback(async () => {
@@ -107,42 +119,103 @@ export default function UserManagementPage() {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
     setPage(1);
+    setSelectedUserIds([]);
   };
 
   const handleRoleChange = (val: string) => {
     setRoleFilter(val);
     setPage(1);
+    setSelectedUserIds([]);
   };
 
   const handleDeptChange = (val: string) => {
     setDeptFilter(val);
     setPage(1);
+    setSelectedUserIds([]);
   };
 
   // Delete User Handler
   const handleDeleteConfirm = async () => {
-    if (!userToDelete) return;
+    if (usersToDelete.length === 0) return;
+    const targets = usersToDelete;
     setIsDeleting(true);
+    const results = await Promise.allSettled(
+      targets.map(async (user) => {
+        const res = await fetch(`/api/user-management/${user.id}`, { method: "DELETE" });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || `Gagal menghapus ${user.email}`);
+        return user.id;
+      })
+    );
+    const failedIds = results.flatMap((result, index) =>
+      result.status === "rejected" ? [targets[index].id] : []
+    );
+    const deletedCount = targets.length - failedIds.length;
+
+    if (deletedCount > 0) {
+      toast.success(`${deletedCount} pengguna berhasil dihapus`);
+    }
+    if (failedIds.length > 0) {
+      toast.error(`${failedIds.length} pengguna gagal dihapus`);
+    }
+
+    setSelectedUserIds(failedIds);
+    setUsersToDelete([]);
+    await fetchUsers();
+    setIsDeleting(false);
+  };
+
+  const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsCreatingUser(true);
     try {
-      const res = await fetch(`/api/user-management/${userToDelete.id}`, {
-        method: "DELETE",
+      const res = await fetch("/api/user-management", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newUser),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Gagal menghapus user");
+      if (!res.ok) throw new Error(json.error || "Gagal menambahkan pengguna");
 
-      toast.success(`Pengguna ${userToDelete.name || userToDelete.email} berhasil dihapus`);
-      setUserToDelete(null);
-      fetchUsers();
+      toast.success("Undangan pengguna berhasil dikirim melalui email");
+      setIsAddDialogOpen(false);
+      setNewUser({ email: "", name: "", role: "user", department: "General Affair" });
+      setSelectedUserIds([]);
+      if (page === 1) await fetchUsers();
+      else setPage(1);
     } catch (err: any) {
-      toast.error("Gagal menghapus: " + err.message);
+      toast.error("Gagal menambahkan pengguna: " + err.message);
     } finally {
-      setIsDeleting(false);
+      setIsCreatingUser(false);
     }
+  };
+
+  const toggleUserSelection = (userId: string, checked: boolean) => {
+    setSelectedUserIds((current) =>
+      checked
+        ? current.includes(userId) ? current : [...current, userId]
+        : current.filter((id) => id !== userId)
+    );
+  };
+
+  const selectedOnPage = users.filter((user) => selectedUserIds.includes(user.id)).length;
+  const allUsersOnPageSelected = users.length > 0 && selectedOnPage === users.length;
+
+  const handleSelectPage = (checked: boolean) => {
+    const currentPageIds = new Set(users.map((user) => user.id));
+    setSelectedUserIds((current) => {
+      const remaining = current.filter((id) => !currentPageIds.has(id));
+      return checked ? [...remaining, ...currentPageIds] : remaining;
+    });
+  };
+
+  const handleBulkDelete = () => {
+    setUsersToDelete(users.filter((user) => selectedUserIds.includes(user.id)));
   };
 
   // Compute summary stats
   const adminCount = users.filter((u) => u.role === "admin").length;
-  const userCount = users.filter((u) => u.role !== "admin").length;
+  const userCount = users.filter((u) => u.role === "user").length;
 
   const totalPages = Math.ceil(total / limit);
 
@@ -171,6 +244,10 @@ export default function UserManagementPage() {
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Segarkan
+            </Button>
+            <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="gap-1.5">
+              <UserPlus className="h-4 w-4" />
+              Tambah User
             </Button>
           </div>
         </div>
@@ -258,11 +335,36 @@ export default function UserManagementPage() {
           </Select>
         </div>
 
+        {selectedUserIds.length > 0 && (
+          <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2">
+            <span className="text-sm text-muted-foreground">
+              {selectedUserIds.length} pengguna dipilih di halaman ini
+            </span>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleBulkDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+              Hapus Terpilih
+            </Button>
+          </div>
+        )}
+
         {/* TABLE */}
-        <div className="rounded-md border bg-card overflow-hidden">
-          <Table className="min-w-[640px]">
+        <div className="rounded-md border bg-card overflow-x-auto">
+          <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow className="bg-muted/40">
+                <TableHead className="w-10">
+                  <Checkbox
+                    aria-label="Pilih semua pengguna di halaman ini"
+                    checked={allUsersOnPageSelected ? true : selectedOnPage > 0 ? "indeterminate" : false}
+                    onCheckedChange={(checked) => handleSelectPage(checked === true)}
+                    disabled={loading || users.length === 0}
+                  />
+                </TableHead>
                 <TableHead className="w-[50px]">No</TableHead>
                 <TableHead>Pengguna</TableHead>
                 <TableHead>Departemen</TableHead>
@@ -274,7 +376,7 @@ export default function UserManagementPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
+                  <TableCell colSpan={7} className="h-32 text-center">
                     <div className="flex items-center justify-center gap-2 text-muted-foreground">
                       <Loader2 className="h-5 w-5 animate-spin" />
                       Memuat data pengguna...
@@ -283,7 +385,7 @@ export default function UserManagementPage() {
                 </TableRow>
               ) : users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                     Tidak ada pengguna yang cocok dengan filter.
                   </TableCell>
                 </TableRow>
@@ -302,6 +404,13 @@ export default function UserManagementPage() {
 
                   return (
                     <TableRow key={u.id} className="hover:bg-muted/30">
+                      <TableCell>
+                        <Checkbox
+                          aria-label={`Pilih ${u.name || u.email}`}
+                          checked={selectedUserIds.includes(u.id)}
+                          onCheckedChange={(checked) => toggleUserSelection(u.id, checked === true)}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium text-muted-foreground">
                         {(page - 1) * limit + index + 1}
                       </TableCell>
@@ -334,6 +443,10 @@ export default function UserManagementPage() {
                             <ShieldCheck className="h-3 w-3" />
                             Admin
                           </Badge>
+                        ) : u.role === "designer" ? (
+                          <Badge className="bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 border-blue-500/25 dark:text-blue-300">
+                            Designer
+                          </Badge>
                         ) : (
                           <Badge variant="outline" className="text-muted-foreground">
                             User
@@ -364,7 +477,7 @@ export default function UserManagementPage() {
                             variant="outline"
                             size="sm"
                             className="h-8 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => setUserToDelete(u)}
+                            onClick={() => setUsersToDelete([u])}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -387,6 +500,7 @@ export default function UserManagementPage() {
               onValueChange={(val) => {
                 setLimit(Number(val));
                 setPage(1);
+                setSelectedUserIds([]);
               }}
             >
               <SelectTrigger className="w-[70px] h-8">
@@ -410,7 +524,10 @@ export default function UserManagementPage() {
                 size="sm"
                 className="h-8 px-3"
                 disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => {
+                  setSelectedUserIds([]);
+                  setPage((p) => Math.max(1, p - 1));
+                }}
               >
                 Sebelumnya
               </Button>
@@ -422,7 +539,10 @@ export default function UserManagementPage() {
                 size="sm"
                 className="h-8 px-3"
                 disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => {
+                  setSelectedUserIds([]);
+                  setPage((p) => Math.min(totalPages, p + 1));
+                }}
               >
                 Selanjutnya
               </Button>
@@ -433,9 +553,9 @@ export default function UserManagementPage() {
 
       {/* DIALOG KONFIRMASI HAPUS */}
       <Dialog
-        open={Boolean(userToDelete)}
+        open={usersToDelete.length > 0}
         onOpenChange={(open) => {
-          if (!open) setUserToDelete(null);
+          if (!open) setUsersToDelete([]);
         }}
       >
         <DialogContent className="sm:max-w-[420px]">
@@ -445,17 +565,23 @@ export default function UserManagementPage() {
               Hapus Akun Pengguna
             </DialogTitle>
             <DialogDescription className="pt-2">
-              Apakah Anda yakin ingin menghapus akun{" "}
-              <strong className="text-foreground">
-                {userToDelete?.name || userToDelete?.email}
-              </strong>
-              ? Tindakan ini bersifat permanen dan tidak dapat dibatalkan.
+              {usersToDelete.length === 1 ? (
+                <>
+                  Apakah Anda yakin ingin menghapus akun{" "}
+                  <strong className="text-foreground">
+                    {usersToDelete[0].name || usersToDelete[0].email}
+                  </strong>
+                  ? Tindakan ini bersifat permanen dan tidak dapat dibatalkan.
+                </>
+              ) : (
+                `Apakah Anda yakin ingin menghapus ${usersToDelete.length} akun? Tindakan ini bersifat permanen dan tidak dapat dibatalkan.`
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0 pt-4">
             <Button
               variant="outline"
-              onClick={() => setUserToDelete(null)}
+              onClick={() => setUsersToDelete([])}
               disabled={isDeleting}
             >
               Batal
@@ -474,11 +600,89 @@ export default function UserManagementPage() {
               ) : (
                 <>
                   <Trash2 className="h-4 w-4" />
-                  Hapus Pengguna
+                  Hapus {usersToDelete.length === 1 ? "Pengguna" : `${usersToDelete.length} Pengguna`}
                 </>
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              Tambah User
+            </DialogTitle>
+            <DialogDescription>
+              Undangan untuk membuat akun akan dikirim ke alamat email pengguna.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateUser} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-user-name">Nama lengkap</Label>
+              <Input
+                id="new-user-name"
+                value={newUser.name}
+                onChange={(event) => setNewUser({ ...newUser, name: event.target.value })}
+                autoComplete="name"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-user-email">Email</Label>
+              <Input
+                id="new-user-email"
+                type="email"
+                value={newUser.email}
+                onChange={(event) => setNewUser({ ...newUser, email: event.target.value })}
+                autoComplete="email"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="new-user-role">Role</Label>
+                <Select
+                  value={newUser.role}
+                  onValueChange={(role) => setNewUser({ ...newUser, role })}
+                >
+                  <SelectTrigger id="new-user-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="designer">Designer</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="new-user-department">Departemen</Label>
+                <Input
+                  id="new-user-department"
+                  value={newUser.department}
+                  onChange={(event) => setNewUser({ ...newUser, department: event.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsAddDialogOpen(false)}
+                disabled={isCreatingUser}
+              >
+                Batal
+              </Button>
+              <Button type="submit" disabled={isCreatingUser} className="gap-1.5">
+                {isCreatingUser && <Loader2 className="h-4 w-4 animate-spin" />}
+                Kirim Undangan
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </Content>

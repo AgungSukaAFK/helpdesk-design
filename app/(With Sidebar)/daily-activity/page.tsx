@@ -262,6 +262,23 @@ export default function DailyActivityPage() {
   // Data state
   const [activities, setActivities] = useState<DailyActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const isAdmin = userRole === "admin";
+  const canEditActivities = isAdmin || userRole === "designer";
+
+  useEffect(() => {
+    async function loadRole() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      setUserRole(profile?.role || "user");
+    }
+    loadRole();
+  }, [supabase]);
 
   // Month navigation state
   const [selectedMonth, setSelectedMonth] = useState<string>("2026-09");
@@ -738,7 +755,11 @@ export default function DailyActivityPage() {
 
   // Export to Excel
   const handleExportExcel = () => {
-    const rowsToExport = filteredActivities.length > 0 ? filteredActivities : monthActivities;
+    const rowsToExport = filteredActivities;
+    if (rowsToExport.length === 0) {
+      toast.error("Tidak ada data sesuai filter untuk diekspor.");
+      return;
+    }
     const rows = rowsToExport.map((activity, index) => ({
       "No.": index + 1,
       "Activity Date": activity.activity_date,
@@ -997,20 +1018,22 @@ export default function DailyActivityPage() {
       cardAction={
         <div className="flex flex-wrap items-center gap-2">
           {/* Import Excel */}
-          <Button
-            variant="default"
-            size="sm"
-            disabled={importing}
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            {importing ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <FileUp className="size-4" />
-            )}
-            <span>Import Excel</span>
-          </Button>
+          {isAdmin && (
+            <Button
+              variant="default"
+              size="sm"
+              disabled={importing}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {importing ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <FileUp className="size-4" />
+              )}
+              <span>Import Excel</span>
+            </Button>
+          )}
 
           {/* Export Excel */}
           <Button
@@ -1036,14 +1059,14 @@ export default function DailyActivityPage() {
           </Button>
 
           {/* Tambah Manual */}
-          <Button
+          {canEditActivities && <Button
             size="sm"
             onClick={handleOpenAddForm}
             className="flex items-center gap-1.5"
           >
             <Plus className="size-4" />
             <span>Tambah</span>
-          </Button>
+          </Button>}
         </div>
       }
     >
@@ -1456,7 +1479,7 @@ export default function DailyActivityPage() {
                         >
                           Detail
                         </Button>
-                        <Button
+                        {canEditActivities && <Button
                           variant="outline"
                           size="sm"
                           className="h-8 text-xs px-2"
@@ -1464,8 +1487,8 @@ export default function DailyActivityPage() {
                           title="Edit Aktivitas"
                         >
                           <Pencil className="size-3.5" />
-                        </Button>
-                        <Button
+                        </Button>}
+                        {isAdmin && <Button
                           variant="outline"
                           size="sm"
                           className="h-8 text-xs px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -1473,7 +1496,7 @@ export default function DailyActivityPage() {
                           title="Hapus Aktivitas"
                         >
                           <Trash2 className="size-3.5" />
-                        </Button>
+                        </Button>}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1491,7 +1514,7 @@ export default function DailyActivityPage() {
                       Tidak ada aktivitas yang cocok dengan filter yang dipilih. Anda dapat berpindah ke bulan lain atau mereset filter.
                     </p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Button
+                      {isAdmin && <Button
                         variant="default"
                         size="sm"
                         onClick={() => fileInputRef.current?.click()}
@@ -1499,8 +1522,8 @@ export default function DailyActivityPage() {
                       >
                         <FileUp className="size-3.5" />
                         <span>Import Excel</span>
-                      </Button>
-                      <Button
+                      </Button>}
+                      {canEditActivities && <Button
                         variant="outline"
                         size="sm"
                         onClick={handleOpenAddForm}
@@ -1508,7 +1531,7 @@ export default function DailyActivityPage() {
                       >
                         <Plus className="size-3.5" />
                         <span>Tambah Manual</span>
-                      </Button>
+                      </Button>}
                     </div>
                   </div>
                 </TableCell>

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthorizedContext } from "@/lib/supabase/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -143,7 +144,9 @@ export function checkIsTicketTercapai(ticket: {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const access = await getAuthorizedContext(["admin", "user", "designer"]);
+    if (!access.client) return access.response;
+    const { client: supabase, user, role } = access;
     const { searchParams } = new URL(request.url);
 
     // 1. Single Ticket by ID
@@ -160,6 +163,12 @@ export async function GET(request: NextRequest) {
       }
       if (!item) {
         return NextResponse.json({ error: "Data permintaan tidak ditemukan" }, { status: 404 });
+      }
+      if (role === "user" && item.requester !== user.id && item.admin !== user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (role === "designer" && item.admin && item.admin !== user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
       let adminInfo: any = null;
@@ -207,7 +216,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "";
     const designer = searchParams.get("designer") || "";
-    const requester = searchParams.get("requester") || "";
+    const requester = role === "user" ? user.id : searchParams.get("requester") || "";
     const startDate = searchParams.get("startDate") || "";
     const endDate = searchParams.get("endDate") || "";
     const month = searchParams.get("month") || "";
@@ -217,6 +226,10 @@ export async function GET(request: NextRequest) {
     const hasil = searchParams.get("hasil") || "";
 
     let query = supabase.from("permintaan").select("*", { count: "exact" });
+
+    if (role === "designer") {
+      query = query.or(`admin.is.null,admin.eq.${user.id}`);
+    }
 
     // Apply Search
     if (search) {
@@ -262,6 +275,10 @@ export async function GET(request: NextRequest) {
     let statsQuery = supabase
       .from("permintaan")
       .select("id, status, project, created_at, due_date, updated_at, deskripsi");
+
+    if (role === "designer") {
+      statsQuery = statsQuery.or(`admin.is.null,admin.eq.${user.id}`);
+    }
 
     if (month && month !== "all") {
       const [yStr, mStr] = month.split("-");
@@ -352,7 +369,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Map Names for requester and admin
-    let items = data || [];
+    const items = data || [];
     const userIds = new Set<string>();
     items.forEach((item) => {
       if (item.requester) userIds.add(item.requester);
@@ -426,12 +443,42 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const access = await getAuthorizedContext(["admin", "user", "designer"]);
+    if (!access.client) return access.response;
+    const { client: supabase, user, role } = access;
     const body = await request.json();
     const { id, judul, project, departemen, status, due_date, deskripsi, admin } = body;
 
     if (!id) {
       return NextResponse.json({ error: "ID tiket diperlukan" }, { status: 400 });
+    }
+
+    const { data: currentTicket, error: currentTicketError } = await supabase
+      .from("permintaan")
+      .select("requester, admin")
+      .eq("id", id)
+      .maybeSingle();
+    if (currentTicketError) {
+      return NextResponse.json({ error: currentTicketError.message }, { status: 500 });
+    }
+    if (!currentTicket) {
+      return NextResponse.json({ error: "Data permintaan tidak ditemukan" }, { status: 404 });
+    }
+    if (role === "user" && currentTicket.requester !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (role === "designer") {
+      if (currentTicket.admin && currentTicket.admin !== user.id) {
+        return NextResponse.json({ error: "Tiket sudah ditugaskan ke Designer lain" }, { status: 403 });
+      }
+      const isAssignedToDesigner = currentTicket.admin === user.id;
+      const isClaimingUnassigned = !currentTicket.admin && admin === user.id;
+      if (!isAssignedToDesigner && !isClaimingUnassigned) {
+        return NextResponse.json({ error: "Designer harus mengambil tiket sebelum mengubahnya" }, { status: 403 });
+      }
+      if (admin !== undefined && admin !== user.id) {
+        return NextResponse.json({ error: "Designer tidak dapat mengubah penugasan tiket" }, { status: 403 });
+      }
     }
 
     const updates: Record<string, any> = {
@@ -443,7 +490,7 @@ export async function PATCH(request: NextRequest) {
     if (status !== undefined) updates.status = status;
     if (due_date !== undefined) updates.due_date = due_date;
     if (deskripsi !== undefined) updates.deskripsi = deskripsi;
-    if (admin !== undefined) updates.admin = admin;
+    if (admin !== undefined && role !== "user") updates.admin = admin;
 
     const { data, error } = await supabase
       .from("permintaan")

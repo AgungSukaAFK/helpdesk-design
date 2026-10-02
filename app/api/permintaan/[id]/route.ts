@@ -1,22 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthorizedContext } from "@/lib/supabase/authorization";
 
 export const dynamic = "force-dynamic";
-
-function getAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
-
-  return createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
 
 const FAREL_ID = "54e6f310-813b-447b-aac0-9052423440da";
 const PAULUS_ID = "bcfdf89c-d1e2-4602-80aa-005a1beb1d3c";
@@ -52,7 +37,9 @@ export async function GET(
       return NextResponse.json({ error: "ID tiket diperlukan" }, { status: 400 });
     }
 
-    const supabase = getAdminClient();
+    const access = await getAuthorizedContext(["admin", "user", "designer"]);
+    if (!access.client) return access.response;
+    const { client: supabase, user, role } = access;
     const { data: item, error } = await supabase
       .from("permintaan")
       .select("*")
@@ -64,6 +51,12 @@ export async function GET(
     }
     if (!item) {
       return NextResponse.json({ error: "Data permintaan tidak ditemukan" }, { status: 404 });
+    }
+    if (role === "user" && item.requester !== user.id && item.admin !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (role === "designer" && item.admin && item.admin !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     let adminInfo: any = null;
@@ -115,13 +108,40 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const supabase = getAdminClient();
+    const access = await getAuthorizedContext(["admin", "user", "designer"]);
+    if (!access.client) return access.response;
+    const { client: supabase, user, role } = access;
     const body = await request.json();
     const { judul, project, departemen, status, due_date, deskripsi, admin } = body;
 
     const targetId = id || body.id;
     if (!targetId) {
       return NextResponse.json({ error: "ID tiket diperlukan" }, { status: 400 });
+    }
+
+    const { data: currentTicket, error: currentTicketError } = await supabase
+      .from("permintaan")
+      .select("requester, admin")
+      .eq("id", targetId)
+      .maybeSingle();
+    if (currentTicketError) {
+      return NextResponse.json({ error: currentTicketError.message }, { status: 500 });
+    }
+    if (!currentTicket) {
+      return NextResponse.json({ error: "Data permintaan tidak ditemukan" }, { status: 404 });
+    }
+    if (role === "user" && currentTicket.requester !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (role === "designer") {
+      const isAssignedToDesigner = currentTicket.admin === user.id;
+      const isClaimingUnassigned = !currentTicket.admin && admin === user.id;
+      if (!isAssignedToDesigner && !isClaimingUnassigned) {
+        return NextResponse.json({ error: "Designer hanya dapat mengubah tiket yang ditugaskan kepadanya" }, { status: 403 });
+      }
+      if (admin !== undefined && admin !== user.id) {
+        return NextResponse.json({ error: "Designer tidak dapat mengubah penugasan tiket" }, { status: 403 });
+      }
     }
 
     const updates: Record<string, any> = {
@@ -133,7 +153,7 @@ export async function PATCH(
     if (status !== undefined) updates.status = status;
     if (due_date !== undefined) updates.due_date = due_date;
     if (deskripsi !== undefined) updates.deskripsi = cleanDeskripsi(deskripsi);
-    if (admin !== undefined) updates.admin = admin;
+    if (admin !== undefined && role !== "user") updates.admin = admin;
 
     const { data, error } = await supabase
       .from("permintaan")

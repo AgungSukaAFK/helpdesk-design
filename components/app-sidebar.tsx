@@ -130,6 +130,33 @@ const data = {
       icon: Newspaper,
     },
   ],
+  navDesigner: [
+    {
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Daily Activity",
+      url: "/daily-activity",
+      icon: CalendarCheck2,
+    },
+    {
+      title: "Permintaan Desain",
+      url: "/permintaan-desain",
+      icon: FileBox,
+    },
+    {
+      title: "Riwayat Pengerjaan",
+      url: "/riwayat-pengerjaan",
+      icon: Clock,
+    },
+    {
+      title: "Artikel",
+      url: "/artikel-admin",
+      icon: Newspaper,
+    },
+  ],
   navSecondary: [
     {
       title: "Dokumentasi",
@@ -226,7 +253,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     getUser();
   }, [supabase]);
 
-  const markActive = (items: typeof data.navMain) =>
+  const markActive = (items: readonly { title: string; url: string; icon: typeof LayoutDashboard }[]) =>
     items.map((item) => ({
       ...item,
       isActive: currentPath.includes(item.url),
@@ -241,10 +268,14 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         {profile?.role === "admin" ? (
           <NavMain label="Menu" items={markActive(data.navAdmin)} />
+        ) : profile?.role === "designer" ? (
+          <NavMain label="Menu" items={markActive(data.navDesigner)} />
         ) : (
           <NavMain label="Menu" items={markActive(data.navMain)} />
         )}
-        <NavMain label="About" items={markActive(data.navSecondary)} />
+        {profile?.role !== "designer" && (
+          <NavMain label="About" items={markActive(data.navSecondary)} />
+        )}
       </SidebarContent>
 
       <SidebarFooter>
