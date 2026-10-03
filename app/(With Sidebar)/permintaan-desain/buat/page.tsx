@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import Router from "next/router";
+import { useRouter } from "next/navigation";
 
 export interface PermintaanDesain {
   id: string;
@@ -97,7 +97,7 @@ export default function BuatPermintaanDesainPage() {
 
   const s = createClient();
 
-  const { push } = Router;
+  const { push } = useRouter();
 
   // --- FUNGSI UNTUK MENGELOLA LAMPIRAN ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -199,6 +199,18 @@ export default function BuatPermintaanDesainPage() {
         .from("permintaan")
         .insert([dataToInsert]);
       if (insertError) throw insertError;
+
+      // Notify admins
+      fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "notify_admins",
+          title: "Permintaan Desain Baru",
+          message: `Permintaan baru: "${judul}" dari departemen ${departemen}`,
+          link: "/permintaan-desain",
+        }),
+      }).catch(console.error);
 
       form.reset();
       setSelectedDepartment("");

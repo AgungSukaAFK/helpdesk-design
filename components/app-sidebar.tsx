@@ -30,6 +30,7 @@ import {
   Target,
   X,
   MessageSquareDot,
+  Bell,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -102,6 +103,11 @@ const data = {
       url: "/user-management",
       icon: Bot,
     },
+    {
+      title: "Notifikasi",
+      url: "/notifikasi",
+      icon: Bell,
+    },
   ],
   navMain: [
     {
@@ -129,6 +135,11 @@ const data = {
       url: "/artikel-admin",
       icon: Newspaper,
     },
+    {
+      title: "Notifikasi",
+      url: "/notifikasi",
+      icon: Bell,
+    },
   ],
   navDesigner: [
     {
@@ -155,6 +166,11 @@ const data = {
       title: "Artikel",
       url: "/artikel-admin",
       icon: Newspaper,
+    },
+    {
+      title: "Notifikasi",
+      url: "/notifikasi",
+      icon: Bell,
     },
   ],
   navSecondary: [

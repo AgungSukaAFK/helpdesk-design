@@ -1,0 +1,868 @@
+﻿{
+    "data":  {
+                 "year":  2026,
+                 "months":  [
+                                {
+                                    "monthName":  "Januari",
+                                    "monthNum":  "01",
+                                    "period":  "2026-01",
+                                    "active":  false,
+                                    "permintaan":  {
+                                                       "masuk":  0,
+                                                       "selesai":  0,
+                                                       "resRate":  null,
+                                                       "statuses":  {
+
+                                                                    },
+                                                       "onTime":  0,
+                                                       "slaPct":  null,
+                                                       "avgDurationHours":  null,
+                                                       "eskalasi":  0,
+                                                       "priorityBreakdown":  {
+                                                                                 "p1":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p2":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p3":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p4":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        }
+                                                                             }
+                                                   },
+                                    "daily":  {
+                                                  "total":  0,
+                                                  "done":  0,
+                                                  "inProgress":  0,
+                                                  "revisi":  0,
+                                                  "pending":  0,
+                                                  "waiting":  0,
+                                                  "completionRate":  null
+                                              },
+                                    "attendance":  {
+                                                       "totalRecords":  0,
+                                                       "prs":  0,
+                                                       "ovt":  0,
+                                                       "off":  0,
+                                                       "abs":  0,
+                                                       "overtimeMinutes":  0,
+                                                       "overtimeHours":  0,
+                                                       "attendanceRate":  null
+                                                   },
+                                    "safetyToolboxMeeting":  {
+                                                                 "personil":  0,
+                                                                 "countH":  0,
+                                                                 "countHSmall":  0,
+                                                                 "countOther":  0,
+                                                                 "totalStandby":  0
+                                                             },
+                                    "kpiGrade":  null
+                                },
+                                {
+                                    "monthName":  "Februari",
+                                    "monthNum":  "02",
+                                    "period":  "2026-02",
+                                    "active":  false,
+                                    "permintaan":  {
+                                                       "masuk":  0,
+                                                       "selesai":  0,
+                                                       "resRate":  null,
+                                                       "statuses":  {
+
+                                                                    },
+                                                       "onTime":  0,
+                                                       "slaPct":  null,
+                                                       "avgDurationHours":  null,
+                                                       "eskalasi":  0,
+                                                       "priorityBreakdown":  {
+                                                                                 "p1":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p2":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p3":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p4":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        }
+                                                                             }
+                                                   },
+                                    "daily":  {
+                                                  "total":  0,
+                                                  "done":  0,
+                                                  "inProgress":  0,
+                                                  "revisi":  0,
+                                                  "pending":  0,
+                                                  "waiting":  0,
+                                                  "completionRate":  null
+                                              },
+                                    "attendance":  {
+                                                       "totalRecords":  0,
+                                                       "prs":  0,
+                                                       "ovt":  0,
+                                                       "off":  0,
+                                                       "abs":  0,
+                                                       "overtimeMinutes":  0,
+                                                       "overtimeHours":  0,
+                                                       "attendanceRate":  null
+                                                   },
+                                    "safetyToolboxMeeting":  {
+                                                                 "personil":  0,
+                                                                 "countH":  0,
+                                                                 "countHSmall":  0,
+                                                                 "countOther":  0,
+                                                                 "totalStandby":  0
+                                                             },
+                                    "kpiGrade":  null
+                                },
+                                {
+                                    "monthName":  "Maret",
+                                    "monthNum":  "03",
+                                    "period":  "2026-03",
+                                    "active":  false,
+                                    "permintaan":  {
+                                                       "masuk":  0,
+                                                       "selesai":  0,
+                                                       "resRate":  null,
+                                                       "statuses":  {
+
+                                                                    },
+                                                       "onTime":  0,
+                                                       "slaPct":  null,
+                                                       "avgDurationHours":  null,
+                                                       "eskalasi":  0,
+                                                       "priorityBreakdown":  {
+                                                                                 "p1":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p2":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p3":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p4":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        }
+                                                                             }
+                                                   },
+                                    "daily":  {
+                                                  "total":  0,
+                                                  "done":  0,
+                                                  "inProgress":  0,
+                                                  "revisi":  0,
+                                                  "pending":  0,
+                                                  "waiting":  0,
+                                                  "completionRate":  null
+                                              },
+                                    "attendance":  {
+                                                       "totalRecords":  0,
+                                                       "prs":  0,
+                                                       "ovt":  0,
+                                                       "off":  0,
+                                                       "abs":  0,
+                                                       "overtimeMinutes":  0,
+                                                       "overtimeHours":  0,
+                                                       "attendanceRate":  null
+                                                   },
+                                    "safetyToolboxMeeting":  {
+                                                                 "personil":  0,
+                                                                 "countH":  0,
+                                                                 "countHSmall":  0,
+                                                                 "countOther":  0,
+                                                                 "totalStandby":  0
+                                                             },
+                                    "kpiGrade":  null
+                                },
+                                {
+                                    "monthName":  "April",
+                                    "monthNum":  "04",
+                                    "period":  "2026-04",
+                                    "active":  false,
+                                    "permintaan":  {
+                                                       "masuk":  0,
+                                                       "selesai":  0,
+                                                       "resRate":  null,
+                                                       "statuses":  {
+
+                                                                    },
+                                                       "onTime":  0,
+                                                       "slaPct":  null,
+                                                       "avgDurationHours":  null,
+                                                       "eskalasi":  0,
+                                                       "priorityBreakdown":  {
+                                                                                 "p1":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p2":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p3":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p4":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        }
+                                                                             }
+                                                   },
+                                    "daily":  {
+                                                  "total":  0,
+                                                  "done":  0,
+                                                  "inProgress":  0,
+                                                  "revisi":  0,
+                                                  "pending":  0,
+                                                  "waiting":  0,
+                                                  "completionRate":  null
+                                              },
+                                    "attendance":  {
+                                                       "totalRecords":  0,
+                                                       "prs":  0,
+                                                       "ovt":  0,
+                                                       "off":  0,
+                                                       "abs":  0,
+                                                       "overtimeMinutes":  0,
+                                                       "overtimeHours":  0,
+                                                       "attendanceRate":  null
+                                                   },
+                                    "safetyToolboxMeeting":  {
+                                                                 "personil":  0,
+                                                                 "countH":  0,
+                                                                 "countHSmall":  0,
+                                                                 "countOther":  0,
+                                                                 "totalStandby":  0
+                                                             },
+                                    "kpiGrade":  null
+                                },
+                                {
+                                    "monthName":  "Mei",
+                                    "monthNum":  "05",
+                                    "period":  "2026-05",
+                                    "active":  false,
+                                    "permintaan":  {
+                                                       "masuk":  0,
+                                                       "selesai":  0,
+                                                       "resRate":  null,
+                                                       "statuses":  {
+
+                                                                    },
+                                                       "onTime":  0,
+                                                       "slaPct":  null,
+                                                       "avgDurationHours":  null,
+                                                       "eskalasi":  0,
+                                                       "priorityBreakdown":  {
+                                                                                 "p1":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p2":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p3":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p4":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        }
+                                                                             }
+                                                   },
+                                    "daily":  {
+                                                  "total":  0,
+                                                  "done":  0,
+                                                  "inProgress":  0,
+                                                  "revisi":  0,
+                                                  "pending":  0,
+                                                  "waiting":  0,
+                                                  "completionRate":  null
+                                              },
+                                    "attendance":  {
+                                                       "totalRecords":  0,
+                                                       "prs":  0,
+                                                       "ovt":  0,
+                                                       "off":  0,
+                                                       "abs":  0,
+                                                       "overtimeMinutes":  0,
+                                                       "overtimeHours":  0,
+                                                       "attendanceRate":  null
+                                                   },
+                                    "safetyToolboxMeeting":  {
+                                                                 "personil":  0,
+                                                                 "countH":  0,
+                                                                 "countHSmall":  0,
+                                                                 "countOther":  0,
+                                                                 "totalStandby":  0
+                                                             },
+                                    "kpiGrade":  null
+                                },
+                                {
+                                    "monthName":  "Juni",
+                                    "monthNum":  "06",
+                                    "period":  "2026-06",
+                                    "active":  true,
+                                    "permintaan":  {
+                                                       "masuk":  0,
+                                                       "selesai":  0,
+                                                       "resRate":  null,
+                                                       "statuses":  {
+
+                                                                    },
+                                                       "onTime":  0,
+                                                       "slaPct":  null,
+                                                       "avgDurationHours":  null,
+                                                       "eskalasi":  0,
+                                                       "priorityBreakdown":  {
+                                                                                 "p1":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p2":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p3":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p4":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        }
+                                                                             }
+                                                   },
+                                    "daily":  {
+                                                  "total":  71,
+                                                  "done":  67,
+                                                  "inProgress":  3,
+                                                  "revisi":  0,
+                                                  "pending":  1,
+                                                  "waiting":  0,
+                                                  "completionRate":  94.4
+                                              },
+                                    "attendance":  {
+                                                       "totalRecords":  0,
+                                                       "prs":  0,
+                                                       "ovt":  0,
+                                                       "off":  0,
+                                                       "abs":  0,
+                                                       "overtimeMinutes":  0,
+                                                       "overtimeHours":  0,
+                                                       "attendanceRate":  null
+                                                   },
+                                    "safetyToolboxMeeting":  {
+                                                                 "personil":  0,
+                                                                 "countH":  0,
+                                                                 "countHSmall":  0,
+                                                                 "countOther":  0,
+                                                                 "totalStandby":  0
+                                                             },
+                                    "kpiGrade":  "Sangat Baik"
+                                },
+                                {
+                                    "monthName":  "Juli",
+                                    "monthNum":  "07",
+                                    "period":  "2026-07",
+                                    "active":  true,
+                                    "permintaan":  {
+                                                       "masuk":  0,
+                                                       "selesai":  0,
+                                                       "resRate":  null,
+                                                       "statuses":  {
+
+                                                                    },
+                                                       "onTime":  0,
+                                                       "slaPct":  null,
+                                                       "avgDurationHours":  null,
+                                                       "eskalasi":  0,
+                                                       "priorityBreakdown":  {
+                                                                                 "p1":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p2":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p3":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p4":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        }
+                                                                             }
+                                                   },
+                                    "daily":  {
+                                                  "total":  118,
+                                                  "done":  117,
+                                                  "inProgress":  1,
+                                                  "revisi":  0,
+                                                  "pending":  0,
+                                                  "waiting":  0,
+                                                  "completionRate":  99.2
+                                              },
+                                    "attendance":  {
+                                                       "totalRecords":  62,
+                                                       "prs":  46,
+                                                       "ovt":  1,
+                                                       "off":  16,
+                                                       "abs":  0,
+                                                       "overtimeMinutes":  151,
+                                                       "overtimeHours":  2.5,
+                                                       "attendanceRate":  100
+                                                   },
+                                    "safetyToolboxMeeting":  {
+                                                                 "personil":  0,
+                                                                 "countH":  0,
+                                                                 "countHSmall":  0,
+                                                                 "countOther":  0,
+                                                                 "totalStandby":  0
+                                                             },
+                                    "kpiGrade":  "Sangat Baik"
+                                },
+                                {
+                                    "monthName":  "Agustus",
+                                    "monthNum":  "08",
+                                    "period":  "2026-08",
+                                    "active":  true,
+                                    "permintaan":  {
+                                                       "masuk":  0,
+                                                       "selesai":  0,
+                                                       "resRate":  null,
+                                                       "statuses":  {
+
+                                                                    },
+                                                       "onTime":  0,
+                                                       "slaPct":  null,
+                                                       "avgDurationHours":  null,
+                                                       "eskalasi":  0,
+                                                       "priorityBreakdown":  {
+                                                                                 "p1":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p2":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p3":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p4":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        }
+                                                                             }
+                                                   },
+                                    "daily":  {
+                                                  "total":  153,
+                                                  "done":  153,
+                                                  "inProgress":  0,
+                                                  "revisi":  0,
+                                                  "pending":  0,
+                                                  "waiting":  0,
+                                                  "completionRate":  100
+                                              },
+                                    "attendance":  {
+                                                       "totalRecords":  62,
+                                                       "prs":  37,
+                                                       "ovt":  2,
+                                                       "off":  24,
+                                                       "abs":  1,
+                                                       "overtimeMinutes":  360,
+                                                       "overtimeHours":  6,
+                                                       "attendanceRate":  97.4
+                                                   },
+                                    "safetyToolboxMeeting":  {
+                                                                 "personil":  0,
+                                                                 "countH":  0,
+                                                                 "countHSmall":  0,
+                                                                 "countOther":  0,
+                                                                 "totalStandby":  0
+                                                             },
+                                    "kpiGrade":  "Sangat Baik"
+                                },
+                                {
+                                    "monthName":  "September",
+                                    "monthNum":  "09",
+                                    "period":  "2026-09",
+                                    "active":  true,
+                                    "permintaan":  {
+                                                       "masuk":  0,
+                                                       "selesai":  0,
+                                                       "resRate":  null,
+                                                       "statuses":  {
+
+                                                                    },
+                                                       "onTime":  0,
+                                                       "slaPct":  null,
+                                                       "avgDurationHours":  null,
+                                                       "eskalasi":  0,
+                                                       "priorityBreakdown":  {
+                                                                                 "p1":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p2":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p3":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p4":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        }
+                                                                             }
+                                                   },
+                                    "daily":  {
+                                                  "total":  31,
+                                                  "done":  31,
+                                                  "inProgress":  0,
+                                                  "revisi":  0,
+                                                  "pending":  0,
+                                                  "waiting":  0,
+                                                  "completionRate":  100
+                                              },
+                                    "attendance":  {
+                                                       "totalRecords":  60,
+                                                       "prs":  45,
+                                                       "ovt":  0,
+                                                       "off":  15,
+                                                       "abs":  0,
+                                                       "overtimeMinutes":  0,
+                                                       "overtimeHours":  0,
+                                                       "attendanceRate":  100
+                                                   },
+                                    "safetyToolboxMeeting":  {
+                                                                 "personil":  0,
+                                                                 "countH":  0,
+                                                                 "countHSmall":  0,
+                                                                 "countOther":  0,
+                                                                 "totalStandby":  0
+                                                             },
+                                    "kpiGrade":  "Sangat Baik"
+                                },
+                                {
+                                    "monthName":  "Oktober",
+                                    "monthNum":  "10",
+                                    "period":  "2026-10",
+                                    "active":  false,
+                                    "permintaan":  {
+                                                       "masuk":  0,
+                                                       "selesai":  0,
+                                                       "resRate":  null,
+                                                       "statuses":  {
+
+                                                                    },
+                                                       "onTime":  0,
+                                                       "slaPct":  null,
+                                                       "avgDurationHours":  null,
+                                                       "eskalasi":  0,
+                                                       "priorityBreakdown":  {
+                                                                                 "p1":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p2":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p3":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p4":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        }
+                                                                             }
+                                                   },
+                                    "daily":  {
+                                                  "total":  0,
+                                                  "done":  0,
+                                                  "inProgress":  0,
+                                                  "revisi":  0,
+                                                  "pending":  0,
+                                                  "waiting":  0,
+                                                  "completionRate":  null
+                                              },
+                                    "attendance":  {
+                                                       "totalRecords":  0,
+                                                       "prs":  0,
+                                                       "ovt":  0,
+                                                       "off":  0,
+                                                       "abs":  0,
+                                                       "overtimeMinutes":  0,
+                                                       "overtimeHours":  0,
+                                                       "attendanceRate":  null
+                                                   },
+                                    "safetyToolboxMeeting":  {
+                                                                 "personil":  0,
+                                                                 "countH":  0,
+                                                                 "countHSmall":  0,
+                                                                 "countOther":  0,
+                                                                 "totalStandby":  0
+                                                             },
+                                    "kpiGrade":  null
+                                },
+                                {
+                                    "monthName":  "November",
+                                    "monthNum":  "11",
+                                    "period":  "2026-11",
+                                    "active":  false,
+                                    "permintaan":  {
+                                                       "masuk":  0,
+                                                       "selesai":  0,
+                                                       "resRate":  null,
+                                                       "statuses":  {
+
+                                                                    },
+                                                       "onTime":  0,
+                                                       "slaPct":  null,
+                                                       "avgDurationHours":  null,
+                                                       "eskalasi":  0,
+                                                       "priorityBreakdown":  {
+                                                                                 "p1":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p2":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p3":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p4":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        }
+                                                                             }
+                                                   },
+                                    "daily":  {
+                                                  "total":  0,
+                                                  "done":  0,
+                                                  "inProgress":  0,
+                                                  "revisi":  0,
+                                                  "pending":  0,
+                                                  "waiting":  0,
+                                                  "completionRate":  null
+                                              },
+                                    "attendance":  {
+                                                       "totalRecords":  0,
+                                                       "prs":  0,
+                                                       "ovt":  0,
+                                                       "off":  0,
+                                                       "abs":  0,
+                                                       "overtimeMinutes":  0,
+                                                       "overtimeHours":  0,
+                                                       "attendanceRate":  null
+                                                   },
+                                    "safetyToolboxMeeting":  {
+                                                                 "personil":  0,
+                                                                 "countH":  0,
+                                                                 "countHSmall":  0,
+                                                                 "countOther":  0,
+                                                                 "totalStandby":  0
+                                                             },
+                                    "kpiGrade":  null
+                                },
+                                {
+                                    "monthName":  "Desember",
+                                    "monthNum":  "12",
+                                    "period":  "2026-12",
+                                    "active":  false,
+                                    "permintaan":  {
+                                                       "masuk":  0,
+                                                       "selesai":  0,
+                                                       "resRate":  null,
+                                                       "statuses":  {
+
+                                                                    },
+                                                       "onTime":  0,
+                                                       "slaPct":  null,
+                                                       "avgDurationHours":  null,
+                                                       "eskalasi":  0,
+                                                       "priorityBreakdown":  {
+                                                                                 "p1":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p2":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p3":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        },
+                                                                                 "p4":  {
+                                                                                            "pct":  null,
+                                                                                            "done":  0,
+                                                                                            "total":  0
+                                                                                        }
+                                                                             }
+                                                   },
+                                    "daily":  {
+                                                  "total":  0,
+                                                  "done":  0,
+                                                  "inProgress":  0,
+                                                  "revisi":  0,
+                                                  "pending":  0,
+                                                  "waiting":  0,
+                                                  "completionRate":  null
+                                              },
+                                    "attendance":  {
+                                                       "totalRecords":  0,
+                                                       "prs":  0,
+                                                       "ovt":  0,
+                                                       "off":  0,
+                                                       "abs":  0,
+                                                       "overtimeMinutes":  0,
+                                                       "overtimeHours":  0,
+                                                       "attendanceRate":  null
+                                                   },
+                                    "safetyToolboxMeeting":  {
+                                                                 "personil":  0,
+                                                                 "countH":  0,
+                                                                 "countHSmall":  0,
+                                                                 "countOther":  0,
+                                                                 "totalStandby":  0
+                                                             },
+                                    "kpiGrade":  null
+                                }
+                            ],
+                 "totals":  {
+                                "permintaanMasuk":  0,
+                                "permintaanSelesai":  0,
+                                "permintaanResRate":  100,
+                                "permintaanSlaPct":  100,
+                                "permintaanAvgHours":  0,
+                                "permintaanEskalasi":  0,
+                                "permintaanStatuses":  {
+
+                                                       },
+                                "slaAchievementYtd":  100,
+                                "slaGradeYtd":  "Sangat Baik",
+                                "eligibleTickets":  0,
+                                "vendorExcluded":  0,
+                                "escalationCount":  0,
+                                "escalationPct":  0,
+                                "priorityOverall":  {
+                                                        "p1":  {
+                                                                   "pct":  100,
+                                                                   "done":  0,
+                                                                   "total":  0
+                                                               },
+                                                        "p2":  {
+                                                                   "pct":  100,
+                                                                   "done":  0,
+                                                                   "total":  0
+                                                               },
+                                                        "p3":  {
+                                                                   "pct":  100,
+                                                                   "done":  0,
+                                                                   "total":  0
+                                                               },
+                                                        "p4":  {
+                                                                   "pct":  100,
+                                                                   "done":  0,
+                                                                   "total":  0
+                                                               }
+                                                    },
+                                "dailyTotal":  373,
+                                "dailyDone":  368,
+                                "dailyInProgress":  4,
+                                "dailyRevisi":  0,
+                                "dailyPending":  1,
+                                "dailyWaiting":  0,
+                                "dailyRate":  98.7,
+                                "attendancePrs":  128,
+                                "attendanceOvt":  3,
+                                "attendanceOff":  55,
+                                "attendanceAbs":  1,
+                                "attendanceTotalMinutes":  511,
+                                "attendanceRate":  99.2,
+                                "safetyToolboxMeetingPersonil":  0,
+                                "safetyToolboxMeetingTotalStandby":  0,
+                                "safetyToolboxMeetingCountH":  0,
+                                "safetyToolboxMeetingCountHSmall":  0,
+                                "overallKpiGrade":  "Sangat Baik"
+                            }
+             }
+}

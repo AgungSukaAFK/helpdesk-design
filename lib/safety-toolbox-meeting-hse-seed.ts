@@ -30,6 +30,39 @@ export const INDONESIAN_MONTHS = [
 export const DAY_NAMES_INDO = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"] as const;
 
 /**
+ * Periode yang memiliki data baseline asli (hasil import Excel, bukan hasil generate).
+ * Hanya periode ini yang boleh diisi otomatis. Bulan lain harus diisi lewat
+ * import Excel / tambah personil manual, jika tidak rekap akan menampilkan angka palsu.
+ */
+export const HSE_BASELINE_PERIODS = ["2026-06"] as const;
+
+/**
+ * Pola id record hasil generate otomatis ( fabricated ).
+ * Id record yang dibuat user memakai suffix base36 dari Date.now(),
+ * contoh: safety-toolbox-meeting-2026-10-mfpb2x9 atau safety-toolbox-meeting-import-...
+ */
+const FABRICATED_ID_PATTERN = /^safety-toolbox-meeting-\d{4}-\d{2}-0\d$/;
+
+/**
+ * True jika record ini hasil generate otomatis dan periodenya bukan baseline.
+ * Record seperti ini harus dibuang supaya bulan tanpa aktivitas = 0.
+ */
+export function isFabricatedHseRecord(record: SafetyToolboxMeetingHseRosterRecord): boolean {
+  if (!record?.id || !record?.period_month) return false;
+  if (!FABRICATED_ID_PATTERN.test(record.id)) return false;
+  return !(HSE_BASELINE_PERIODS as readonly string[]).includes(record.period_month);
+}
+
+/**
+ * Buang seluruh record fabricated dari daftar, sisakan yang baseline atau input user.
+ */
+export function stripFabricatedHseRecords(
+  records: SafetyToolboxMeetingHseRosterRecord[]
+): SafetyToolboxMeetingHseRosterRecord[] {
+  return (records || []).filter((r) => !isFabricatedHseRecord(r));
+}
+
+/**
  * Mendapatkan jumlah hari dalam bulan tertentu
  * @param year e.g. 2026
  * @param month 1-12
@@ -187,79 +220,26 @@ export function detectYearFromText(text: string): number | null {
 }
 
 /**
- * Buat jadwal roster standby operasional untuk 1 bulan tertentu (Paulus & Farel)
- * Hari Senin: Shift Siang (H), Hari Kamis: Shift Malam (h)
+ * Data roster untuk satu periode.
+ *
+ * Hanya periode baseline (HSE_BASELINE_PERIODS) yang boleh diisi otomatis.
+ * Periode lain wajib berasal dari import Excel / tambah personil manual;
+ * bulan tanpa aktivitas harus tetap kosong agar rekap menampilkan 0.
  */
 export function getSafetyToolboxMeetingHseSeedForPeriod(period: string): SafetyToolboxMeetingHseRosterRecord[] {
-  if (period === "2026-06") {
-    return INITIAL_SAFETY_TOOLBOX_MEETING_HSE_DATA;
-  }
-
-  const [yearStr, monthStr] = period.split("-");
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10);
-  if (!year || !month || month < 1 || month > 12) {
+  if (!(HSE_BASELINE_PERIODS as readonly string[]).includes(period)) {
     return [];
   }
-
-  let totalDays = getDaysInMonth(year, month);
-  const today = new Date();
-  if (year === today.getFullYear() && month === today.getMonth() + 1) {
-    totalDays = today.getDate();
-  }
-  const paulusSchedule: Record<number, string> = {};
-  const farelSchedule: Record<number, string> = {};
-
-  for (let d = 1; d <= totalDays; d++) {
-    const dateObj = new Date(year, month - 1, d);
-    const dayOfWeek = dateObj.getDay(); // 0 = Sun, 1 = Mon, ..., 4 = Thu
-
-    if (dayOfWeek === 1) {
-      // Senin: Shift Siang H
-      paulusSchedule[d] = "H";
-      farelSchedule[d] = "H";
-    } else if (dayOfWeek === 4) {
-      // Kamis: Shift Malam h
-      paulusSchedule[d] = "h";
-      farelSchedule[d] = "h";
-    }
-  }
-
-  return [
-    {
-      id: `safety-toolbox-meeting-${period}-01`,
-      period_month: period,
-      employee_no: "GIS19040039",
-      name: "Paulus Petrus Parlindungan Sianipar",
-      role: "HSE Coordinator",
-      phone: "0812-3456-7890",
-      schedule: paulusSchedule,
-      notes: `Roster Standby HSE ${formatMonthYearIndo(period)}`,
-      created_at: new Date(year, month - 1, 1).toISOString(),
-      updated_at: new Date(year, month - 1, 1).toISOString(),
-    },
-    {
-      id: `safety-toolbox-meeting-${period}-02`,
-      period_month: period,
-      employee_no: "GIS25100212",
-      name: "Muhammad Farel Ramadhan",
-      role: "HSE Officer",
-      phone: "0813-9876-5432",
-      schedule: farelSchedule,
-      notes: `Roster Standby HSE ${formatMonthYearIndo(period)}`,
-      created_at: new Date(year, month - 1, 1).toISOString(),
-      updated_at: new Date(year, month - 1, 1).toISOString(),
-    },
-  ];
+  return INITIAL_SAFETY_TOOLBOX_MEETING_HSE_DATA.filter((r) => r.period_month === period);
 }
 
 /**
- * Dapatkan seluruh data roster standby tahunan terintegrasi (Jan - Des)
+ * Seluruh data roster baseline untuk satu tahun (hanya periode baseline).
  */
 export function getAllSafetyToolboxMeetingHseSeedData(year: number = 2026): SafetyToolboxMeetingHseRosterRecord[] {
   const result: SafetyToolboxMeetingHseRosterRecord[] = [];
-  for (let m = 1; m <= 12; m++) {
-    const period = `${year}-${String(m).padStart(2, "0")}`;
+  for (const period of HSE_BASELINE_PERIODS) {
+    if (!period.startsWith(`${year}-`)) continue;
     result.push(...getSafetyToolboxMeetingHseSeedForPeriod(period));
   }
   return result;

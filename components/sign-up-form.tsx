@@ -45,13 +45,19 @@ export function SignUpForm({
         email,
         password,
         options: {
-          emailRedirectTo: getSiteRedirectUrl("/protected"),
+          emailRedirectTo: getSiteRedirectUrl("/auth/confirm?next=/auth/login"),
         },
       });
       if (error) throw error;
       router.push("/auth/sign-up-success");
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      const message = error instanceof Error ? error.message : "An error occurred";
+      setError(
+        message.toLowerCase().includes("email logins are disabled") ||
+          message.toLowerCase().includes("email_provider_disabled")
+          ? "Login email belum diaktifkan untuk project Supabase ini. Admin perlu mengaktifkan Authentication > Sign In / Providers > Email sebelum pendaftaran dapat digunakan."
+          : message
+      );
     } finally {
       setIsLoading(false);
     }

@@ -352,7 +352,9 @@ export async function GET(request: NextRequest) {
       const dow = new Date(year, monthNum - 1, d).getDay();
       if (dow === 1 || dow === 4) expectedStandbyDays++; // Senin dan Kamis
     }
-    const totalExpectedStandby = expectedStandbyDays * (safetyToolboxMeetingList.length || 2);
+    // Tanpa roster personil -> tidak ada target, sehingga realisation dianggap 100%
+    // (bukan 0%) agar bulan tanpa aktivitas tidak penalized.
+    const totalExpectedStandby = expectedStandbyDays * safetyToolboxMeetingList.length;
 
     // ================================================================
     // HITUNG REALISASI, SKOR (CAPAIAN %), DAN SKOR AKHIR (TERTIMBANG)

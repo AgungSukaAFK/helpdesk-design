@@ -262,6 +262,19 @@ export default function DetailPermintaanPage() {
 
       if (error) throw error;
 
+      if (data.requester) {
+        fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            target_user_id: data.requester,
+            title: "Desainer Ditugaskan",
+            message: `Tiket Anda "${data.judul}" telah diambil dan diproses oleh ${currentUser.name}`,
+            link: `/permintaan-desain/${id}`,
+          }),
+        }).catch(console.error);
+      }
+
       toast.success("Berhasil mengambil permintaan!");
       setData((prev) =>
         prev
@@ -300,6 +313,20 @@ export default function DetailPermintaanPage() {
         .eq("id", id);
 
       if (error) throw error;
+
+      if (data.requester) {
+        fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            target_user_id: data.requester,
+            title: "Update Status Permintaan",
+            message: `Status permintaan "${data.judul}" berubah menjadi ${val}`,
+            link: `/permintaan-desain/${id}`,
+          }),
+        }).catch(console.error);
+      }
+
       toast.success(`Status diubah menjadi ${val}`);
       setData((prev) => (prev ? { ...prev, status: val } : null));
     } catch (e: any) {
@@ -436,6 +463,19 @@ export default function DetailPermintaanPage() {
 
     if (error) toast.error(error.message);
     else {
+      if (data?.admin) {
+        fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            target_user_id: data.admin,
+            title: "Tiket Selesai & Rating",
+            message: `Permintaan "${data.judul}" telah diselesaikan oleh User dengan rating ${rating}/5`,
+            link: `/permintaan-desain/${id}`,
+          }),
+        }).catch(console.error);
+      }
+
       toast.success("Permintaan selesai!");
       setData((prev) =>
         prev
@@ -472,6 +512,19 @@ export default function DetailPermintaanPage() {
 
     if (error) toast.error(error.message);
     else {
+      if (data?.admin) {
+        fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            target_user_id: data.admin,
+            title: "Permintaan Direvisi",
+            message: `User meminta revisi untuk "${data.judul}": ${revisionNote}`,
+            link: `/permintaan-desain/${id}`,
+          }),
+        }).catch(console.error);
+      }
+
       toast.success("Revisi dikirim.");
       setData((prev) =>
         prev ? { ...prev, status: "REVISION", deskripsi: newDeskripsi } : null,

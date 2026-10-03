@@ -19,6 +19,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -86,6 +87,7 @@ interface Permintaan {
   status: string;
   due_date: string;
   created_at: string;
+  updated_at?: string;
   requester?: string;
   requester_name?: string;
   admin?: string | null;
@@ -104,6 +106,12 @@ interface MonthStats {
   review: number;
   revision: number;
   done: number;
+  thirtyDays?: {
+    total: number;
+    permintaan_desain: number;
+    revisi: number;
+    done: number;
+  };
   hasil?: {
     tercapai: number;
     tercapaiPct: number;
@@ -1236,6 +1244,31 @@ export default function PermintaanList() {
         </div>
       </div>
 
+      {/* 30 DAYS STATS */}
+      {monthStats.thirtyDays && (
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold mb-3">Statistik 30 Hari Terakhir</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="p-4 rounded-xl border bg-card shadow-sm flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">Semua (Total)</span>
+              <span className="text-2xl font-bold">{monthStats.thirtyDays.total}</span>
+            </div>
+            <div className="p-4 rounded-xl border bg-card shadow-sm flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">Permintaan Desain (Aktif)</span>
+              <span className="text-2xl font-bold text-blue-600">{monthStats.thirtyDays.permintaan_desain}</span>
+            </div>
+            <div className="p-4 rounded-xl border bg-card shadow-sm flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">Revisi</span>
+              <span className="text-2xl font-bold text-rose-600">{monthStats.thirtyDays.revisi}</span>
+            </div>
+            <div className="p-4 rounded-xl border bg-card shadow-sm flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">Done</span>
+              <span className="text-2xl font-bold text-emerald-600">{monthStats.thirtyDays.done}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 3. RINGKASAN STATUS BULANAN (METRIC KPI CARDS) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-5">
         {/* Total Tiket */}
@@ -1509,7 +1542,7 @@ export default function PermintaanList() {
           <TableHeader>
             <TableRow className="bg-muted/20">
               <TableHead className="w-[50px] font-semibold">No</TableHead>
-              <TableHead className="font-semibold w-[140px]">Tanggal Pengajuan</TableHead>
+              <TableHead className="font-semibold w-[220px]">Audit Timeline Waktu</TableHead>
               <TableHead className="font-semibold">Judul Permintaan</TableHead>
               <TableHead className="font-semibold">Peminta / Divisi</TableHead>
               <TableHead className="font-semibold">Desainer</TableHead>
@@ -1536,27 +1569,75 @@ export default function PermintaanList() {
                     {(currentPage - 1) * limit + idx + 1}
                   </TableCell>
 
-                  {/* Tanggal Pengajuan (Created At) */}
+                  {/* Audit Timeline Waktu */}
                   <TableCell className="whitespace-nowrap">
-                    {item.created_at ? (
-                      <div className="flex flex-col">
-                        <span className="text-xs font-medium text-foreground">
-                          {new Date(item.created_at).toLocaleDateString("id-ID", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          {new Date(item.created_at).toLocaleTimeString("id-ID", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
+                    <div className="flex flex-col gap-2 text-xs">
+                      {/* Dibuat */}
+                      <div className="flex items-center gap-4 justify-between">
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                          <span>Dibuat:</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 font-medium">
+                          {item.created_at ? (
+                            <>
+                              <span>
+                                {new Date(item.created_at).toLocaleDateString("en-GB")}
+                              </span>
+                              <Badge variant="secondary" className="bg-blue-500/10 text-blue-700 hover:bg-blue-500/10 px-1 py-0 text-[10px] rounded">
+                                {new Date(item.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                              </Badge>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </div>
                       </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
-                    )}
+                      
+                      {/* Proses */}
+                      <div className="flex items-center gap-4 justify-between">
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                          <span>Proses:</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 font-medium">
+                          {["PROGRESS", "REVIEW", "REVISION", "DONE"].includes(item.status?.toUpperCase()) && item.updated_at ? (
+                            <>
+                              <span>
+                                {new Date(item.updated_at).toLocaleDateString("en-GB")}
+                              </span>
+                              <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 hover:bg-orange-500/10 px-1 py-0 text-[10px] rounded">
+                                {new Date(item.updated_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                              </Badge>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Selesai */}
+                      <div className="flex items-center gap-4 justify-between">
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          <span>Selesai:</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 font-medium text-green-600">
+                          {item.status?.toUpperCase() === "DONE" && item.updated_at ? (
+                            <>
+                              <span>
+                                {new Date(item.updated_at).toLocaleDateString("en-GB")}
+                              </span>
+                              <Badge variant="secondary" className="bg-green-500/10 text-green-700 hover:bg-green-500/10 px-1 py-0 text-[10px] rounded">
+                                {new Date(item.updated_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                              </Badge>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </TableCell>
 
                   {/* Judul, Project, Kategori & Hasil */}
@@ -1689,6 +1770,20 @@ export default function PermintaanList() {
               </TableRow>
             )}
           </TableBody>
+          <TableFooter>
+            <TableRow className="bg-muted/50 font-medium">
+              <TableCell colSpan={8} className="py-3 px-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs sm:text-sm">
+                  <span>Total Data di Tabel Ini: {permintaanList.length} dari {totalItems}</span>
+                  <div className="flex gap-4">
+                    <span className="text-blue-600 dark:text-blue-400">Aktif: {permintaanList.filter(p => !["DONE", "REVISION"].includes((p.status || "").toUpperCase())).length}</span>
+                    <span className="text-rose-600 dark:text-rose-400">Revisi: {permintaanList.filter(p => (p.status || "").toUpperCase() === "REVISION").length}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">Done: {permintaanList.filter(p => (p.status || "").toUpperCase() === "DONE").length}</span>
+                  </div>
+                </div>
+              </TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
       </div>
 

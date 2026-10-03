@@ -306,6 +306,12 @@ export async function GET(request: NextRequest) {
       review: 0,
       revision: 0,
       done: 0,
+      thirtyDays: {
+        total: 0,
+        permintaan_desain: 0,
+        revisi: 0,
+        done: 0,
+      },
       hasil: {
         tercapai: 0,
         tercapaiPct: 0,
@@ -321,6 +327,9 @@ export async function GET(request: NextRequest) {
       },
     };
 
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
     statsData?.forEach((row: any) => {
       const s = (row.status || "").toUpperCase();
       if (s === "DONE") stats.done++;
@@ -328,6 +337,20 @@ export async function GET(request: NextRequest) {
       else if (s === "REVIEW") stats.review++;
       else if (s === "REVISION") stats.revision++;
       else if (s === "TO DO" || s === "TODO") stats.todo++;
+
+      // 30 Days calculation
+      const createdAt = new Date(row.created_at);
+      if (createdAt >= thirtyDaysAgo) {
+        stats.thirtyDays.total++;
+        if (s === "DONE") {
+          stats.thirtyDays.done++;
+        } else if (s === "REVISION") {
+          stats.thirtyDays.revisi++;
+        } else {
+          // If not done and not revision, count as "permintaan_desain" (active/progressing)
+          stats.thirtyDays.permintaan_desain++;
+        }
+      }
 
       // Kategori Desain
       const cat = getDesignCategory(row.project || "");

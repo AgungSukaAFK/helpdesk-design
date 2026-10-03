@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { redirect, usePathname, useRouter } from "next/navigation";
 import { Fragment, ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { NotificationBell } from "@/components/notification-bell";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { Loader2 } from "lucide-react";
 
@@ -54,6 +55,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             pathname === "/daily-activity" ||
             pathname === "/riwayat-pengerjaan" ||
             pathname === "/artikel-admin" ||
+            pathname === "/notifikasi" ||
             pathname.startsWith("/artikel-admin/") ||
             isRequestWorkRoute;
 
@@ -181,6 +183,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 </BreadcrumbList>
               </Breadcrumb>
               <div className="ml-auto flex items-center gap-2 shrink-0">
+                <NotificationBell />
                 <ThemeSwitcher />
               </div>
             </div>

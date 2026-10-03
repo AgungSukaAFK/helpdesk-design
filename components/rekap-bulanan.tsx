@@ -36,6 +36,9 @@ import {
   fetchIntegratedRekap,
   exportIntegratedExcel,
   MONTH_NAMES_ID,
+  LOCAL_ATTENDANCE,
+  LOCAL_DAILY,
+  LOCAL_SAFETY_TOOLBOX_MEETING,
   type MonthIntegratedData,
   type YearIntegratedRekap,
 } from "@/lib/rekap-integrated";
@@ -46,8 +49,8 @@ export function RekapBulananPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [roleLoading, setRoleLoading] = useState<boolean>(true);
 
-  const [year, setYear] = useState<number>(2026);
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [year, setYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'));
   const [selectedModule, setSelectedModule] = useState<string>("all");
   const [slaReferenceOpen, setSlaReferenceOpen] = useState<boolean>(true);
   const [activeDetailTab, setActiveDetailTab] = useState<"permintaan" | "daily" | "attendance" | "safetyToolboxMeeting">("permintaan");
@@ -56,11 +59,15 @@ export function RekapBulananPage() {
   const [exporting, setExporting] = useState<boolean>(false);
   const [rekap, setRekap] = useState<YearIntegratedRekap | null>(null);
 
+  // View mode for Chart: Daily (Tgl 1 - 31) or Monthly (Jan - Des)
+  const [chartViewMode, setChartViewMode] = useState<"daily" | "monthly">("daily");
+
   // Hidden series toggles for Chart
   const [hiddenSeries, setHiddenSeries] = useState<Record<string, boolean>>({
     masuk: false,
     selesai: false,
     daily: false,
+    stb: false,
     sla: false,
     att: false,
   });
@@ -97,6 +104,14 @@ export function RekapBulananPage() {
     async function loadData() {
       setLoading(true);
       try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(LOCAL_ATTENDANCE);
+          localStorage.removeItem(LOCAL_SAFETY_TOOLBOX_MEETING);
+          localStorage.removeItem(LOCAL_DAILY);
+        }
+      } catch {}
+
+      try {
         const result = await fetchIntegratedRekap(year);
         if (!cancelled) {
           setRekap(result);
@@ -126,6 +141,16 @@ export function RekapBulananPage() {
     }
   };
 
+  const handleResetLocal = () => {
+    localStorage.removeItem(LOCAL_ATTENDANCE);
+    localStorage.removeItem(LOCAL_SAFETY_TOOLBOX_MEETING);
+    localStorage.removeItem(LOCAL_DAILY);
+    toast.success("Cache lokal (dummy data) berhasil dihapus! Halaman akan dimuat ulang.");
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  };
+
   // Filtered months if single month is selected
   const displayedMonths = useMemo(() => {
     if (!rekap) return [];
@@ -133,9 +158,36 @@ export function RekapBulananPage() {
     return rekap.months.filter((m) => m.monthNum === selectedMonth);
   }, [rekap, selectedMonth]);
 
-  // Chart data
+  // Active month object
+  const activeMonthObj = useMemo(() => {
+    if (!rekap) return null;
+    return rekap.months.find((m) => m.monthNum === selectedMonth) || rekap.months[0];
+  }, [rekap, selectedMonth]);
+
+  // Chart data (Bisa mode harian tgl 1-31 atau tahunan Jan-Des)
   const chartData = useMemo(() => {
     if (!rekap) return [];
+
+    if (
+      chartViewMode === "daily" &&
+      activeMonthObj?.dailyTrend &&
+      activeMonthObj.dailyTrend.length > 0
+    ) {
+      return activeMonthObj.dailyTrend.map((d) => ({
+        name: String(d.day),
+        fullName: `Tanggal ${d.day} ${activeMonthObj.monthName} ${year}`,
+        masuk: d.masuk,
+        selesai: d.selesai,
+        dailyDone: d.dailyDone,
+        dailyTotal: d.dailyTotal,
+        stbTotal: d.stbTotal,
+        sla: d.sla,
+        attRate: d.attRate,
+        active: activeMonthObj.active,
+      }));
+    }
+
+    // Mode Tahunan: 12 Bulan (Jan - Des)
     return rekap.months.map((m) => ({
       name: m.monthName.slice(0, 3),
       fullName: m.monthName,
@@ -143,11 +195,12 @@ export function RekapBulananPage() {
       selesai: m.permintaan.selesai,
       dailyDone: m.daily.done,
       dailyTotal: m.daily.total,
+      stbTotal: m.safetyToolboxMeeting.totalStandby,
       sla: m.permintaan.slaPct,
       attRate: m.attendance.attendanceRate,
       active: m.active,
     }));
-  }, [rekap]);
+  }, [rekap, chartViewMode, activeMonthObj, year]);
 
   // SLA & Priority Breakdown Data (YTD or Selected Month)
   const currentSlaData = useMemo(() => {
@@ -381,6 +434,13 @@ export function RekapBulananPage() {
               <ArrowLeft className="size-3.5" />
               Kembali ke Dashboard
             </Link>
+            <button
+              onClick={handleResetLocal}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-500 hover:text-rose-400 transition-colors ml-4"
+              title="Hapus sisa dummy data dari memory lokal browser"
+            >
+              Reset Cache Lokal
+            </button>
           </div>
         </div>
       </div>
@@ -421,7 +481,6 @@ export function RekapBulananPage() {
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="w-full h-9 px-3 text-xs bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 text-foreground cursor-pointer"
             >
-              <option value="all">Semua Bulan (Setahun Penuh)</option>
               {MONTH_NAMES_ID.map((name, idx) => {
                 const val = String(idx + 1).padStart(2, "0");
                 return (
@@ -458,6 +517,22 @@ export function RekapBulananPage() {
           </div>
         </div>
       </div>
+
+      {/* Informative alert for month with 0 activity */}
+      {(() => {
+        const curM = rekap.months.find((m) => m.monthNum === selectedMonth);
+        if (curM && !curM.active) {
+          return (
+            <div className="flex items-start gap-2.5 p-3.5 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-xl text-xs text-blue-900 dark:text-blue-200 shadow-xs">
+              <Info className="size-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">
+                <span className="font-semibold">Bulan Berjalan ({MONTH_NAMES_ID[Number(selectedMonth) - 1]} {year}):</span> Belum ada catatan aktivitas operasional yang dicatat untuk bulan ini (0 tiket, 0 daily activity, 0 presensi). Kartu di bawah menampilkan metrik khusus untuk bulan yang dipilih. Anda dapat memilih bulan sebelumnya (seperti <strong>September</strong> atau <strong>Agustus</strong>) pada menu pilihan di atas atau langsung mengklik baris bulan di tabel rekap.
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* ==================== ACUAN SLA DIVISI DESIGN & METRIK TIKET ==================== */}
       <div className="bg-[#0b1325] border border-slate-800 rounded-xl p-4 shadow-sm text-slate-100 space-y-4">
@@ -729,9 +804,14 @@ export function RekapBulananPage() {
 
       {/* ==================== INFO STATUS & PROGRESS BARS ==================== */}
       <div className="bg-card border rounded-xl shadow-xs overflow-hidden">
-        <div className="px-4 py-3 border-b flex items-center gap-2 font-bold text-sm text-foreground">
-          <Info className="size-4 text-primary" />
-          Status Kepatuhan SLA &amp; Produktivitas Operasional
+        <div className="px-4 py-3 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+          <div className="flex items-center gap-2 font-bold text-sm text-foreground">
+            <Info className="size-4 text-primary" />
+            Status Kepatuhan SLA &amp; Produktivitas Operasional
+          </div>
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
+            {selectedMonth === "all" ? `Akumulasi YTD ${year}` : `Bulan ${MONTH_NAMES_ID[Number(selectedMonth) - 1]} ${year}`}
+          </span>
         </div>
         <div className="p-4 space-y-3">
           <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 rounded-lg text-xs leading-relaxed text-muted-foreground">
@@ -746,48 +826,66 @@ export function RekapBulananPage() {
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
                 <span className="font-semibold text-foreground">SLA Permintaan Design</span>
-                <span className="font-bold text-amber-600 dark:text-amber-400">{totals.permintaanSlaPct}%</span>
+                <span className="font-bold text-amber-600 dark:text-amber-400">
+                  {selectedMonth === "all" ? totals.permintaanSlaPct : (highlightTotals?.permintaanSlaPct ?? 0)}%
+                </span>
               </div>
               <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                  style={{ width: `${totals.permintaanSlaPct}%` }}
+                  style={{
+                    width: `${selectedMonth === "all" ? totals.permintaanSlaPct : (highlightTotals?.permintaanSlaPct ?? 0)}%`,
+                  }}
                 />
               </div>
               <p className="text-[11px] text-muted-foreground mt-1.5">
-                {totals.permintaanSelesai} tiket selesai dengan durasi rata-rata {totals.permintaanAvgHours} Jam.
+                {selectedMonth === "all"
+                  ? `${totals.permintaanSelesai} tiket selesai dengan durasi rata-rata ${totals.permintaanAvgHours} Jam.`
+                  : `${highlightTotals?.permintaanSelesai ?? 0} tiket selesai.`}
               </p>
             </div>
 
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
                 <span className="font-semibold text-foreground">Daily Activity Tuntas</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400">{totals.dailyRate}%</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                  {selectedMonth === "all" ? totals.dailyRate : (highlightTotals?.dailyRate ?? 0)}%
+                </span>
               </div>
               <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                  style={{ width: `${totals.dailyRate}%` }}
+                  style={{
+                    width: `${selectedMonth === "all" ? totals.dailyRate : (highlightTotals?.dailyRate ?? 0)}%`,
+                  }}
                 />
               </div>
               <p className="text-[11px] text-muted-foreground mt-1.5">
-                {totals.dailyDone} dari {totals.dailyTotal} aktivitas berstatus ✅ Done.
+                {selectedMonth === "all"
+                  ? `${totals.dailyDone} dari ${totals.dailyTotal} aktivitas berstatus ✅ Done.`
+                  : `${highlightTotals?.dailyDone ?? 0} dari ${highlightTotals?.dailyTotal ?? 0} aktivitas berstatus ✅ Done.`}
               </p>
             </div>
 
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
                 <span className="font-semibold text-foreground">Disiplin Kehadiran (Attendance)</span>
-                <span className="font-bold text-purple-600 dark:text-purple-400">{totals.attendanceRate}%</span>
+                <span className="font-bold text-purple-600 dark:text-purple-400">
+                  {selectedMonth === "all" ? totals.attendanceRate : (highlightTotals?.attendanceRate ?? 0)}%
+                </span>
               </div>
               <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-purple-500 rounded-full transition-all duration-500"
-                  style={{ width: `${totals.attendanceRate}%` }}
+                  style={{
+                    width: `${selectedMonth === "all" ? totals.attendanceRate : (highlightTotals?.attendanceRate ?? 0)}%`,
+                  }}
                 />
               </div>
               <p className="text-[11px] text-muted-foreground mt-1.5">
-                {totals.attendancePrs} hari hadir kerja normal &amp; {totals.attendanceOvt} penugasan lembur.
+                {selectedMonth === "all"
+                  ? `${totals.attendancePrs} hari hadir kerja normal & ${totals.attendanceOvt} penugasan lembur.`
+                  : `${highlightTotals?.attendancePrs ?? 0} hari hadir kerja normal & ${highlightTotals?.attendanceOvt ?? 0} penugasan lembur.`}
               </p>
             </div>
           </div>
@@ -796,18 +894,48 @@ export function RekapBulananPage() {
 
       {/* ==================== TREND CHART ==================== */}
       <div className="bg-card border rounded-xl shadow-xs overflow-hidden">
-        <div className="px-4 py-3 border-b flex items-center justify-between">
+        <div className="px-4 py-3 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-bold text-sm text-foreground">
             <BarChart3 className="size-4 text-primary" />
-            Grafik Trend Bulanan Terintegrasi {year}
+            <span>
+              {chartViewMode === "daily"
+                ? `Grafik Trend Harian — Bulan ${activeMonthObj?.monthName || "Oktober"} ${year} (Tanggal 1 s/d ${chartData.length || 31})`
+                : `Grafik Trend Bulanan Terintegrasi ${year} (Jan - Des)`}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border text-xs self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setChartViewMode("daily")}
+              className={`px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
+                chartViewMode === "daily"
+                  ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              📅 Harian (Tgl 1 - {chartData.length || 31})
+            </button>
+            <button
+              type="button"
+              onClick={() => setChartViewMode("monthly")}
+              className={`px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
+                chartViewMode === "monthly"
+                  ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              📊 Tahunan (Jan - Des)
+            </button>
           </div>
         </div>
         <div className="p-4">
           <div className="flex flex-wrap items-center justify-center gap-4 mb-4 text-xs select-none">
             <button
               onClick={() => toggleSeries("masuk")}
-              className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${hiddenSeries.masuk ? "opacity-35 line-through" : "opacity-100"
-                }`}
+              className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${
+                hiddenSeries.masuk ? "opacity-35 line-through" : "opacity-100"
+              }`}
             >
               <span className="size-3 rounded-full bg-[#206bc4]" />
               <span className="font-medium text-foreground">Permintaan Masuk</span>
@@ -815,8 +943,9 @@ export function RekapBulananPage() {
 
             <button
               onClick={() => toggleSeries("selesai")}
-              className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${hiddenSeries.selesai ? "opacity-35 line-through" : "opacity-100"
-                }`}
+              className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${
+                hiddenSeries.selesai ? "opacity-35 line-through" : "opacity-100"
+              }`}
             >
               <span className="size-3 rounded-full bg-[#2fb344]" />
               <span className="font-medium text-foreground">Permintaan Selesai</span>
@@ -824,17 +953,29 @@ export function RekapBulananPage() {
 
             <button
               onClick={() => toggleSeries("daily")}
-              className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${hiddenSeries.daily ? "opacity-35 line-through" : "opacity-100"
-                }`}
+              className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${
+                hiddenSeries.daily ? "opacity-35 line-through" : "opacity-100"
+              }`}
             >
               <span className="size-3 rounded-full bg-[#f59f00]" />
               <span className="font-medium text-foreground">Daily Activity Done</span>
             </button>
 
             <button
+              onClick={() => toggleSeries("stb")}
+              className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${
+                hiddenSeries.stb ? "opacity-35 line-through" : "opacity-100"
+              }`}
+            >
+              <span className="size-3 rounded-full bg-[#6366f1]" />
+              <span className="font-medium text-foreground">Safety Toolbox Standby</span>
+            </button>
+
+            <button
               onClick={() => toggleSeries("sla")}
-              className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${hiddenSeries.sla ? "opacity-35 line-through" : "opacity-100"
-                }`}
+              className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${
+                hiddenSeries.sla ? "opacity-35 line-through" : "opacity-100"
+              }`}
             >
               <span className="w-4 h-0.5 bg-[#f76707] inline-block" />
               <span className="font-medium text-foreground">SLA Achievement (%)</span>
@@ -842,8 +983,9 @@ export function RekapBulananPage() {
 
             <button
               onClick={() => toggleSeries("att")}
-              className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${hiddenSeries.att ? "opacity-35 line-through" : "opacity-100"
-                }`}
+              className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${
+                hiddenSeries.att ? "opacity-35 line-through" : "opacity-100"
+              }`}
             >
               <span className="w-4 h-0.5 border-b border-dashed border-[#ae3ec9] inline-block" />
               <span className="font-medium text-foreground">Attendance Rate (%)</span>
@@ -859,13 +1001,14 @@ export function RekapBulananPage() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(150,150,150,0.15)" />
                 <XAxis
                   dataKey="name"
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
                   axisLine={{ stroke: "rgba(150,150,150,0.3)" }}
                   tickLine={false}
+                  interval={chartViewMode === "daily" ? 0 : 0}
                 />
                 <YAxis
                   yAxisId="left"
-                  domain={[0, 100]}
+                  domain={[0, "auto"]}
                   tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                   axisLine={{ stroke: "rgba(150,150,150,0.3)" }}
                   tickLine={false}
@@ -895,32 +1038,39 @@ export function RekapBulananPage() {
                     if (!active || !payload || !payload.length) return null;
                     const item = payload[0]?.payload;
                     return (
-                      <div className="bg-popover text-popover-foreground border rounded-lg shadow-md p-2.5 text-xs space-y-1.5 min-w-[190px]">
+                      <div className="bg-popover text-popover-foreground border rounded-lg shadow-md p-2.5 text-xs space-y-1.5 min-w-[210px]">
                         <div className="font-bold border-b pb-1 text-foreground">
-                          {item?.fullName || label}
+                          {item?.fullName || (chartViewMode === "daily" ? `Tanggal ${label}` : label)}
                         </div>
                         <div className="flex items-center justify-between text-[#206bc4]">
                           <span>Permintaan Masuk:</span>
-                          <span className="font-bold">{item?.masuk}</span>
+                          <span className="font-bold">{item?.masuk ?? 0}</span>
                         </div>
                         <div className="flex items-center justify-between text-[#2fb344]">
                           <span>Permintaan Selesai:</span>
-                          <span className="font-bold">{item?.selesai}</span>
+                          <span className="font-bold">{item?.selesai ?? 0}</span>
                         </div>
                         <div className="flex items-center justify-between text-[#f59f00]">
                           <span>Daily Done:</span>
-                          <span className="font-bold">{item?.dailyDone}</span>
+                          <span className="font-bold">
+                            {item?.dailyDone ?? 0}
+                            {item?.dailyTotal ? ` / ${item.dailyTotal}` : ""}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[#6366f1]">
+                          <span>Safety Toolbox Standby:</span>
+                          <span className="font-bold">{item?.stbTotal ?? 0} sesi</span>
                         </div>
                         <div className="flex items-center justify-between text-[#f76707]">
                           <span>SLA Achievement:</span>
                           <span className="font-bold">
-                            {item?.sla !== null ? `${item?.sla}%` : "-"}
+                            {item?.sla !== null && item?.sla !== undefined ? `${item.sla}%` : "-"}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-[#ae3ec9]">
                           <span>Attendance Rate:</span>
                           <span className="font-bold">
-                            {item?.attRate !== null ? `${item?.attRate}%` : "-"}
+                            {item?.attRate !== null && item?.attRate !== undefined ? `${item.attRate}%` : "-"}
                           </span>
                         </div>
                       </div>
@@ -935,7 +1085,7 @@ export function RekapBulananPage() {
                     name="Permintaan Masuk"
                     fill="rgba(32,107,196,0.85)"
                     radius={[4, 4, 0, 0]}
-                    maxBarSize={28}
+                    maxBarSize={chartViewMode === "daily" ? 14 : 28}
                   />
                 )}
 
@@ -946,7 +1096,7 @@ export function RekapBulananPage() {
                     name="Permintaan Selesai"
                     fill="rgba(47,179,68,0.85)"
                     radius={[4, 4, 0, 0]}
-                    maxBarSize={28}
+                    maxBarSize={chartViewMode === "daily" ? 14 : 28}
                   />
                 )}
 
@@ -957,7 +1107,18 @@ export function RekapBulananPage() {
                     name="Daily Activity Done"
                     fill="rgba(245,159,0,0.85)"
                     radius={[4, 4, 0, 0]}
-                    maxBarSize={28}
+                    maxBarSize={chartViewMode === "daily" ? 14 : 28}
+                  />
+                )}
+
+                {!hiddenSeries.stb && (
+                  <Bar
+                    yAxisId="left"
+                    dataKey="stbTotal"
+                    name="Safety Toolbox Standby"
+                    fill="rgba(99,102,241,0.85)"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={chartViewMode === "daily" ? 14 : 28}
                   />
                 )}
 
@@ -969,7 +1130,7 @@ export function RekapBulananPage() {
                     name="SLA Achievement (%)"
                     stroke="#f76707"
                     strokeWidth={2.5}
-                    dot={{ r: 3.5, fill: "#f76707" }}
+                    dot={chartViewMode === "daily" ? { r: 2, fill: "#f76707" } : { r: 3.5, fill: "#f76707" }}
                     activeDot={{ r: 5 }}
                     connectNulls
                   />
@@ -984,7 +1145,7 @@ export function RekapBulananPage() {
                     stroke="#ae3ec9"
                     strokeWidth={2.5}
                     strokeDasharray="5 5"
-                    dot={{ r: 3.5, fill: "#ae3ec9" }}
+                    dot={chartViewMode === "daily" ? { r: 2, fill: "#ae3ec9" } : { r: 3.5, fill: "#ae3ec9" }}
                     activeDot={{ r: 5 }}
                     connectNulls
                   />
@@ -998,11 +1159,14 @@ export function RekapBulananPage() {
       {/* ==================== TABEL REKAP BULANAN TERPADU ==================== */}
       <div className="bg-card border rounded-xl shadow-xs overflow-hidden">
         <div className="px-4 py-3 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h2 className="font-bold text-sm text-foreground">
-            Tabel Rekap 12 Bulan Terintegrasi 4 Modul
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-bold text-sm text-foreground">
+              Tabel Rekap 12 Bulan Terintegrasi 4 Modul
+            </h2>
+            <span className="text-xs text-muted-foreground">({year})</span>
+          </div>
           <span className="text-xs text-muted-foreground">
-            {selectedMonth === "all" ? "Seluruh Bulan 2026" : `Bulan ${MONTH_NAMES_ID[Number(selectedMonth) - 1]}`}
+            Bulan dipilih: <strong className="text-foreground">{MONTH_NAMES_ID[Number(selectedMonth) - 1]}</strong> (klik baris untuk memilih bulan)
           </span>
         </div>
         <div className="overflow-x-auto">
@@ -1021,122 +1185,137 @@ export function RekapBulananPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {displayedMonths.map((m) => (
-                <tr
-                  key={m.period}
-                  className={`hover:bg-muted/20 transition-colors ${!m.active ? "opacity-45" : ""
+              {rekap.months.map((m) => {
+                const isSelected = m.monthNum === selectedMonth;
+                return (
+                  <tr
+                    key={m.period}
+                    onClick={() => setSelectedMonth(m.monthNum)}
+                    className={`transition-colors cursor-pointer ${
+                      isSelected
+                        ? "bg-primary/10 dark:bg-primary/20 font-medium border-l-4 border-l-primary"
+                        : !m.active
+                        ? "opacity-50 hover:bg-muted/20"
+                        : "hover:bg-muted/20"
                     }`}
-                >
-                  <td className="py-2.5 px-4 font-semibold text-foreground">
-                    {m.monthName}
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <span className="font-medium">{m.permintaan.masuk}</span> /{" "}
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                      {m.permintaan.selesai}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    {m.permintaan.resRate !== null ? (
+                    title={`Klik untuk memilih bulan ${m.monthName}`}
+                  >
+                    <td className="py-2.5 px-4 font-semibold text-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <span>{m.monthName}</span>
+                        {isSelected && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary text-primary-foreground">
+                            Dipilih
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      <span className="font-medium">{m.permintaan.masuk}</span> /{" "}
                       <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                        {m.permintaan.resRate}%
+                        {m.permintaan.selesai}
                       </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <span className="font-medium">{m.daily.done}</span>
-                    <span className="text-muted-foreground text-[10px] ml-1">
-                      ({m.daily.completionRate !== null ? `${m.daily.completionRate}%` : "-"})
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-center font-medium">
-                    {m.attendance.prs > 0 ? (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
-                        {m.attendance.prs}
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      {m.permintaan.resRate !== null ? (
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                          {m.permintaan.resRate}%
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      <span className="font-medium">{m.daily.done}</span>
+                      <span className="text-muted-foreground text-[10px] ml-1">
+                        ({m.daily.completionRate !== null ? `${m.daily.completionRate}%` : "-"})
                       </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-3 text-center text-muted-foreground">
-                    {m.attendance.overtimeHours > 0 ? `${m.attendance.overtimeHours} Jam` : "-"}
-                  </td>
-                  <td className="py-2.5 px-3 text-center font-medium">
-                    {m.safetyToolboxMeeting.totalStandby > 0 ? (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
-                        {m.safetyToolboxMeeting.totalStandby}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    {m.permintaan.slaPct !== null ? (
-                      <span className={getSlaTextClass(m.permintaan.slaPct)}>
-                        {m.permintaan.slaPct}%
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-4 text-center">
-                    {m.kpiGrade ? (
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${getKpiBadgeClass(
-                          m.kpiGrade
-                        )}`}
-                      >
-                        {m.kpiGrade}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-medium">
+                      {m.attendance.prs > 0 ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+                          {m.attendance.prs}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 text-center text-muted-foreground">
+                      {m.attendance.overtimeHours > 0 ? `${m.attendance.overtimeHours} Jam` : "-"}
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-medium">
+                      {m.safetyToolboxMeeting.totalStandby > 0 ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                          {m.safetyToolboxMeeting.totalStandby}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      {m.permintaan.slaPct !== null ? (
+                        <span className={getSlaTextClass(m.permintaan.slaPct)}>
+                          {m.permintaan.slaPct}%
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-4 text-center">
+                      {m.kpiGrade ? (
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${getKpiBadgeClass(
+                            m.kpiGrade
+                          )}`}
+                        >
+                          {m.kpiGrade}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
-            {selectedMonth === "all" && (
-              <tfoot>
-                <tr className="bg-slate-100/80 dark:bg-slate-900/60 font-bold border-t-2 border-border">
-                  <td className="py-2.5 px-4 text-foreground">TOTAL SETAHUN</td>
-                  <td className="py-2.5 px-3 text-center">
-                    {totals.permintaanMasuk} /{" "}
-                    <span className="text-emerald-600 dark:text-emerald-400">
-                      {totals.permintaanSelesai}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-center text-emerald-600 dark:text-emerald-400">
-                    {totals.permintaanResRate}%
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    {totals.dailyDone} ({totals.dailyRate}%)
-                  </td>
-                  <td className="py-2.5 px-3 text-center text-purple-600 dark:text-purple-400">
-                    {totals.attendancePrs}
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    {Math.round(totals.attendanceTotalMinutes / 60)} Jam
-                  </td>
-                  <td className="py-2.5 px-3 text-center text-blue-600 dark:text-blue-400">
-                    {totals.safetyToolboxMeetingTotalStandby}
-                  </td>
-                  <td className="py-2.5 px-3 text-center text-amber-600 dark:text-amber-400 font-bold">
-                    {totals.permintaanSlaPct}%
-                  </td>
-                  <td className="py-2.5 px-4 text-center">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${getKpiBadgeClass(
-                        totals.overallKpiGrade
-                      )}`}
-                    >
-                      {totals.overallKpiGrade}
-                    </span>
-                  </td>
-                </tr>
-              </tfoot>
-            )}
+            <tfoot>
+              <tr className="bg-slate-100/80 dark:bg-slate-900/60 font-bold border-t-2 border-border">
+                <td className="py-2.5 px-4 text-foreground">TOTAL SETAHUN (YTD)</td>
+                <td className="py-2.5 px-3 text-center">
+                  {totals.permintaanMasuk} /{" "}
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    {totals.permintaanSelesai}
+                  </span>
+                </td>
+                <td className="py-2.5 px-3 text-center text-emerald-600 dark:text-emerald-400">
+                  {totals.permintaanResRate}%
+                </td>
+                <td className="py-2.5 px-3 text-center">
+                  {totals.dailyDone} ({totals.dailyRate}%)
+                </td>
+                <td className="py-2.5 px-3 text-center text-purple-600 dark:text-purple-400">
+                  {totals.attendancePrs}
+                </td>
+                <td className="py-2.5 px-3 text-center">
+                  {Math.round(totals.attendanceTotalMinutes / 60)} Jam
+                </td>
+                <td className="py-2.5 px-3 text-center text-blue-600 dark:text-blue-400">
+                  {totals.safetyToolboxMeetingTotalStandby}
+                </td>
+                <td className="py-2.5 px-3 text-center text-amber-600 dark:text-amber-400 font-bold">
+                  {totals.permintaanSlaPct}%
+                </td>
+                <td className="py-2.5 px-4 text-center">
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${getKpiBadgeClass(
+                      totals.overallKpiGrade
+                    )}`}
+                  >
+                    {totals.overallKpiGrade}
+                  </span>
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -1205,37 +1384,60 @@ export function RekapBulananPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {displayedMonths.map((m) => (
-                  <tr key={m.period} className="hover:bg-muted/20">
-                    <td className="py-2.5 px-4 font-semibold text-foreground">{m.monthName}</td>
-                    <td className="py-2.5 px-3 text-center font-medium">{m.permintaan.masuk}</td>
-                    <td className="py-2.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
-                      {m.permintaan.selesai}
-                    </td>
-                    <td className="py-2.5 px-3 text-center text-muted-foreground">
-                      {m.permintaan.avgDurationHours !== null ? `${m.permintaan.avgDurationHours} Jam` : "-"}
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      {m.permintaan.eskalasi > 0 ? (
-                        <span className="inline-flex px-1.5 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700">
-                          {m.permintaan.eskalasi} tiket
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-bold">
-                      {m.permintaan.slaPct !== null ? `${m.permintaan.slaPct}%` : "-"}
-                    </td>
-                    <td className="py-2.5 px-4 text-center">
-                      {m.kpiGrade ? (
-                        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold border ${getKpiBadgeClass(m.kpiGrade)}`}>
-                          {m.kpiGrade}
-                        </span>
-                      ) : "-"}
-                    </td>
-                  </tr>
-                ))}
+                {rekap.months.map((m) => {
+                  const isSelected = m.monthNum === selectedMonth;
+                  return (
+                    <tr
+                      key={m.period}
+                      onClick={() => setSelectedMonth(m.monthNum)}
+                      className={`transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-primary/10 dark:bg-primary/20 font-medium border-l-4 border-l-primary"
+                          : !m.active
+                          ? "opacity-50 hover:bg-muted/20"
+                          : "hover:bg-muted/20"
+                      }`}
+                      title={`Klik untuk memilih bulan ${m.monthName}`}
+                    >
+                      <td className="py-2.5 px-4 font-semibold text-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <span>{m.monthName}</span>
+                          {isSelected && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary text-primary-foreground">
+                              Dipilih
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-medium">{m.permintaan.masuk}</td>
+                      <td className="py-2.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
+                        {m.permintaan.selesai}
+                      </td>
+                      <td className="py-2.5 px-3 text-center text-muted-foreground">
+                        {m.permintaan.avgDurationHours !== null ? `${m.permintaan.avgDurationHours} Jam` : "-"}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        {m.permintaan.eskalasi > 0 ? (
+                          <span className="inline-flex px-1.5 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700">
+                            {m.permintaan.eskalasi} tiket
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-bold">
+                        {m.permintaan.slaPct !== null ? `${m.permintaan.slaPct}%` : "-"}
+                      </td>
+                      <td className="py-2.5 px-4 text-center">
+                        {m.kpiGrade ? (
+                          <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold border ${getKpiBadgeClass(m.kpiGrade)}`}>
+                            {m.kpiGrade}
+                          </span>
+                        ) : "-"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -1254,24 +1456,47 @@ export function RekapBulananPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {displayedMonths.map((m) => (
-                  <tr key={m.period} className="hover:bg-muted/20">
-                    <td className="py-2.5 px-4 font-semibold text-foreground">{m.monthName}</td>
-                    <td className="py-2.5 px-3 text-center font-medium">{m.daily.total}</td>
-                    <td className="py-2.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
-                      {m.daily.done}
-                    </td>
-                    <td className="py-2.5 px-3 text-center text-sky-600 dark:text-sky-400">
-                      {m.daily.inProgress}
-                    </td>
-                    <td className="py-2.5 px-3 text-center text-rose-600 dark:text-rose-400">
-                      {m.daily.revisi}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-bold text-foreground">
-                      {m.daily.completionRate !== null ? `${m.daily.completionRate}%` : "-"}
-                    </td>
-                  </tr>
-                ))}
+                {rekap.months.map((m) => {
+                  const isSelected = m.monthNum === selectedMonth;
+                  return (
+                    <tr
+                      key={m.period}
+                      onClick={() => setSelectedMonth(m.monthNum)}
+                      className={`transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-primary/10 dark:bg-primary/20 font-medium border-l-4 border-l-primary"
+                          : !m.active
+                          ? "opacity-50 hover:bg-muted/20"
+                          : "hover:bg-muted/20"
+                      }`}
+                      title={`Klik untuk memilih bulan ${m.monthName}`}
+                    >
+                      <td className="py-2.5 px-4 font-semibold text-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <span>{m.monthName}</span>
+                          {isSelected && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary text-primary-foreground">
+                              Dipilih
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-medium">{m.daily.total}</td>
+                      <td className="py-2.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
+                        {m.daily.done}
+                      </td>
+                      <td className="py-2.5 px-3 text-center text-sky-600 dark:text-sky-400">
+                        {m.daily.inProgress}
+                      </td>
+                      <td className="py-2.5 px-3 text-center text-rose-600 dark:text-rose-400">
+                        {m.daily.revisi}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-bold text-foreground">
+                        {m.daily.completionRate !== null ? `${m.daily.completionRate}%` : "-"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -1291,25 +1516,48 @@ export function RekapBulananPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {displayedMonths.map((m) => (
-                  <tr key={m.period} className="hover:bg-muted/20">
-                    <td className="py-2.5 px-4 font-semibold text-foreground">{m.monthName}</td>
-                    <td className="py-2.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
-                      {m.attendance.prs}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-medium text-purple-600 dark:text-purple-400">
-                      {m.attendance.ovt}
-                    </td>
-                    <td className="py-2.5 px-3 text-center text-amber-600">{m.attendance.off}</td>
-                    <td className="py-2.5 px-3 text-center text-rose-600">{m.attendance.abs}</td>
-                    <td className="py-2.5 px-3 text-center font-medium text-muted-foreground">
-                      {m.attendance.overtimeHours > 0 ? `${m.attendance.overtimeHours} Jam` : "-"}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-bold">
-                      {m.attendance.attendanceRate !== null ? `${m.attendance.attendanceRate}%` : "-"}
-                    </td>
-                  </tr>
-                ))}
+                {rekap.months.map((m) => {
+                  const isSelected = m.monthNum === selectedMonth;
+                  return (
+                    <tr
+                      key={m.period}
+                      onClick={() => setSelectedMonth(m.monthNum)}
+                      className={`transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-primary/10 dark:bg-primary/20 font-medium border-l-4 border-l-primary"
+                          : !m.active
+                          ? "opacity-50 hover:bg-muted/20"
+                          : "hover:bg-muted/20"
+                      }`}
+                      title={`Klik untuk memilih bulan ${m.monthName}`}
+                    >
+                      <td className="py-2.5 px-4 font-semibold text-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <span>{m.monthName}</span>
+                          {isSelected && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary text-primary-foreground">
+                              Dipilih
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
+                        {m.attendance.prs}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-medium text-purple-600 dark:text-purple-400">
+                        {m.attendance.ovt}
+                      </td>
+                      <td className="py-2.5 px-3 text-center text-amber-600">{m.attendance.off}</td>
+                      <td className="py-2.5 px-3 text-center text-rose-600">{m.attendance.abs}</td>
+                      <td className="py-2.5 px-3 text-center font-medium text-muted-foreground">
+                        {m.attendance.overtimeHours > 0 ? `${m.attendance.overtimeHours} Jam` : "-"}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-bold">
+                        {m.attendance.attendanceRate !== null ? `${m.attendance.attendanceRate}%` : "-"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -1328,22 +1576,45 @@ export function RekapBulananPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {displayedMonths.map((m) => (
-                  <tr key={m.period} className="hover:bg-muted/20">
-                    <td className="py-2.5 px-4 font-semibold text-foreground">{m.monthName}</td>
-                    <td className="py-2.5 px-3 text-center font-medium">{m.safetyToolboxMeeting.personil} orang</td>
-                    <td className="py-2.5 px-3 text-center font-semibold text-blue-600 dark:text-blue-400">
-                      {m.safetyToolboxMeeting.countH}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-semibold text-indigo-600 dark:text-indigo-400">
-                      {m.safetyToolboxMeeting.countHSmall}
-                    </td>
-                    <td className="py-2.5 px-3 text-center text-muted-foreground">{m.safetyToolboxMeeting.countOther}</td>
-                    <td className="py-2.5 px-3 text-center font-bold text-foreground">
-                      {m.safetyToolboxMeeting.totalStandby} Sesi
-                    </td>
-                  </tr>
-                ))}
+                {rekap.months.map((m) => {
+                  const isSelected = m.monthNum === selectedMonth;
+                  return (
+                    <tr
+                      key={m.period}
+                      onClick={() => setSelectedMonth(m.monthNum)}
+                      className={`transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-primary/10 dark:bg-primary/20 font-medium border-l-4 border-l-primary"
+                          : !m.active
+                          ? "opacity-50 hover:bg-muted/20"
+                          : "hover:bg-muted/20"
+                      }`}
+                      title={`Klik untuk memilih bulan ${m.monthName}`}
+                    >
+                      <td className="py-2.5 px-4 font-semibold text-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <span>{m.monthName}</span>
+                          {isSelected && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary text-primary-foreground">
+                              Dipilih
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-medium">{m.safetyToolboxMeeting.personil} orang</td>
+                      <td className="py-2.5 px-3 text-center font-semibold text-blue-600 dark:text-blue-400">
+                        {m.safetyToolboxMeeting.countH}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-semibold text-indigo-600 dark:text-indigo-400">
+                        {m.safetyToolboxMeeting.countHSmall}
+                      </td>
+                      <td className="py-2.5 px-3 text-center text-muted-foreground">{m.safetyToolboxMeeting.countOther}</td>
+                      <td className="py-2.5 px-3 text-center font-bold text-foreground">
+                        {m.safetyToolboxMeeting.totalStandby} Sesi
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

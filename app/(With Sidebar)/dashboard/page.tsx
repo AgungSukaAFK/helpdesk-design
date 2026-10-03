@@ -461,26 +461,26 @@ export default function DashboardPage() {
         const daysInMonth = new Date(currentYear, Number(selectedMonthArea) + 1, 0).getDate();
         
         let attendanceRecords = attRes.data || [];
-        if (attendanceRecords.length === 0) {
-          const seed = getAttendanceSeedForPeriod(periodMonth);
-          const employeeMap = new Map();
-          seed.forEach((s: any) => {
-            const dayMatch = s.date.match(/,\s+(\d{1,2})\s+/);
-            if (dayMatch) {
-              const dayStr = String(parseInt(dayMatch[1], 10));
-              if (!employeeMap.has(s.employee_no)) {
-                 employeeMap.set(s.employee_no, { records: {} });
-              }
-              employeeMap.get(s.employee_no).records[dayStr] = { status: s.status };
-            }
-          });
-          attendanceRecords = Array.from(employeeMap.values());
-        }
+        // if (attendanceRecords.length === 0) {
+        //   const seed = getAttendanceSeedForPeriod(periodMonth);
+        //   const employeeMap = new Map();
+        //   seed.forEach((s: any) => {
+        //     const dayMatch = s.date.match(/,\s+(\d{1,2})\s+/);
+        //     if (dayMatch) {
+        //       const dayStr = String(parseInt(dayMatch[1], 10));
+        //       if (!employeeMap.has(s.employee_no)) {
+        //          employeeMap.set(s.employee_no, { records: {} });
+        //       }
+        //       employeeMap.get(s.employee_no).records[dayStr] = { status: s.status };
+        //     }
+        //   });
+        //   attendanceRecords = Array.from(employeeMap.values());
+        // }
 
         let safetyRecords = safetyRes.data || [];
-        if (safetyRecords.length === 0) {
-          safetyRecords = getSafetyToolboxMeetingHseSeedForPeriod(periodMonth);
-        }
+        // if (safetyRecords.length === 0) {
+        //   safetyRecords = getSafetyToolboxMeetingHseSeedForPeriod(periodMonth);
+        // }
 
         const chartData = [];
 

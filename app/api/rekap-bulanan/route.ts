@@ -1,13 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getAttendanceSeedForPeriod,
-} from "@/lib/attendance-seed";
-import {
-  getSafetyToolboxMeetingHseSeedForPeriod,
   calculatePersonStats,
   type SafetyToolboxMeetingHseRosterRecord,
 } from "@/lib/safety-toolbox-meeting-hse-seed";
+import { INITIAL_REKAP_DATA_2026 } from "@/lib/rekap-tiket-data";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +21,51 @@ function getAdminClient() {
       autoRefreshToken: false,
     },
   });
+}
+
+function distributeBaselineAcrossDays(
+  year: number,
+  monthIndex1Based: number,
+  totalMasuk: number,
+  totalSelesai: number,
+  slaPct: number | null
+): Map<number, { masuk: number; selesai: number; onTime: number }> {
+  const result = new Map<number, { masuk: number; selesai: number; onTime: number }>();
+  const daysInMonth = new Date(year, monthIndex1Based, 0).getDate();
+  const weekdays: number[] = [];
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dayOfWeek = new Date(year, monthIndex1Based - 1, d).getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      weekdays.push(d);
+    }
+  }
+
+  if (weekdays.length === 0 || totalMasuk === 0) return result;
+
+  const targetOnTime = slaPct !== null ? Math.round((slaPct / 100) * totalSelesai) : totalSelesai;
+
+  let remMasuk = totalMasuk;
+  let remSelesai = totalSelesai;
+  let remOnTime = targetOnTime;
+
+  for (let i = 0; i < weekdays.length; i++) {
+    const d = weekdays[i];
+    const remainingDays = weekdays.length - i;
+
+    const mCount = Math.round(remMasuk / remainingDays);
+    remMasuk -= mCount;
+
+    const sCount = Math.min(mCount, Math.round(remSelesai / remainingDays));
+    remSelesai -= sCount;
+
+    const oCount = Math.min(sCount, Math.round(remOnTime / remainingDays));
+    remOnTime -= oCount;
+
+    result.set(d, { masuk: mCount, selesai: sCount, onTime: oCount });
+  }
+
+  return result;
 }
 
 const MONTH_NAMES_ID = [
@@ -46,7 +88,6 @@ export async function GET(request: NextRequest) {
     const supabase = getAdminClient();
     const { searchParams } = new URL(request.url);
     const year = Number(searchParams.get("year") || "2026");
-    const realDataOnly = searchParams.get("realDataOnly") === "true";
 
     // 1. Fetch Permintaan Desain (Real data from Supabase)
     const { data: dbPermintaan } = await supabase
@@ -84,7 +125,7 @@ export async function GET(request: NextRequest) {
         dbSafetyToolboxMeeting = safetyToolboxMeetingData as SafetyToolboxMeetingHseRosterRecord[];
       }
     } catch {
-      // ignore Safety Toolbox Meeting HSE errors — fallback to seed
+      // Tabel belum dibuat di Supabase -> HSE dianggap 0 (tidak ada data fabricated)
     }
 
     const permintaanList = dbPermintaan || [];
@@ -92,41 +133,12 @@ export async function GET(request: NextRequest) {
     const attendanceList = (dbAttendance as any[]) || [];
 
     // ============================================================
-    // ATTENDANCE: Gabungkan data Supabase dengan seed per bulan
+    // ATTENDANCE & HSE: hanya data riil dari Supabase.
+    // Bulan tanpa aktivitas TETAP 0 — jangan pernah diisi data seed/fabricated,
+    // itu membuat rekap menampilkan angka palsu pada bulan yang belum terjadi.
     // ============================================================
     const combinedAttendance: any[] = [...attendanceList];
-    if (!realDataOnly) {
-      for (let m = 1; m <= 12; m++) {
-        const p = `${year}-${String(m).padStart(2, "0")}`;
-        const hasDbData = combinedAttendance.some((a) => a.period_month === p);
-        if (!hasDbData) {
-          const seedForMonth = getAttendanceSeedForPeriod(p);
-          seedForMonth.forEach((seed) => {
-            combinedAttendance.push({
-              period_month: seed.period_month,
-              name: seed.name,
-              status: seed.status,
-              overtime: seed.overtime,
-            });
-          });
-        }
-      }
-    }
-
-    // ============================================================
-    // Safety Toolbox Meeting HSE: Gabungkan data Supabase dengan seed per bulan
-    // ============================================================
     const combinedSafetyToolboxMeeting: SafetyToolboxMeetingHseRosterRecord[] = [...dbSafetyToolboxMeeting];
-    if (!realDataOnly) {
-      for (let m = 1; m <= 12; m++) {
-        const p = `${year}-${String(m).padStart(2, "0")}`;
-        const hasDbData = combinedSafetyToolboxMeeting.some((s) => s.period_month === p);
-        if (!hasDbData) {
-          const seedForMonth = getSafetyToolboxMeetingHseSeedForPeriod(p);
-          combinedSafetyToolboxMeeting.push(...seedForMonth);
-        }
-      }
-    }
 
     // ============================================================
     // PERMINTAAN DESAIN: Kelompokkan tiket Supabase per bulan (WIB-aware)
@@ -276,6 +288,42 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Untuk tahun 2026: overlay data baseline INITIAL_REKAP_DATA_2026
+    // pada bulan-bulan yang belum ada di Supabase atau jumlah tiketnya
+    // lebih sedikit dari 50% data baseline (data Supabase kosong / belum diimport).
+    // Catatan: Oktober, November, Desember memiliki active: false pada INITIAL_REKAP_DATA_2026
+    // sehingga tetap 0 dan tidak pernah diisi data palsu.
+    if (year === 2026) {
+      for (const staticMonth of INITIAL_REKAP_DATA_2026.monthlyData) {
+        if (!staticMonth.active) continue; // Bulan belum berjalan (Oktober, November, Desember) tetap 0!
+        const mm = String(staticMonth.monthIndex).padStart(2, "0");
+        const period = `2026-${mm}`;
+        const dbData = permintaanByMonth.get(period);
+
+        const shouldUseStatic = !dbData || dbData.masuk < staticMonth.masuk * 0.5;
+        if (shouldUseStatic) {
+          const onTimeCount =
+            staticMonth.slaTercapaiPct !== null
+              ? Math.round((staticMonth.slaTercapaiPct / 100) * staticMonth.selesai)
+              : staticMonth.selesai;
+          permintaanByMonth.set(period, {
+            masuk: staticMonth.masuk,
+            selesai: staticMonth.selesai,
+            resRate: staticMonth.resRate,
+            onTime: onTimeCount,
+            slaPct: staticMonth.slaTercapaiPct,
+            avgDurationHours: staticMonth.durasiJam,
+            eskalasi: staticMonth.eskalasiCount,
+            statuses: {
+              DONE: staticMonth.selesai,
+              "TO DO": staticMonth.masuk - staticMonth.selesai,
+            },
+            priorityBreakdown: staticMonth.priorityBreakdown,
+          });
+        }
+      }
+    }
+
     // ============================================================
     // Build month-by-month results
     // ============================================================
@@ -391,6 +439,132 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // --- 5. DAILY TREND (Tanggal 1 s/d daysInMonth) ---
+      const daysInMonth = new Date(year, m, 0).getDate();
+      const dailyTrend: any[] = [];
+
+      // Mapping Permintaan harian
+      const dailyPermintaanMap = new Map<number, { masuk: number; selesai: number; onTime: number }>();
+      const ticketsInPeriod = permintaanDbByMonth.get(period) || [];
+      if (ticketsInPeriod.length > 0) {
+        for (const t of ticketsInPeriod) {
+          if (!t.created_at) continue;
+          const createdWib = new Date(new Date(t.created_at).getTime() + 7 * 3600000);
+          const dMasuk = createdWib.getUTCDate();
+          if (!dailyPermintaanMap.has(dMasuk)) dailyPermintaanMap.set(dMasuk, { masuk: 0, selesai: 0, onTime: 0 });
+          dailyPermintaanMap.get(dMasuk)!.masuk += 1;
+
+          const st = (t.status || "TO DO").toUpperCase();
+          if (st === "DONE") {
+            const updatedWib = t.updated_at ? new Date(new Date(t.updated_at).getTime() + 7 * 3600000) : createdWib;
+            const dSelesai = updatedWib.getUTCDate();
+            if (!dailyPermintaanMap.has(dSelesai)) dailyPermintaanMap.set(dSelesai, { masuk: 0, selesai: 0, onTime: 0 });
+            dailyPermintaanMap.get(dSelesai)!.selesai += 1;
+
+            let isDoneOnTime = true;
+            if (t.due_date) {
+              const dueEndTimestamp = new Date(t.due_date).getTime() + 24 * 3600 * 1000;
+              isDoneOnTime = (t.updated_at ? new Date(t.updated_at).getTime() : new Date(t.created_at).getTime()) <= dueEndTimestamp;
+            }
+            if (isDoneOnTime) {
+              dailyPermintaanMap.get(dSelesai)!.onTime += 1;
+            }
+          }
+        }
+      } else if (isActive && masuk > 0) {
+        // Fallback natural untuk bulan baseline (Jan-Mei) yang memakai INITIAL_REKAP_DATA_2026
+        const baselineMap = distributeBaselineAcrossDays(year, m, masuk, selesai, slaPct);
+        for (const [dayKey, val] of baselineMap) {
+          dailyPermintaanMap.set(dayKey, val);
+        }
+      }
+
+      // Mapping Daily Activity harian
+      const dailyActivityMap = new Map<number, { total: number; done: number }>();
+      for (const d of monthDaily) {
+        if (!d.activity_date) continue;
+        const dayNum = parseInt(d.activity_date.split("-")[2], 10);
+        if (isNaN(dayNum)) continue;
+        if (!dailyActivityMap.has(dayNum)) dailyActivityMap.set(dayNum, { total: 0, done: 0 });
+        const cur = dailyActivityMap.get(dayNum)!;
+        cur.total += 1;
+        const s = (d.status || "").toLowerCase();
+        if (s.includes("done") || s.includes("selesai")) cur.done += 1;
+      }
+
+      // Mapping Attendance harian
+      const dailyAttendanceMap = new Map<number, { prs: number; abs: number; total: number }>();
+      for (const a of monthAtt) {
+        let dayNum: number | null = null;
+        if (a.date_text) {
+          const mMatch = a.date_text.match(/(\d{1,2})\s+[A-Za-z]{3}\s+\d{4}/);
+          if (mMatch) dayNum = parseInt(mMatch[1], 10);
+          else {
+            const mIso = a.date_text.match(/\d{4}-\d{2}-(\d{2})/);
+            if (mIso) dayNum = parseInt(mIso[1], 10);
+          }
+        }
+        if (!dayNum || isNaN(dayNum)) continue;
+        if (!dailyAttendanceMap.has(dayNum)) dailyAttendanceMap.set(dayNum, { prs: 0, abs: 0, total: 0 });
+        const cur = dailyAttendanceMap.get(dayNum)!;
+        cur.total += 1;
+        const s = (a.status || "").toUpperCase();
+        if (s.includes("PRS") || s.includes("HADIR")) cur.prs += 1;
+        else if (s.includes("ABS") || s.includes("ALPA") || s.includes("MANGKIR")) cur.abs += 1;
+      }
+
+      // Mapping Safety Toolbox Meeting harian
+      const dailyStbMap = new Map<number, { countH: number; countHSmall: number; total: number }>();
+      for (const r of monthSafetyToolboxMeeting) {
+        const sched = (r.schedule || {}) as Record<string, string>;
+        for (let d = 1; d <= daysInMonth; d++) {
+          const val = sched[String(d)];
+          if (val === "H" || val === "h") {
+            if (!dailyStbMap.has(d)) dailyStbMap.set(d, { countH: 0, countHSmall: 0, total: 0 });
+            const cur = dailyStbMap.get(d)!;
+            cur.total += 1;
+            if (val === "H") cur.countH += 1;
+            if (val === "h") cur.countHSmall += 1;
+          }
+        }
+      }
+
+      // Susun array 1 s/d daysInMonth
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${monthNum}-${String(d).padStart(2, "0")}`;
+        const pDay = dailyPermintaanMap.get(d) || { masuk: 0, selesai: 0, onTime: 0 };
+        const dDay = dailyActivityMap.get(d) || { total: 0, done: 0 };
+        const aDay = dailyAttendanceMap.get(d) || { prs: 0, abs: 0, total: 0 };
+        const sDay = dailyStbMap.get(d) || { countH: 0, countHSmall: 0, total: 0 };
+
+        const daySla = pDay.selesai > 0 ? Math.round((pDay.onTime / pDay.selesai) * 1000) / 10 : null;
+        const dayDailyRate = dDay.total > 0 ? Math.round((dDay.done / dDay.total) * 1000) / 10 : null;
+        const dayAttRate =
+          aDay.prs + aDay.abs > 0
+            ? Math.round((aDay.prs / (aDay.prs + aDay.abs)) * 1000) / 10
+            : aDay.prs > 0
+            ? 100
+            : null;
+
+        dailyTrend.push({
+          day: d,
+          dateStr,
+          label: String(d),
+          masuk: pDay.masuk,
+          selesai: pDay.selesai,
+          sla: daySla,
+          dailyDone: dDay.done,
+          dailyTotal: dDay.total,
+          dailyRate: dayDailyRate,
+          attPrs: aDay.prs,
+          attTotal: aDay.total,
+          attRate: dayAttRate,
+          stbTotal: sDay.total,
+          stbH: sDay.countH,
+          stbHSmall: sDay.countHSmall,
+        });
+      }
+
       months.push({
         monthName,
         monthNum,
@@ -434,6 +608,7 @@ export async function GET(request: NextRequest) {
           totalStandby: safetyToolboxMeetingTotal,
         },
         kpiGrade,
+        dailyTrend,
       });
     }
 

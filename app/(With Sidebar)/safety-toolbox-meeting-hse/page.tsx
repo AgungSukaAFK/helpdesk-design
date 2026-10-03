@@ -83,6 +83,7 @@ import {
   getDaysInMonth,
   getAllSafetyToolboxMeetingHseSeedData,
   isWeekend,
+  stripFabricatedHseRecords,
 } from "@/lib/safety-toolbox-meeting-hse-seed";
 
 const LOCAL_STORAGE_KEY = "safety_toolbox_meeting_hse_roster_records_v1";
@@ -156,12 +157,63 @@ export default function SafetyToolboxMeetingHsePage() {
   const [isSqlModalOpen, setIsSqlModalOpen] = useState(false);
 
   // ==================== 1. DATA INITIALIZATION & SYNC ====================
+  const syncToSupabase = async (allRecords: SafetyToolboxMeetingHseRosterRecord[]) => {
+    const { data: existing, error: readError } = await supabase
+      .from("safety_toolbox_meeting_hse_roster")
+      .select("id");
+
+    if (readError) throw readError;
+
+    const existingIds = new Set((existing ?? []).map((r: any) => r.id as string));
+    const nextIds = new Set(allRecords.map((r) => r.id));
+    const removedIds = [...existingIds].filter((id) => !nextIds.has(id));
+
+    const payload = allRecords.map((r) => ({
+      id: r.id,
+      period_month: r.period_month,
+      employee_no: r.employee_no ?? null,
+      name: r.name,
+      role: r.role ?? null,
+      phone: r.phone ?? null,
+      schedule: r.schedule ?? {},
+      notes: r.notes ?? null,
+      created_at: r.created_at ?? new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
+
+    if (payload.length > 0) {
+      const { error: upsertError } = await supabase
+        .from("safety_toolbox_meeting_hse_roster")
+        .upsert(payload, { onConflict: "id" });
+      if (upsertError) throw upsertError;
+    }
+
+    if (removedIds.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("safety_toolbox_meeting_hse_roster")
+        .delete()
+        .in("id", removedIds);
+      if (deleteError) throw deleteError;
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
     let loadedFromDb = false;
 
-    // Seed data lengkap 12 bulan sebagai fallback
+    // Seed data baseline (hanya periode baseline, bukan 12 bulan penuh)
     const fullYearSeed = getAllSafetyToolboxMeetingHseSeedData(selectedYear);
+
+    const readCached = (): SafetyToolboxMeetingHseRosterRecord[] | null => {
+      try {
+        const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (!cached) return null;
+        const parsed = JSON.parse(cached);
+        return Array.isArray(parsed) ? stripFabricatedHseRecords(parsed) : null;
+      } catch {
+        return null;
+      }
+    };
 
     try {
       const { data, error } = await supabase
@@ -183,9 +235,30 @@ export default function SafetyToolboxMeetingHsePage() {
           updated_at: item.updated_at,
         }));
 
-        setRecords(dbRecords);
         setSupabaseConnected(true);
         loadedFromDb = true;
+
+        // Periode yang masih hanya ada di localStorage (mis. roster yang diinput
+        // sebelum migrasi dijalankan) ikut di-push ke Supabase, jangan dihapus.
+        const cached = readCached();
+        if (cached && cached.length > 0) {
+          const dbPeriods = new Set(dbRecords.map((r) => r.period_month));
+          const localOnly = cached.filter((r) => !dbPeriods.has(r.period_month));
+          if (localOnly.length > 0) {
+            const merged = [...dbRecords, ...localOnly];
+            setRecords(merged);
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
+            try {
+              await syncToSupabase(merged);
+            } catch (syncErr) {
+              console.warn("Gagal push roster HSE lokal ke Supabase:", syncErr);
+            }
+            setLoading(false);
+            return;
+          }
+        }
+
+        setRecords(dbRecords);
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dbRecords));
       } else if (!error && data && data.length === 0) {
         setSupabaseConnected(true);
@@ -195,34 +268,20 @@ export default function SafetyToolboxMeetingHsePage() {
     }
 
     if (!loadedFromDb) {
-      const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            // Pastikan semua 12 bulan tersedia — tambahkan bulan yang belum ada dari seed
-            const existingPeriods = new Set(parsed.map((r: SafetyToolboxMeetingHseRosterRecord) => r.period_month));
-            const missingSeedRecords = fullYearSeed.filter(
-              (r) => !existingPeriods.has(r.period_month)
-            );
-            const merged = missingSeedRecords.length > 0
-              ? [...parsed, ...missingSeedRecords]
-              : parsed;
-            setRecords(merged);
-            if (missingSeedRecords.length > 0) {
-              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
-            }
-          } else {
-            // localStorage kosong — isi dengan seed lengkap 12 bulan
-            setRecords(fullYearSeed);
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(fullYearSeed));
-          }
-        } catch {
-          setRecords(fullYearSeed);
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(fullYearSeed));
-        }
+      const cleaned = readCached();
+      if (cleaned && cleaned.length > 0) {
+        // Pastikan periode baseline tersedia — tambahkan yang belum ada
+        const existingPeriods = new Set(cleaned.map((r) => r.period_month));
+        const missingSeedRecords = fullYearSeed.filter(
+          (r) => !existingPeriods.has(r.period_month)
+        );
+        const merged = missingSeedRecords.length > 0
+          ? [...cleaned, ...missingSeedRecords]
+          : cleaned;
+        setRecords(merged);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
       } else {
-        // Tidak ada localStorage — isi dengan seed lengkap 12 bulan
+        // Tidak ada localStorage — isi dengan seed baseline
         setRecords(fullYearSeed);
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(fullYearSeed));
       }
@@ -239,6 +298,14 @@ export default function SafetyToolboxMeetingHsePage() {
   const saveRecords = async (newRecords: SafetyToolboxMeetingHseRosterRecord[]) => {
     setRecords(newRecords);
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newRecords));
+    try {
+      await syncToSupabase(newRecords);
+      setSupabaseConnected(true);
+    } catch (err) {
+      console.warn("Gagal sync roster HSE ke Supabase:", err);
+      setSupabaseConnected(false);
+      toast.error("Roster tersimpan di perangkat ini, gagal sinkron ke Supabase.");
+    }
   };
 
   // ==================== 2. DERIVED DATA FOR CURRENT PERIOD ====================
@@ -2022,7 +2089,7 @@ notify pgrst, 'reload schema';`;
           <div className="my-2 bg-muted p-4 rounded-xl font-mono text-xs overflow-x-auto max-h-72">
             <pre>{`-- Salin dan jalankan di SQL Editor Supabase:
 create table if not exists public.safety_toolbox_meeting_hse_roster (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   period_month text not null default to_char(now(), 'YYYY-MM'),
   employee_no text default '',
   name text not null,

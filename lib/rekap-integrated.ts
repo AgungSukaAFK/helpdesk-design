@@ -1,12 +1,11 @@
 import * as XLSX from "xlsx";
 import {
-  INITIAL_ATTENDANCE_DATA,
   type AttendanceRecord,
 } from "@/lib/attendance-seed";
 import {
-  INITIAL_SAFETY_TOOLBOX_MEETING_HSE_DATA,
   type SafetyToolboxMeetingHseRosterRecord,
   calculatePersonStats,
+  stripFabricatedHseRecords,
 } from "@/lib/safety-toolbox-meeting-hse-seed";
 
 export const MONTH_NAMES_ID = [
@@ -82,6 +81,27 @@ export interface MonthIntegratedData {
 
   // Overall KPI Grade
   kpiGrade: "Sangat Baik" | "Baik" | "Cukup Baik" | "Kurang Baik" | null;
+
+  // Daily Trend (Tanggal 1 s/d 28/29/30/31)
+  dailyTrend?: DayIntegratedData[];
+}
+
+export interface DayIntegratedData {
+  day: number; // 1 .. 31
+  dateStr: string; // "YYYY-MM-DD"
+  label: string; // "1"
+  masuk: number;
+  selesai: number;
+  sla: number | null;
+  dailyDone: number;
+  dailyTotal: number;
+  dailyRate: number | null;
+  attPrs: number;
+  attTotal: number;
+  attRate: number | null;
+  stbTotal: number;
+  stbH: number;
+  stbHSmall: number;
 }
 
 export interface YearIntegratedRekap {
@@ -133,9 +153,9 @@ export interface YearIntegratedRekap {
   };
 }
 
-const LOCAL_ATTENDANCE = "attendance_records_v2";
-const LOCAL_SAFETY_TOOLBOX_MEETING = "safety_toolbox_meeting_hse_roster_records_v1";
-const LOCAL_DAILY = "daily_activity_records_v2";
+export const LOCAL_ATTENDANCE = "attendance_records_v2";
+export const LOCAL_SAFETY_TOOLBOX_MEETING = "safety_toolbox_meeting_hse_roster_records_v1";
+export const LOCAL_DAILY = "daily_activity_records_v2";
 
 function readLocalJSON<T>(key: string): T | null {
   try {
@@ -146,193 +166,28 @@ function readLocalJSON<T>(key: string): T | null {
   }
 }
 
+/**
+ * Periode berjalan saat ini dalam zona waktu lokal browser (YYYY-MM).
+ */
+function currentPeriod(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * True jika periode sudah lewat / belum pernah terjadi (tidak boleh punya data rekap).
+ */
+function isFuturePeriod(period: string, current: string): boolean {
+  return period.localeCompare(current) > 0;
+}
+
 export async function fetchIntegratedRekap(year: number = 2026): Promise<YearIntegratedRekap> {
   try {
     const res = await fetch(`/api/rekap-bulanan?year=${year}`);
     if (res.ok) {
       const json = await res.json();
       if (json.data && json.data.months) {
-        const rekapData: YearIntegratedRekap = json.data;
-
-        // Cek apakah ada data lokal di localStorage untuk Attendance, Safety Toolbox Meeting HSE, atau Daily Activity
-        const localAttendance = readLocalJSON<AttendanceRecord[]>(LOCAL_ATTENDANCE);
-        const localSafetyToolboxMeeting = readLocalJSON<SafetyToolboxMeetingHseRosterRecord[]>(LOCAL_SAFETY_TOOLBOX_MEETING);
-        const localDaily = readLocalJSON<any[]>(LOCAL_DAILY);
-
-        let modified = false;
-
-        // 1. Overlay jika ada custom imported Attendance di localStorage
-        if (localAttendance && localAttendance.length > 0) {
-          rekapData.months.forEach((m) => {
-            const localMonthAtt = localAttendance.filter((a) => a.period_month === m.period);
-            if (localMonthAtt.length > 0) {
-              let prs = 0;
-              let ovt = 0;
-              let off = 0;
-              let abs = 0;
-              let ovtMin = 0;
-              localMonthAtt.forEach((r) => {
-                const s = (r.status || "").toUpperCase();
-                if (s.includes("PRS") || s.includes("HADIR")) prs++;
-                if (s.includes("OFF") || s.includes("LIBUR")) off++;
-                if (s.includes("ABS") || s.includes("ALPA") || s.includes("IJIN") || s.includes("SAKIT")) abs++;
-                if (s.includes("OVT") || Number(r.overtime) > 0) ovt++;
-                ovtMin += Number(r.overtime) || 0;
-              });
-              m.attendance = {
-                totalRecords: prs + off + abs,
-                prs,
-                ovt,
-                off,
-                abs,
-                overtimeMinutes: ovtMin,
-                overtimeHours: Math.round((ovtMin / 60) * 10) / 10,
-                attendanceRate: prs + abs > 0 ? Math.round((prs / (prs + abs)) * 1000) / 10 : 100,
-              };
-              m.active = true;
-              modified = true;
-            }
-          });
-        }
-
-        // 2. Overlay jika ada custom imported Safety Toolbox Meeting HSE di localStorage
-        if (localSafetyToolboxMeeting && localSafetyToolboxMeeting.length > 0) {
-          rekapData.months.forEach((m) => {
-            const localMonthSafetyToolboxMeeting = localSafetyToolboxMeeting.filter((s) => s.period_month === m.period);
-            if (localMonthSafetyToolboxMeeting.length > 0) {
-              let countH = 0;
-              let countHSmall = 0;
-              let countOther = 0;
-              localMonthSafetyToolboxMeeting.forEach((r) => {
-                const stats = calculatePersonStats(r.schedule || {});
-                countH += stats.countH;
-                countHSmall += stats.countHSmall;
-                countOther += stats.countOther;
-              });
-              m.safetyToolboxMeeting = {
-                personil: localMonthSafetyToolboxMeeting.length,
-                countH,
-                countHSmall,
-                countOther,
-                totalStandby: countH + countHSmall + countOther,
-              };
-              m.active = true;
-              modified = true;
-            }
-          });
-        }
-
-        // 3. Overlay jika ada custom Daily Activity di localStorage
-        if (localDaily && localDaily.length > 0) {
-          rekapData.months.forEach((m) => {
-            const localMonthDaily = localDaily.filter((d) => d.activity_date?.startsWith(m.period));
-            if (localMonthDaily.length > 0) {
-              let dailyDone = 0;
-              let dailyInProgress = 0;
-              let dailyRevisi = 0;
-              let dailyPending = 0;
-              let dailyWaiting = 0;
-
-              localMonthDaily.forEach((d) => {
-                const s = (d.status || "").toLowerCase();
-                if (s.includes("done") || s.includes("selesai")) dailyDone++;
-                else if (s.includes("progress") || s.includes("proses")) dailyInProgress++;
-                else if (s.includes("revisi")) dailyRevisi++;
-                else if (s.includes("pending") || s.includes("tunda")) dailyPending++;
-                else dailyWaiting++;
-              });
-
-              m.daily = {
-                total: localMonthDaily.length,
-                done: dailyDone,
-                inProgress: dailyInProgress,
-                revisi: dailyRevisi,
-                pending: dailyPending,
-                waiting: dailyWaiting,
-                completionRate: Math.round((dailyDone / localMonthDaily.length) * 1000) / 10,
-              };
-              m.active = true;
-              modified = true;
-            }
-          });
-        }
-
-        if (modified) {
-          // Rekalkulasi status aktif & KPI Grade dinamis per bulan
-          rekapData.months.forEach((m) => {
-            m.active = m.permintaan.masuk > 0 || m.daily.total > 0 || m.attendance.prs > 0 || m.safetyToolboxMeeting.totalStandby > 0;
-            if (m.active) {
-              let weightedSum = 0;
-              let totalWeight = 0;
-
-              if (m.permintaan.slaPct !== null) {
-                weightedSum += m.permintaan.slaPct * 0.40;
-                totalWeight += 0.40;
-              }
-              if (m.daily.completionRate !== null) {
-                weightedSum += m.daily.completionRate * 0.35;
-                totalWeight += 0.35;
-              }
-              if (m.attendance.attendanceRate !== null) {
-                weightedSum += m.attendance.attendanceRate * 0.25;
-                totalWeight += 0.25;
-              }
-
-              if (totalWeight > 0) {
-                const score = weightedSum / totalWeight;
-                if (score >= 90) m.kpiGrade = "Sangat Baik";
-                else if (score >= 80) m.kpiGrade = "Baik";
-                else if (score >= 65) m.kpiGrade = "Cukup Baik";
-                else m.kpiGrade = "Kurang Baik";
-              } else {
-                m.kpiGrade = null;
-              }
-            } else {
-              m.kpiGrade = null;
-            }
-          });
-
-          // Rekalkulasi Totals
-          const activeMonths = rekapData.months.filter((m) => m.active);
-
-          rekapData.totals.dailyTotal = activeMonths.reduce((acc, m) => acc + m.daily.total, 0);
-          rekapData.totals.dailyDone = activeMonths.reduce((acc, m) => acc + m.daily.done, 0);
-          rekapData.totals.dailyInProgress = activeMonths.reduce((acc, m) => acc + m.daily.inProgress, 0);
-          rekapData.totals.dailyRevisi = activeMonths.reduce((acc, m) => acc + m.daily.revisi, 0);
-          rekapData.totals.dailyPending = activeMonths.reduce((acc, m) => acc + m.daily.pending, 0);
-          rekapData.totals.dailyWaiting = activeMonths.reduce((acc, m) => acc + m.daily.waiting, 0);
-          rekapData.totals.dailyRate =
-            rekapData.totals.dailyTotal > 0
-              ? Math.round((rekapData.totals.dailyDone / rekapData.totals.dailyTotal) * 1000) / 10
-              : 100;
-
-          rekapData.totals.attendancePrs = activeMonths.reduce((acc, m) => acc + m.attendance.prs, 0);
-          rekapData.totals.attendanceOvt = activeMonths.reduce((acc, m) => acc + m.attendance.ovt, 0);
-          rekapData.totals.attendanceOff = activeMonths.reduce((acc, m) => acc + m.attendance.off, 0);
-          rekapData.totals.attendanceAbs = activeMonths.reduce((acc, m) => acc + m.attendance.abs, 0);
-          rekapData.totals.attendanceTotalMinutes = activeMonths.reduce((acc, m) => acc + m.attendance.overtimeMinutes, 0);
-          rekapData.totals.attendanceRate =
-            rekapData.totals.attendancePrs + rekapData.totals.attendanceAbs > 0
-              ? Math.round((rekapData.totals.attendancePrs / (rekapData.totals.attendancePrs + rekapData.totals.attendanceAbs)) * 1000) / 10
-              : 100;
-
-          rekapData.totals.safetyToolboxMeetingPersonil = Math.max(...activeMonths.map((m) => m.safetyToolboxMeeting.personil), 0);
-          rekapData.totals.safetyToolboxMeetingTotalStandby = activeMonths.reduce((acc, m) => acc + m.safetyToolboxMeeting.totalStandby, 0);
-          rekapData.totals.safetyToolboxMeetingCountH = activeMonths.reduce((acc, m) => acc + m.safetyToolboxMeeting.countH, 0);
-          rekapData.totals.safetyToolboxMeetingCountHSmall = activeMonths.reduce((acc, m) => acc + m.safetyToolboxMeeting.countHSmall, 0);
-
-          const overallScore =
-            rekapData.totals.permintaanSlaPct * 0.4 +
-            rekapData.totals.dailyRate * 0.35 +
-            rekapData.totals.attendanceRate * 0.25;
-
-          if (overallScore >= 90) rekapData.totals.overallKpiGrade = "Sangat Baik";
-          else if (overallScore >= 80) rekapData.totals.overallKpiGrade = "Baik";
-          else if (overallScore >= 65) rekapData.totals.overallKpiGrade = "Cukup Baik";
-          else rekapData.totals.overallKpiGrade = "Kurang Baik";
-        }
-
-        return rekapData;
+        return json.data as YearIntegratedRekap;
       }
     }
   } catch (err) {
