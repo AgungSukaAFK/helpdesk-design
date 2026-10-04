@@ -36,7 +36,7 @@ interface File {
 }
 
 // Data Departemen (tidak berubah)
-const dataDepartment: ComboboxData = [
+const dataDepartemen: ComboboxData = [
   { label: "General Affair", value: "General Affair" },
   { label: "Marketing", value: "Marketing" },
   { label: "Manufacture", value: "Manufacture" },
@@ -81,7 +81,7 @@ const dataProject: ComboboxData = [
 
 export default function BuatPermintaanDesainPage() {
   const [loading, setLoading] = useState<boolean>(false);
-  const [selectedDepartment, setSelectedDepartment] = useState<string>("");
+  const [selectedDepartemen, setSelectedDepartemen] = useState<string>("");
   const [alertMessage, setAlertMessage] = useState<string>("");
 
   // REVISI: State baru untuk project
@@ -97,7 +97,7 @@ export default function BuatPermintaanDesainPage() {
     const judul = formData.get("judul") as string;
     const deskripsi = formData.get("deskripsi") as string;
     const due_date = formData.get("due_date") as string;
-    const departemen = selectedDepartment;
+    const departemen = selectedDepartemen;
 
     // REVISI: Menentukan nilai 'project' yang akan disimpan
     const projectValue =
@@ -147,7 +147,7 @@ export default function BuatPermintaanDesainPage() {
 
       // REVISI: Mereset state baru setelah submit berhasil
       form.reset();
-      setSelectedDepartment("");
+      setSelectedDepartemen("");
       setSelectedProject("");
       setCustomProject("");
       toast.success("Permintaan desain berhasil dibuat.");
@@ -160,8 +160,8 @@ export default function BuatPermintaanDesainPage() {
     }
   }
 
-  function handleDepartmentChange(value: string) {
-    setSelectedDepartment(value);
+  function handleDepartemenChange(value: string) {
+    setSelectedDepartemen(value);
   }
 
   // REVISI: Handler baru untuk perubahan project
@@ -229,9 +229,9 @@ export default function BuatPermintaanDesainPage() {
           <div className="flex flex-col gap-2">
             <Label htmlFor="departemen">Departemen</Label>
             <Combobox
-              data={dataDepartment}
-              onChange={handleDepartmentChange}
-              defaultValue={selectedDepartment}
+              data={dataDepartemen}
+              onChange={handleDepartemenChange}
+              defaultValue={selectedDepartemen}
             />
           </div>
           <div className="flex flex-col gap-2">

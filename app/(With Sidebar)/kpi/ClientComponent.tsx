@@ -79,7 +79,7 @@ interface KpiRow {
   skor_akhir: number | null;
   nilai_akhir: number | null;
   cara_pengukuran: string;
-  divisi: string;
+  departemen: string;
   data_source: string;
   note: string;
   raw?: Record<string, any>;
@@ -198,7 +198,7 @@ export default function KpiClientComponent() {
     keterangan: "Persentase",
     realisasi: 100,
     cara_pengukuran: "",
-    divisi: "Creative",
+    departemen: "Creative",
     data_source: "Daily Activity",
     note: "A1",
   });
@@ -292,7 +292,7 @@ export default function KpiClientComponent() {
       keterangan: row.keterangan || "Persentase",
       realisasi: row.realisasi !== null ? row.realisasi : row.target,
       cara_pengukuran: row.cara_pengukuran || "",
-      divisi: row.divisi || "Creative",
+      departemen: row.departemen || "Creative",
       data_source: row.data_source || "Manual",
       note: row.note || "",
     });
@@ -439,7 +439,7 @@ export default function KpiClientComponent() {
         "Skor": row.skor !== null ? row.skor.toFixed(2) : "-",
         "Skor Akhir": row.skor_akhir !== null ? `${row.skor_akhir.toFixed(2)}%` : "-",
         "Cara Pengukuran": row.cara_pengukuran,
-        "Divisi": row.divisi || "Creative",
+        "Departemen": row.departemen || "Creative",
       }));
 
       // Add total row
@@ -459,7 +459,7 @@ export default function KpiClientComponent() {
         "Skor": "" as any,
         "Skor Akhir": `${data.total_nilai_akhir.toFixed(2)}%`,
         "Cara Pengukuran": "",
-        "Divisi": "",
+        "Departemen": "",
       });
 
       // Sheet 2: Meta data
@@ -524,7 +524,7 @@ export default function KpiClientComponent() {
   return (
     <Content
       title="Key Performance Indicator (KPI)"
-      description={`Laporan KPI Departemen IT / Divisi Creative — Periode ${formatMonthPeriod(selectedMonth)}`}
+      description={`Laporan KPI Departemen IT / Departemen Creative — Periode ${formatMonthPeriod(selectedMonth)}`}
       size="lg"
       cardAction={
         <div className="flex flex-wrap items-center gap-2">
@@ -712,7 +712,7 @@ export default function KpiClientComponent() {
               <div>
                 <div className="font-semibold text-sm text-foreground">KEY PERFORMANCE INDICATOR (KPI)</div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  Departemen IT / Divisi Creative — Periode {formatMonthPeriod(selectedMonth)}
+                  Departemen IT / Departemen Creative — Periode {formatMonthPeriod(selectedMonth)}
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -823,7 +823,7 @@ export default function KpiClientComponent() {
                     </th>
                     <th className="px-3 py-3 text-center font-bold border-r border-orange-600/70 w-24 whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
-                        <span>Divisi</span>
+                        <span>Departemen</span>
                         <span className="text-[10px] opacity-80">▾</span>
                       </div>
                     </th>
@@ -934,10 +934,10 @@ export default function KpiClientComponent() {
                           {row.cara_pengukuran}
                         </td>
 
-                        {/* 16. Divisi */}
+                        {/* 16. Departemen */}
                         <td className="px-3 py-3 text-center border-r">
                           <Badge variant="secondary" className="text-[10px] font-medium whitespace-nowrap">
-                            {row.divisi || "Creative"}
+                            {row.departemen || "Creative"}
                           </Badge>
                         </td>
 
@@ -1112,7 +1112,7 @@ export default function KpiClientComponent() {
                     {detailRow.perspektif_bsc}
                   </Badge>
                   <Badge variant="secondary" className="text-xs">
-                    {detailRow.divisi || "Creative"}
+                    {detailRow.departemen || "Creative"}
                   </Badge>
                   <Badge variant="outline" className={`text-xs ${DATA_SOURCE_COLORS[detailRow.data_source] || "bg-muted/50"}`}>
                     {detailRow.data_source}
@@ -1297,13 +1297,13 @@ export default function KpiClientComponent() {
                 </Select>
               </div>
 
-              {/* Divisi */}
+              {/* Departemen */}
               <div className="space-y-1.5">
-                <Label htmlFor="edit-divisi" className="text-xs">Divisi</Label>
+                <Label htmlFor="edit-departemen" className="text-xs">Departemen</Label>
                 <Input
-                  id="edit-divisi"
-                  value={formData.divisi}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, divisi: e.target.value }))}
+                  id="edit-departemen"
+                  value={formData.departemen}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, departemen: e.target.value }))}
                   className="h-9"
                   placeholder="Creative"
                   required

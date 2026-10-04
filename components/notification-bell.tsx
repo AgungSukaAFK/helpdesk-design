@@ -10,6 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
+import { playNotificationAudio } from "@/lib/notification-audio";
+import { readNotificationPreferences } from "@/lib/notification-preferences";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +24,18 @@ interface Notification {
   created_at: string;
 }
 
+let userIdPromise: Promise<string> | null = null;
+
+function resolveUserId(): Promise<string> {
+  if (!userIdPromise) {
+    userIdPromise = createClient()
+      .auth.getUser()
+      .then(({ data }) => data.user?.id ?? "")
+      .catch(() => "");
+  }
+  return userIdPromise;
+}
+
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -29,36 +43,12 @@ export function NotificationBell() {
   const prevUnreadCount = useRef(0);
   const isFirstLoad = useRef(true);
 
-  const playNotificationSound = () => {
+  const playNotificationSound = async () => {
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return;
-      const context = new AudioContextClass();
-      
-      // Play a subtle, pleasant "ding-dong" sequence
-      const playNote = (freq: number, startTime: number, duration: number) => {
-        const osc = context.createOscillator();
-        const gain = context.createGain();
-        
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, context.currentTime + startTime);
-        
-        gain.gain.setValueAtTime(0, context.currentTime + startTime);
-        gain.gain.linearRampToValueAtTime(0.3, context.currentTime + startTime + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + startTime + duration);
-        
-        osc.connect(gain);
-        gain.connect(context.destination);
-        
-        osc.start(context.currentTime + startTime);
-        osc.stop(context.currentTime + startTime + duration);
-      };
-
-      // Notes: F5 (698.46 Hz) and C6 (1046.50 Hz)
-      playNote(698.46, 0, 0.4);
-      playNote(1046.50, 0.15, 0.6);
+      const userId = await resolveUserId();
+      await playNotificationAudio(readNotificationPreferences(userId));
     } catch (e) {
-      console.error("Failed to play sound", e);
+      console.error("Failed to play notification sound", e);
     }
   };
 
@@ -77,7 +67,7 @@ export function NotificationBell() {
         
         // If unread count increased and it's not the first load, play sound
         if (!isFirstLoad.current && newUnread > prevUnreadCount.current) {
-          playNotificationSound();
+          void playNotificationSound();
         }
         
         setNotifications(json.data);

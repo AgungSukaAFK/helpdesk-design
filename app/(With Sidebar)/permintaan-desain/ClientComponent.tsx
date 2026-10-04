@@ -442,7 +442,7 @@ export default function PermintaanList() {
         "Kategori Desain": item.category || "-",
         "Hasil": item.hasil_label || "-",
         "Jenis Proyek": item.project,
-        "Departemen / Divisi": item.departemen,
+        "Departemen / Departemen": item.departemen,
         "Peminta / Pelapor": item.requester_name || "Pelapor",
         Desainer: item.admin_name || "-",
         Status: item.status,
@@ -607,7 +607,7 @@ export default function PermintaanList() {
 
       const colJudul = findCol("judul permintaan", "judul", "title", "unit perangkat", "unit", "task description", "task", "pekerjaan");
       const colProject = findCol("jenis proyek", "project", "proyek", "kategori desain");
-      const colDept = findCol("departemen divisi", "departemen", "divisi", "department", "lokasi");
+      const colDept = findCol("departemen departemen", "departemen", "departemen", "departemen", "lokasi");
       const colPelapor = findCol("peminta pelapor", "peminta", "pelapor", "requester", "name", "nama");
       const colDesainer = findCol("desainer", "teknisi", "admin", "pic", "designer");
       const colStatus = findCol("status", "keadaan");
@@ -1393,7 +1393,7 @@ export default function PermintaanList() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Cari judul, divisi, kategori..."
+              placeholder="Cari judul, departemen, kategori..."
               className="pl-9"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -1544,7 +1544,7 @@ export default function PermintaanList() {
               <TableHead className="w-[50px] font-semibold">No</TableHead>
               <TableHead className="font-semibold w-[220px]">Audit Timeline Waktu</TableHead>
               <TableHead className="font-semibold">Judul Permintaan</TableHead>
-              <TableHead className="font-semibold">Peminta / Divisi</TableHead>
+              <TableHead className="font-semibold">Peminta / Departemen</TableHead>
               <TableHead className="font-semibold">Desainer</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Target Selesai</TableHead>

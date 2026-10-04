@@ -34,7 +34,7 @@ const ROLE_OPTIONS = [
   { label: "User", value: "user" },
 ];
 
-const DEPARTMENT_OPTIONS = [
+const DEPARTEMEN_OPTIONS = [
   "General Affair",
   "Marketing",
   "Manufacture",
@@ -58,7 +58,7 @@ interface UserData {
   email: string;
   name: string;
   role: string;
-  department: string;
+  departemen: string;
 }
 
 export default function EditUserPage({
@@ -76,7 +76,7 @@ export default function EditUserPage({
   // Form states
   const [name, setName] = useState("");
   const [role, setRole] = useState("user");
-  const [department, setDepartment] = useState("General Affair");
+  const [departemen, setDepartemen] = useState("General Affair");
   const [customDept, setCustomDept] = useState("");
 
   useEffect(() => {
@@ -97,14 +97,14 @@ export default function EditUserPage({
         setName(u.name || "");
         setRole(u.role || "user");
 
-        if (u.department && DEPARTMENT_OPTIONS.includes(u.department)) {
-          setDepartment(u.department);
+        if (u.departemen && DEPARTEMEN_OPTIONS.includes(u.departemen)) {
+          setDepartemen(u.departemen);
           setCustomDept("");
-        } else if (u.department && u.department !== "-") {
-          setDepartment("Lainnya");
-          setCustomDept(u.department);
+        } else if (u.departemen && u.departemen !== "-") {
+          setDepartemen("Lainnya");
+          setCustomDept(u.departemen);
         } else {
-          setDepartment("General Affair");
+          setDepartemen("General Affair");
           setCustomDept("");
         }
       } catch (err: any) {
@@ -124,7 +124,7 @@ export default function EditUserPage({
       return;
     }
 
-    const finalDept = department === "Lainnya" && customDept.trim() ? customDept.trim() : department;
+    const finalDept = departemen === "Lainnya" && customDept.trim() ? customDept.trim() : departemen;
 
     setSaving(true);
     try {
@@ -134,7 +134,7 @@ export default function EditUserPage({
         body: JSON.stringify({
           name: name.trim(),
           role,
-          department: finalDept,
+          departemen: finalDept,
         }),
       });
 
@@ -277,12 +277,12 @@ export default function EditUserPage({
               <Label htmlFor="user-dept" className="text-sm font-semibold">
                 Departemen
               </Label>
-              <Select value={department} onValueChange={setDepartment}>
+              <Select value={departemen} onValueChange={setDepartemen}>
                 <SelectTrigger id="user-dept" className="w-full">
                   <SelectValue placeholder="Pilih Departemen" />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
-                  {DEPARTMENT_OPTIONS.map((dept) => (
+                  {DEPARTEMEN_OPTIONS.map((dept) => (
                     <SelectItem key={dept} value={dept}>
                       {dept}
                     </SelectItem>
@@ -291,7 +291,7 @@ export default function EditUserPage({
                 </SelectContent>
               </Select>
 
-              {department === "Lainnya" && (
+              {departemen === "Lainnya" && (
                 <Input
                   className="mt-2"
                   placeholder="Ketikkan nama departemen..."

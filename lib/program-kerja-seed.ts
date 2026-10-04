@@ -1,7 +1,7 @@
 export interface ProgramKerjaRecord {
   id: string;
   year: number; // e.g. 2026
-  division: string; // e.g. "Design & Multimedia"
+  departemenon: string; // e.g. "Design & Multimedia"
   quartal: string; // e.g. "Quartal 1", "Quartal 2", "Quartal 3", "Quartal 4"
   quartal_fokus?: string; // e.g. "Audit, Perencanaan, Pra-Produksi"
   program_kerja: string;
@@ -151,10 +151,10 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-01",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "Audit, Perencanaan, Pra-Produksi",
-    program_kerja: "Evaluasi & Audit Aset Digital divisi Desain",
+    program_kerja: "Evaluasi & Audit Aset Digital departemen Desain",
     tujuan: "Evaluasi desain tahun lalu & setup server / folder 2026",
     realisasi: "Audit ulang seluruh folder aset digital",
     realisasi_aktual: "Proses",
@@ -168,7 +168,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-02",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "Audit, Perencanaan, Pra-Produksi",
     program_kerja: "Implementasi Dashboard tiketing Design",
@@ -185,7 +185,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-03",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "Audit, Perencanaan, Pra-Produksi",
     program_kerja: "Photo dan Editing Product AC",
@@ -202,7 +202,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-04",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "Audit, Perencanaan, Pra-Produksi",
     program_kerja: "Penyusunan Konsep Video Company Profile",
@@ -219,7 +219,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-05",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "Audit, Perencanaan, Pra-Produksi",
     program_kerja: "Penyusunan storyline & Storyboard",
@@ -236,7 +236,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-06",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "Audit, Perencanaan, Pra-Produksi",
     program_kerja: "Produksi Video Company Profile",
@@ -253,7 +253,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-07",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "Audit, Perencanaan, Pra-Produksi",
     program_kerja: "Editing & Post-Production",
@@ -270,7 +270,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-08",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "Audit, Perencanaan, Pra-Produksi",
     program_kerja: "Review & Approval",
@@ -287,7 +287,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-09",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "Audit, Perencanaan, Pra-Produksi",
     program_kerja: "Finalisasi & File Artwork",
@@ -304,7 +304,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-10",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "Audit, Perencanaan, Pra-Produksi",
     program_kerja: "Produksi Konten Bulan K3",
@@ -321,7 +321,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-11",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "Audit, Perencanaan, Pra-Produksi",
     program_kerja: "Pembuatan Iklan Product Batch 1",
@@ -338,7 +338,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-12",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "Audit, Perencanaan, Pra-Produksi",
     program_kerja: "Laporan Quartal 1",
@@ -357,7 +357,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-13",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 2",
     quartal_fokus: "Iklan & Konten",
     program_kerja: "Tayang Iklan Product Batch 1",
@@ -374,7 +374,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-14",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 2",
     quartal_fokus: "Iklan & Konten",
     program_kerja: "Photo dan Editing Product AC",
@@ -391,7 +391,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-15",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 2",
     quartal_fokus: "Iklan & Konten",
     program_kerja: "Brief dengan Marketing untuk pembuatan Konten Marketing",
@@ -408,7 +408,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-16",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 2",
     quartal_fokus: "Iklan & Konten",
     program_kerja: "Pembuatan Iklan Product Batch 2",
@@ -425,7 +425,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-17",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 2",
     quartal_fokus: "Iklan & Konten",
     program_kerja: "Produksi Konten Bulan K3",
@@ -442,7 +442,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-18",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 2",
     quartal_fokus: "Iklan & Konten",
     program_kerja: "Laporan Quartal 2",
@@ -461,7 +461,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-19",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 3",
     quartal_fokus: "Katalog, Kalender & Kampanye",
     program_kerja: "Photo dan Editing Product AC (Fitiing & Part AC)",
@@ -478,7 +478,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-20",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 3",
     quartal_fokus: "Katalog, Kalender & Kampanye",
     program_kerja: "Deadstock GIS",
@@ -495,7 +495,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-21",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 3",
     quartal_fokus: "Katalog, Kalender & Kampanye",
     program_kerja: "Deadstock GMI",
@@ -512,7 +512,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-22",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 3",
     quartal_fokus: "Katalog, Kalender & Kampanye",
     program_kerja: "Deadstock GMI (Penghapusan Price)",
@@ -529,7 +529,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-23",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 3",
     quartal_fokus: "Katalog, Kalender & Kampanye",
     program_kerja: "Deadstock Lourdes",
@@ -546,7 +546,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-24",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 3",
     quartal_fokus: "Katalog, Kalender & Kampanye",
     program_kerja: "Brief dengan Marketing untuk pembuatan Konten Marketing",
@@ -563,7 +563,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-25",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 3",
     quartal_fokus: "Katalog, Kalender & Kampanye",
     program_kerja: "Pembuatan Kalender 2027 GIS & GMI",
@@ -580,7 +580,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-26",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 3",
     quartal_fokus: "Katalog, Kalender & Kampanye",
     program_kerja: "Produksi Poster K3",
@@ -597,7 +597,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-27",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 3",
     quartal_fokus: "Katalog, Kalender & Kampanye",
     program_kerja: "Produksi Konten K3",
@@ -614,7 +614,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-28",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 3",
     quartal_fokus: "Katalog, Kalender & Kampanye",
     program_kerja: "Laporan Quartal 3",
@@ -633,7 +633,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-29",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 4",
     quartal_fokus: "Penutupan, Mini Catalog & Proker Baru",
     program_kerja: "Deadstock GIS Lanjutan",
@@ -650,7 +650,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-30",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 4",
     quartal_fokus: "Penutupan, Mini Catalog & Proker Baru",
     program_kerja: "Deadstock Lourdes",
@@ -667,7 +667,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-31",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 4",
     quartal_fokus: "Penutupan, Mini Catalog & Proker Baru",
     program_kerja: "Pembuatan Mini Catalog per Commodity untuk Marketing",
@@ -684,7 +684,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-32",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 4",
     quartal_fokus: "Penutupan, Mini Catalog & Proker Baru",
     program_kerja: "Produksi Konten Bulan K3",
@@ -701,7 +701,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-33",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 4",
     quartal_fokus: "Penutupan, Mini Catalog & Proker Baru",
     program_kerja: "Program Kerja Tahunan",
@@ -718,7 +718,7 @@ export const INITIAL_PROGRAM_KERJA_2026: ProgramKerjaRecord[] = [
   {
     id: "proker-2026-34",
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 4",
     quartal_fokus: "Penutupan, Mini Catalog & Proker Baru",
     program_kerja: "Laporan Quartal 4",

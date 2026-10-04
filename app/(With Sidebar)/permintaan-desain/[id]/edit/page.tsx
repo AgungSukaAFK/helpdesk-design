@@ -21,7 +21,7 @@ import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const dataDepartment: ComboboxData = [
+const dataDepartemen: ComboboxData = [
   { label: "General Affair", value: "General Affair" },
   { label: "Marketing", value: "Marketing" },
   { label: "Manufacture", value: "Manufacture" },
@@ -105,7 +105,7 @@ export default function EditPermintaanDesainPage() {
   const [deskripsi, setDeskripsi] = useState("");
   const [selectedProject, setSelectedProject] = useState("");
   const [customProject, setCustomProject] = useState("");
-  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [selectedDepartemen, setSelectedDepartemen] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [status, setStatus] = useState("TO DO");
   const [admin, setAdmin] = useState("none");
@@ -153,7 +153,7 @@ export default function EditPermintaanDesainPage() {
         setDeskripsi(item.deskripsi || "");
         setStatus(item.status || "TO DO");
         setAdmin(item.admin || "none");
-        setSelectedDepartment(item.departemen || "");
+        setSelectedDepartemen(item.departemen || "");
         setDueDate(
           item.due_date
             ? new Date(item.due_date).toISOString().split("T")[0]
@@ -192,7 +192,7 @@ export default function EditPermintaanDesainPage() {
       toast.error("Semua kolom wajib diisi.");
       return;
     }
-    if (!selectedDepartment || !projectValue) {
+    if (!selectedDepartemen || !projectValue) {
       toast.error("Project dan Departemen wajib dipilih.");
       return;
     }
@@ -211,7 +211,7 @@ export default function EditPermintaanDesainPage() {
           judul,
           deskripsi,
           project: projectValue,
-          departemen: selectedDepartment,
+          departemen: selectedDepartemen,
           status: isDesigner ? data?.status || status : status,
           due_date: new Date(dueDate).toISOString(),
           admin: isDesigner ? data?.admin : admin === "none" ? null : admin,
@@ -328,9 +328,9 @@ export default function EditPermintaanDesainPage() {
         <div className="flex flex-col gap-2">
           <Label htmlFor="departemen">Departemen</Label>
           <Combobox
-            data={dataDepartment}
-            onChange={setSelectedDepartment}
-            defaultValue={selectedDepartment}
+            data={dataDepartemen}
+            onChange={setSelectedDepartemen}
+            defaultValue={selectedDepartemen}
           />
         </div>
 

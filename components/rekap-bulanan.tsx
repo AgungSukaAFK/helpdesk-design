@@ -534,7 +534,7 @@ export function RekapBulananPage() {
         return null;
       })()}
 
-      {/* ==================== ACUAN SLA DIVISI DESIGN & METRIK TIKET ==================== */}
+      {/* ==================== ACUAN SLA DEPARTEMEN DESIGN & METRIK TIKET ==================== */}
       <div className="bg-[#0b1325] border border-slate-800 rounded-xl p-4 shadow-sm text-slate-100 space-y-4">
         {/* Collapsible Acuan SLA Table */}
         <div className="border border-slate-800/90 rounded-lg overflow-hidden bg-[#0e172a]/90">
@@ -545,7 +545,7 @@ export function RekapBulananPage() {
           >
             <div className="flex items-center gap-2.5 font-bold text-sm text-slate-100">
               <Hexagon className="size-4 text-sky-400 stroke-[2.2]" />
-              <span>Acuan SLA DIVISI DESIGN</span>
+              <span>Acuan SLA DEPARTEMEN DESIGN</span>
             </div>
             <ChevronDown
               className={`size-4 text-slate-400 transition-transform duration-200 ${slaReferenceOpen ? "rotate-180" : ""

@@ -65,7 +65,7 @@ export interface KpiRow {
   skor_akhir: number | null; // Nilai tertimbang: (skor / 100) * bobot
   nilai_akhir: number | null; // Alias skor_akhir
   cara_pengukuran: string;
-  divisi: string;
+  departemen: string;
   data_source: string;
   note: string;
   // Raw context untuk debugging
@@ -87,7 +87,7 @@ const KPI_DEFINITIONS: Omit<KpiRow, "realisasi" | "skor" | "skor_akhir" | "nilai
     target: 100,
     keterangan: "Persentase",
     cara_pengukuran: "Jumlah hari kerja yang memiliki minimal 1 entri Daily Activity Done / Total hari kerja × 100%",
-    divisi: "Creative",
+    departemen: "Creative",
     data_source: "Daily Activity",
     note: "A1",
   },
@@ -105,7 +105,7 @@ const KPI_DEFINITIONS: Omit<KpiRow, "realisasi" | "skor" | "skor_akhir" | "nilai
     target: 100,
     keterangan: "Persentase",
     cara_pengukuran: "Jumlah tiket DONE / Total tiket bulan × 100%",
-    divisi: "Creative",
+    departemen: "Creative",
     data_source: "Permintaan Desain",
     note: "A1",
   },
@@ -123,7 +123,7 @@ const KPI_DEFINITIONS: Omit<KpiRow, "realisasi" | "skor" | "skor_akhir" | "nilai
     target: 100,
     keterangan: "Persentase",
     cara_pengukuran: "Jumlah tiket DONE & selesai ≤ due date / Total tiket DONE bulan × 100%",
-    divisi: "Creative",
+    departemen: "Creative",
     data_source: "Permintaan Desain",
     note: "A1",
   },
@@ -141,7 +141,7 @@ const KPI_DEFINITIONS: Omit<KpiRow, "realisasi" | "skor" | "skor_akhir" | "nilai
     target: 50,
     keterangan: "Persentase",
     cara_pengukuran: "Total entri daily activity bulan ini / target minimum entri (50) × 100%",
-    divisi: "Creative",
+    departemen: "Creative",
     data_source: "Daily Activity",
     note: "A1",
   },
@@ -159,7 +159,7 @@ const KPI_DEFINITIONS: Omit<KpiRow, "realisasi" | "skor" | "skor_akhir" | "nilai
     target: 88,
     keterangan: "Persentase",
     cara_pengukuran: "Jumlah hari hadir (status PRS/EAI) / Total hari kerja bulan × 100%",
-    divisi: "Creative",
+    departemen: "Creative",
     data_source: "Attendance",
     note: "A1",
   },
@@ -177,7 +177,7 @@ const KPI_DEFINITIONS: Omit<KpiRow, "realisasi" | "skor" | "skor_akhir" | "nilai
     target: 100,
     keterangan: "Persentase",
     cara_pengukuran: "Jumlah hari standby terpenuhi (ada entri H/h) / Total hari wajib standby roster × 100%",
-    divisi: "Creative",
+    departemen: "Creative",
     data_source: "Safety Toolbox Meeting HSE",
     note: "A1",
   },
@@ -195,7 +195,7 @@ const KPI_DEFINITIONS: Omit<KpiRow, "realisasi" | "skor" | "skor_akhir" | "nilai
     target: 50,
     keterangan: "Persentase",
     cara_pengukuran: "Jumlah program kerja terlaksana / Target program kerja bulan × 100%, dinilai dari data Daily Activity Done",
-    divisi: "Creative",
+    departemen: "Creative",
     data_source: "Daily Activity",
     note: "A1",
   },

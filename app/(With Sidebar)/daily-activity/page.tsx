@@ -155,12 +155,12 @@ function formatDateDisplay(dateStr: string): string {
 
 function getDisplayPeminta(activity: DailyActivity): { title: string; subtitle: string } {
   if (activity.departemen && activity.departemen.trim() && activity.departemen.trim() !== "-") {
-    return { title: activity.departemen.trim(), subtitle: "Divisi Peminta" };
+    return { title: activity.departemen.trim(), subtitle: "Departemen Peminta" };
   }
   if (activity.remarks) {
     const deptMatch = activity.remarks.match(/Departemen:\s*([^\n]+)/i);
     if (deptMatch && deptMatch[1].trim() && deptMatch[1].trim() !== "-") {
-      return { title: deptMatch[1].trim(), subtitle: "Divisi Peminta" };
+      return { title: deptMatch[1].trim(), subtitle: "Departemen Peminta" };
     }
   }
   return { title: activity.name, subtitle: "IT / Creative" };
@@ -1361,7 +1361,7 @@ export default function DailyActivityPage() {
               <TableHead className="w-[50px] font-semibold">No</TableHead>
               <TableHead className="font-semibold w-[140px]">Tanggal Pengajuan</TableHead>
               <TableHead className="font-semibold">Judul Permintaan</TableHead>
-              <TableHead className="font-semibold min-w-[180px]">Peminta / Divisi</TableHead>
+              <TableHead className="font-semibold min-w-[180px]">Peminta / Departemen</TableHead>
               <TableHead className="font-semibold min-w-[160px]">Desainer</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold w-[140px]">Target Selesai</TableHead>
@@ -1422,7 +1422,7 @@ export default function DailyActivityPage() {
                       )}
                     </TableCell>
 
-                    {/* Peminta / Divisi */}
+                    {/* Peminta / Departemen */}
                     <TableCell>
                       {(() => {
                         const peminta = getDisplayPeminta(activity);
@@ -1644,7 +1644,7 @@ export default function DailyActivityPage() {
                     <span className="font-medium text-foreground">{detailActivity.name}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block">Peminta / Divisi</span>
+                    <span className="text-muted-foreground block">Peminta / Departemen</span>
                     <span className="font-medium text-foreground">{getDisplayPeminta(detailActivity).title}</span>
                   </div>
                   <div>
@@ -1887,10 +1887,10 @@ export default function DailyActivityPage() {
                 </div>
               </div>
 
-              {/* Row 2: Peminta / Divisi (readonly info) + Status */}
+              {/* Row 2: Peminta / Departemen (readonly info) + Status */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Peminta / Divisi</Label>
+                  <Label className="text-xs">Peminta / Departemen</Label>
                   <div className="h-9 flex items-center px-3 rounded-md border bg-muted/40 text-xs text-muted-foreground">
                     Creative Design
                   </div>

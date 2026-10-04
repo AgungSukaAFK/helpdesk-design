@@ -66,7 +66,7 @@ const PROJECT_OPTIONS = [
   "Lainnya",
 ];
 
-const DEPARTMENT_OPTIONS = [
+const DEPARTEMEN_OPTIONS = [
   "Manufacture",
   "HR",
   "HSE",
@@ -123,7 +123,7 @@ export function EditPermintaanDialog({
         setCustomProject("");
       }
 
-      // Setup Department
+      // Setup Departemen
       setDepartemen(item.departemen || "Manufacture");
 
       // Setup Admin/Designer
@@ -263,7 +263,7 @@ export function EditPermintaanDialog({
                   <SelectValue placeholder="Pilih Departemen" />
                 </SelectTrigger>
                 <SelectContent className="max-h-56">
-                  {DEPARTMENT_OPTIONS.map((dept) => (
+                  {DEPARTEMEN_OPTIONS.map((dept) => (
                     <SelectItem key={dept} value={dept}>
                       {dept}
                     </SelectItem>

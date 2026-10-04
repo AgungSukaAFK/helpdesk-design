@@ -117,7 +117,7 @@ export default function ProgramKerjaPage() {
   const [isSavingRecord, setIsSavingRecord] = useState(false);
   const [formData, setFormData] = useState<Partial<ProgramKerjaRecord>>({
     year: 2026,
-    division: "Design & Multimedia",
+    departemenon: "Design & Multimedia",
     quartal: "Quartal 1",
     quartal_fokus: "",
     program_kerja: "",
@@ -166,7 +166,7 @@ export default function ProgramKerjaPage() {
         const dbRecords: ProgramKerjaRecord[] = data.map((item: any) => ({
           id: item.id,
           year: Number(item.year) || 2026,
-          division: item.division || "Design & Multimedia",
+          departemenon: item.departemenon || "Design & Multimedia",
           quartal: item.quartal || "Quartal 1",
           quartal_fokus: item.quartal_fokus || "",
           program_kerja: item.program_kerja || "",
@@ -392,7 +392,7 @@ export default function ProgramKerjaPage() {
     setEditingRecord(null);
     setFormData({
       year: selectedYear,
-      division: "Design & Multimedia",
+      departemenon: "Design & Multimedia",
       quartal: quartalFilter !== "all" ? quartalFilter : "Quartal 1",
       quartal_fokus: "",
       program_kerja: "",
@@ -433,7 +433,7 @@ export default function ProgramKerjaPage() {
         const updatedRecord: ProgramKerjaRecord = {
           ...editingRecord,
           year: targetYear,
-          division: formData.division || "Design & Multimedia",
+          departemenon: formData.departemenon || "Design & Multimedia",
           quartal: targetQuartal,
           quartal_fokus: formData.quartal_fokus?.trim() || "",
           program_kerja: formData.program_kerja.trim(),
@@ -457,7 +457,7 @@ export default function ProgramKerjaPage() {
             .from("program_kerja")
             .update({
               year: updatedRecord.year,
-              division: updatedRecord.division,
+              departemenon: updatedRecord.departemenon,
               quartal: updatedRecord.quartal,
               quartal_fokus: updatedRecord.quartal_fokus,
               program_kerja: updatedRecord.program_kerja,
@@ -480,7 +480,7 @@ export default function ProgramKerjaPage() {
         const newRecord: ProgramKerjaRecord = {
           id: `proker-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
           year: targetYear,
-          division: formData.division || "Design & Multimedia",
+          departemenon: formData.departemenon || "Design & Multimedia",
           quartal: targetQuartal,
           quartal_fokus: formData.quartal_fokus?.trim() || "",
           program_kerja: formData.program_kerja.trim(),
@@ -503,7 +503,7 @@ export default function ProgramKerjaPage() {
         if (supabaseConnected) {
           await supabase.from("program_kerja").insert({
             year: newRecord.year,
-            division: newRecord.division,
+            departemenon: newRecord.departemenon,
             quartal: newRecord.quartal,
             quartal_fokus: newRecord.quartal_fokus,
             program_kerja: newRecord.program_kerja,
@@ -704,7 +704,7 @@ export default function ProgramKerjaPage() {
       parsed.push({
         id: `import-${Date.now()}-${r}`,
         year: detectedYear,
-        division: "Design & Multimedia",
+        departemenon: "Design & Multimedia",
         quartal: currentQuartal,
         quartal_fokus: currentFokus,
         program_kerja: programKerja,
@@ -792,7 +792,7 @@ export default function ProgramKerjaPage() {
         // Batch insert ke Supabase
         const payload = normalizedImportRows.map((r) => ({
           year: r.year,
-          division: r.division || "Design & Multimedia",
+          departemenon: r.departemenon || "Design & Multimedia",
           quartal: r.quartal,
           quartal_fokus: r.quartal_fokus || "",
           program_kerja: r.program_kerja,
@@ -981,7 +981,7 @@ export default function ProgramKerjaPage() {
 create table if not exists public.program_kerja (
   id uuid primary key default gen_random_uuid(),
   year integer not null default extract(year from now())::integer,
-  division text not null default 'Design & Multimedia',
+  departemenon text not null default 'Design & Multimedia',
   quartal text not null,
   quartal_fokus text default '',
   program_kerja text not null,
@@ -1938,7 +1938,7 @@ notify pgrst, 'reload schema';`;
               <span>{editingRecord ? "Edit Program Kerja" : "Tambah Program Kerja Baru"}</span>
             </DialogTitle>
             <DialogDescription>
-              Isi parameter program kerja sesuai dengan template divisi Design & Multimedia.
+              Isi parameter program kerja sesuai dengan template departemen Design & Multimedia.
             </DialogDescription>
           </DialogHeader>
 
@@ -2214,7 +2214,7 @@ notify pgrst, 'reload schema';`;
 create table if not exists public.program_kerja (
   id uuid primary key default gen_random_uuid(),
   year integer not null default extract(year from now())::integer,
-  division text not null default 'Design & Multimedia',
+  departemenon text not null default 'Design & Multimedia',
   quartal text not null,
   quartal_fokus text default '',
   program_kerja text not null,

@@ -1,4 +1,13 @@
-export type NotificationSound = "ding-dong" | "soft-chime" | "double-pulse";
+export const NOTIFICATION_SOUNDS = [
+  "marimba",
+  "ding-dong",
+  "soft-chime",
+  "double-pulse",
+  "sparkle",
+  "pop",
+] as const;
+
+export type NotificationSound = (typeof NOTIFICATION_SOUNDS)[number];
 
 export interface NotificationPreferences {
   realtime: boolean;
@@ -15,7 +24,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   realtime: true,
   sound: true,
   volume: 70,
-  soundPreset: "ding-dong",
+  soundPreset: "marimba",
   customAudioName: null,
   customAudioDataUrl: null,
   browser: false,
@@ -39,7 +48,7 @@ export function readNotificationPreferences(userId: string): NotificationPrefere
       ...DEFAULT_NOTIFICATION_PREFERENCES,
       ...parsed,
       volume: Math.min(100, Math.max(0, Number(parsed.volume ?? DEFAULT_NOTIFICATION_PREFERENCES.volume))),
-      soundPreset: ["ding-dong", "soft-chime", "double-pulse"].includes(String(parsed.soundPreset))
+      soundPreset: NOTIFICATION_SOUNDS.includes(parsed.soundPreset as NotificationSound)
         ? parsed.soundPreset as NotificationSound
         : DEFAULT_NOTIFICATION_PREFERENCES.soundPreset,
     };

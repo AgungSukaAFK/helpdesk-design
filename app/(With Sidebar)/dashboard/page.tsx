@@ -441,16 +441,33 @@ export default function DashboardPage() {
       try {
         const monthNum = String(Number(selectedMonthArea) + 1).padStart(2, "0");
         const periodMonth = `${currentYear}-${monthNum}`;
-        
+        const daysInMonth = new Date(currentYear, Number(selectedMonthArea) + 1, 0).getDate();
+        const lastDayStr = String(daysInMonth).padStart(2, "0");
+
+        // 1. Coba gunakan data dailyTrend yang sudah dihitung rapi dari API rekap-bulanan
+        const matchedMonth = integratedMonths.find((m) => m.monthNum === monthNum);
+        if (matchedMonth && (matchedMonth as any).dailyTrend && (matchedMonth as any).dailyTrend.length > 0) {
+          const chartData = (matchedMonth as any).dailyTrend.map((row: any) => ({
+            name: String(row.day || row.label),
+            dailyActivity: row.dailyTotal ?? 0,
+            attendance: row.attPrs ?? row.attTotal ?? 0,
+            safetyToolboxMeetingHse: row.stbTotal ?? row.stbH ?? 0,
+          }));
+          setDailyTrend(chartData);
+          setLoadingDailyTrend(false);
+          return;
+        }
+
+        // 2. Fallback query langsung ke Supabase dengan tanggal valid dan schema yang benar
         const [dailyRes, attRes, safetyRes] = await Promise.all([
           s
             .from("daily_activities")
             .select("activity_date")
             .gte("activity_date", `${periodMonth}-01`)
-            .lte("activity_date", `${periodMonth}-31`),
+            .lte("activity_date", `${periodMonth}-${lastDayStr}`),
           s
             .from("attendance")
-            .select("records")
+            .select("date_text, status")
             .eq("period_month", periodMonth),
           s
             .from("safety_toolbox_meeting_hse_roster")
@@ -458,53 +475,45 @@ export default function DashboardPage() {
             .eq("period_month", periodMonth),
         ]);
 
-        const daysInMonth = new Date(currentYear, Number(selectedMonthArea) + 1, 0).getDate();
-        
-        let attendanceRecords = attRes.data || [];
-        // if (attendanceRecords.length === 0) {
-        //   const seed = getAttendanceSeedForPeriod(periodMonth);
-        //   const employeeMap = new Map();
-        //   seed.forEach((s: any) => {
-        //     const dayMatch = s.date.match(/,\s+(\d{1,2})\s+/);
-        //     if (dayMatch) {
-        //       const dayStr = String(parseInt(dayMatch[1], 10));
-        //       if (!employeeMap.has(s.employee_no)) {
-        //          employeeMap.set(s.employee_no, { records: {} });
-        //       }
-        //       employeeMap.get(s.employee_no).records[dayStr] = { status: s.status };
-        //     }
-        //   });
-        //   attendanceRecords = Array.from(employeeMap.values());
-        // }
-
-        let safetyRecords = safetyRes.data || [];
-        // if (safetyRecords.length === 0) {
-        //   safetyRecords = getSafetyToolboxMeetingHseSeedForPeriod(periodMonth);
-        // }
+        const dailyRows = dailyRes.data || [];
+        const attRows = attRes.data || [];
+        const safetyRows = safetyRes.data || [];
 
         const chartData = [];
 
         for (let d = 1; d <= daysInMonth; d++) {
-          const dateStr = `${periodMonth}-${String(d).padStart(2, "0")}`;
-          
-          const dailyCount = (dailyRes.data || []).filter((row: any) => row.activity_date === dateStr).length;
+          const dayPad = String(d).padStart(2, "0");
+          const dateStr = `${periodMonth}-${dayPad}`;
+
+          const dailyCount = dailyRows.filter((row: any) => row.activity_date === dateStr).length;
 
           let attCount = 0;
-          attendanceRecords.forEach((row: any) => {
-            if (row.records && row.records[String(d)]) {
-              const st = row.records[String(d)].status;
-              if (st && st !== "Off" && st !== "Alpa" && st !== "Cuti" && st !== "OFF") {
-                 attCount++;
+          for (const a of attRows) {
+            let dayNum: number | null = null;
+            if (a.date_text) {
+              const mMatch = a.date_text.match(/(\d{1,2})\s+[A-Za-z]{3}\s+\d{4}/);
+              if (mMatch) dayNum = parseInt(mMatch[1], 10);
+              else {
+                const mIso = a.date_text.match(/\d{4}-\d{2}-(\d{2})/);
+                if (mIso) dayNum = parseInt(mIso[1], 10);
               }
             }
-          });
+            if (dayNum === d) {
+              const st = (a.status || "").toUpperCase();
+              if (st.includes("PRS") || st.includes("HADIR")) {
+                attCount++;
+              }
+            }
+          }
 
           let safetyCount = 0;
-          safetyRecords.forEach((row: any) => {
-            if (row.schedule && (row.schedule[String(d)] === "H" || row.schedule[String(d)] === "h")) {
+          for (const row of safetyRows) {
+            const sched = (row.schedule || {}) as Record<string, string>;
+            const val = sched[String(d)];
+            if (val === "H" || val === "h") {
               safetyCount++;
             }
-          });
+          }
 
           chartData.push({
             name: String(d),
@@ -516,13 +525,13 @@ export default function DashboardPage() {
 
         setDailyTrend(chartData);
       } catch (err) {
-        console.error(err);
+        console.error("fetchDailyTrend error:", err);
       } finally {
         setLoadingDailyTrend(false);
       }
     }
     fetchDailyTrend();
-  }, [s, selectedMonthArea, currentYear]);
+  }, [s, selectedMonthArea, currentYear, integratedMonths]);
 
   const moduleStats = useMemo(() => {
     const months = integratedMonths.filter(

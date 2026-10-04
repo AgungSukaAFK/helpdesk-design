@@ -31,7 +31,7 @@ export async function GET(
     const user = authUser.user;
     const name = profile?.name || user.user_metadata?.name || user.email?.split("@")[0] || "User";
     const role = profile?.role || user.user_metadata?.role || "user";
-    const department = user.user_metadata?.department || "-";
+    const departemen = user.user_metadata?.departemen || "-";
 
     return NextResponse.json({
       data: {
@@ -39,7 +39,7 @@ export async function GET(
         email: user.email,
         name,
         role,
-        department,
+        departemen,
         created_at: user.created_at,
         last_sign_in_at: user.last_sign_in_at,
       },
@@ -63,7 +63,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, role, department } = body;
+    const { name, role, departemen } = body;
 
     if (role !== undefined && !["admin", "user", "designer"].includes(role)) {
       return NextResponse.json({ error: "Role pengguna tidak valid" }, { status: 400 });
@@ -84,7 +84,7 @@ export async function PATCH(
       ...currentMeta,
       ...(name !== undefined && { name: name.trim() }),
       ...(role !== undefined && { role: role }),
-      ...(department !== undefined && { department: department.trim() }),
+      ...(departemen !== undefined && { departemen: departemen.trim() }),
     };
 
     // 2. Update user_metadata in Auth
@@ -111,10 +111,10 @@ export async function PATCH(
     } catch (_) {}
 
     // 4. Update departemen in permintaan table for historical consistency
-    if (department) {
+    if (departemen) {
       await supabase
         .from("permintaan")
-        .update({ departemen: department })
+        .update({ departemen: departemen })
         .eq("requester", id);
     }
 
@@ -125,7 +125,7 @@ export async function PATCH(
         email: authUser.user.email,
         name: updatedMeta.name,
         role: updatedMeta.role,
-        department: updatedMeta.department,
+        departemen: updatedMeta.departemen,
       },
     });
   } catch (err: any) {

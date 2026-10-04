@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       const rawTitle = String(item.judul || item.title || item.task || item.task_description || item.unit || "Permintaan Desain").trim();
       const rawDesc = String(item.deskripsi || item.description || item.kendala || "").trim();
       const project = item.project || classifyProject(rawTitle, rawDesc);
-      const departemen = item.departemen || item.divisi || "Umum";
+      const departemen = item.departemen || item.departemen || "Umum";
       const status = normalizeStatus(item.status);
 
       // Tanggal dibuat

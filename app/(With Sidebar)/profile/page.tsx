@@ -75,10 +75,9 @@ type Profile = {
   name: string | null;
   role: string | null;
   email: string | null;
-  nrp?: string | null;
   perusahaan?: string | null;
   lokasi?: string | null;
-  department?: string | null; // Database actually has 'department'
+  departemen?: string | null; // Database actually has 'departemen'
   avatar_url?: string | null;
 };
 
@@ -90,10 +89,9 @@ export default function ProfilePage() {
     name: null,
     role: null,
     email: null,
-    nrp: null,
     perusahaan: null,
     lokasi: null,
-    department: null,
+    departemen: null,
     avatar_url: null,
   });
   
@@ -216,10 +214,9 @@ export default function ProfilePage() {
         supabase.from("users").update({ name: formData.name }).eq("id", user.id),
         supabase.from("user_profiles").update({
           name: formData.name,
-          nrp: formData.nrp,
           perusahaan: formData.perusahaan,
           lokasi: formData.lokasi,
-          department: formData.department,
+          departemen: formData.departemen,
         }).eq("id", user.id),
       ]);
 
@@ -559,17 +556,6 @@ export default function ProfilePage() {
               />
             </div>
             
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="nrp">NRP</Label>
-              <Input
-                id="nrp"
-                name="nrp"
-                value={formData.nrp || ""}
-                onChange={handleInputChange}
-                className="bg-muted/30"
-                disabled={!isEditingProfile || isUpdating}
-              />
-            </div>
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="email">Email</Label>
@@ -577,9 +563,8 @@ export default function ProfilePage() {
                 id="email"
                 name="email"
                 value={formData.email || ""}
-                onChange={handleInputChange}
-                className="bg-muted/30"
-                disabled={!isEditingProfile || isUpdating}
+                readOnly
+                className="bg-muted/30 text-muted-foreground cursor-not-allowed"
               />
             </div>
 
@@ -596,38 +581,55 @@ export default function ProfilePage() {
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="perusahaan">Perusahaan</Label>
-              <Input
-                id="perusahaan"
-                name="perusahaan"
+              <Select
                 value={formData.perusahaan || ""}
-                onChange={handleInputChange}
-                className="bg-muted/30"
+                onValueChange={(value) => setFormData(prev => ({ ...prev, perusahaan: value }))}
                 disabled={!isEditingProfile || isUpdating}
-              />
+              >
+                <SelectTrigger id="perusahaan" className="bg-muted/30">
+                  <SelectValue placeholder="Pilih Perusahaan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PT. Global Inti Sejati">PT. Global Inti Sejati</SelectItem>
+                  <SelectItem value="PT. Garuda Mart Indonesia">PT. Garuda Mart Indonesia</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="lokasi">Lokasi</Label>
-              <Input
-                id="lokasi"
-                name="lokasi"
+              <Select
                 value={formData.lokasi || ""}
-                onChange={handleInputChange}
-                className="bg-muted/30"
+                onValueChange={(value) => setFormData(prev => ({ ...prev, lokasi: value }))}
                 disabled={!isEditingProfile || isUpdating}
-              />
+              >
+                <SelectTrigger id="lokasi" className="bg-muted/30">
+                  <SelectValue placeholder="Pilih Lokasi" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["GIS HO", "GIS BPN", "GIS J5", "GIS KM8", "GMI BPN", "GMI J5", "GMI KM10", "GMI KM8", "GMI Site", "Branch Tanjung Enim"].map(loc => (
+                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="department">Departemen</Label>
-              <Input
-                id="department"
-                name="department"
-                value={formData.department || ""}
-                onChange={handleInputChange}
-                className="bg-muted/30"
+              <Label htmlFor="departemen">Departemen</Label>
+              <Select
+                value={formData.departemen || ""}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, departemen: value }))}
                 disabled={!isEditingProfile || isUpdating}
-              />
+              >
+                <SelectTrigger id="departemen" className="bg-muted/30">
+                  <SelectValue placeholder="Pilih Departemen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["HSE", "Legal", "HR", "GA", "IT", "SCM", "MARKETING", "RND", "PABRIKASI", "SERVICE"].map(dept => (
+                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex justify-end mt-4">
@@ -797,9 +799,12 @@ export default function ProfilePage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="marimba">Marimba</SelectItem>
                     <SelectItem value="ding-dong">Ding Dong</SelectItem>
                     <SelectItem value="soft-chime">Soft Chime</SelectItem>
                     <SelectItem value="double-pulse">Double Pulse</SelectItem>
+                    <SelectItem value="sparkle">Sparkle</SelectItem>
+                    <SelectItem value="pop">Modern Pop</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button type="button" variant="outline" className="h-10 gap-2 shrink-0" onClick={handlePreviewSound}>

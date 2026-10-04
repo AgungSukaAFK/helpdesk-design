@@ -52,7 +52,7 @@ interface UserItem {
   email: string;
   name: string;
   role: string;
-  department: string;
+  departemen: string;
   created_at: string;
   last_sign_in_at?: string;
 }
@@ -63,7 +63,7 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [total, setTotal] = useState<number>(0);
-  const [departments, setDepartments] = useState<string[]>([]);
+  const [departemens, setDepartemens] = useState<string[]>([]);
 
   // Filter & Pagination States
   const [search, setSearch] = useState<string>("");
@@ -82,7 +82,7 @@ export default function UserManagementPage() {
     email: "",
     name: "",
     role: "user",
-    department: "General Affair",
+    departemen: "General Affair",
   });
 
   // Fetch Users
@@ -94,7 +94,7 @@ export default function UserManagementPage() {
       params.set("limit", String(limit));
       if (search.trim()) params.set("search", search.trim());
       if (roleFilter !== "all") params.set("role", roleFilter);
-      if (deptFilter !== "all") params.set("department", deptFilter);
+      if (deptFilter !== "all") params.set("departemen", deptFilter);
 
       const res = await fetch(`/api/user-management?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -102,7 +102,7 @@ export default function UserManagementPage() {
       const json = await res.json();
       setUsers(json.data || []);
       setTotal(json.total || 0);
-      if (json.departments) setDepartments(json.departments);
+      if (json.departemens) setDepartemens(json.departemens);
     } catch (err: any) {
       console.error("Fetch users error:", err);
       toast.error("Gagal memuat data pengguna: " + err.message);
@@ -179,7 +179,7 @@ export default function UserManagementPage() {
 
       toast.success("Undangan pengguna berhasil dikirim melalui email");
       setIsAddDialogOpen(false);
-      setNewUser({ email: "", name: "", role: "user", department: "General Affair" });
+      setNewUser({ email: "", name: "", role: "user", departemen: "General Affair" });
       setSelectedUserIds([]);
       if (page === 1) await fetchUsers();
       else setPage(1);
@@ -290,7 +290,7 @@ export default function UserManagementPage() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Departemen</p>
-              <p className="text-xl font-bold text-foreground">{departments.length}</p>
+              <p className="text-xl font-bold text-foreground">{departemens.length}</p>
             </div>
           </div>
         </div>
@@ -319,14 +319,14 @@ export default function UserManagementPage() {
             </SelectContent>
           </Select>
 
-          {/* Department Filter */}
+          {/* Departemen Filter */}
           <Select value={deptFilter} onValueChange={handleDeptChange}>
             <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Pilih Departemen" />
             </SelectTrigger>
             <SelectContent className="max-h-60">
               <SelectItem value="all">Semua Departemen</SelectItem>
-              {departments.map((dept) => (
+              {departemens.map((dept) => (
                 <SelectItem key={dept} value={dept}>
                   {dept}
                 </SelectItem>
@@ -433,7 +433,7 @@ export default function UserManagementPage() {
 
                       <TableCell>
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-foreground">
-                          {u.department && u.department !== "-" ? u.department : "-"}
+                          {u.departemen && u.departemen !== "-" ? u.departemen : "-"}
                         </span>
                       </TableCell>
 
@@ -659,11 +659,11 @@ export default function UserManagementPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="new-user-department">Departemen</Label>
+                <Label htmlFor="new-user-departemen">Departemen</Label>
                 <Input
-                  id="new-user-department"
-                  value={newUser.department}
-                  onChange={(event) => setNewUser({ ...newUser, department: event.target.value })}
+                  id="new-user-departemen"
+                  value={newUser.departemen}
+                  onChange={(event) => setNewUser({ ...newUser, departemen: event.target.value })}
                   required
                 />
               </div>
