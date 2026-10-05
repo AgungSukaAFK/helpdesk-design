@@ -93,7 +93,10 @@ const jenisPekerjaanOptions = [
   "Videoshoot",
   "Editing",
   "Meeting/Koordinasi",
+  "Lainnya",
 ] as const;
+
+const JENIS_LAINNYA = "Lainnya";
 
 // Desainer default; nama lain diambil dari data aktivitas yang sudah ada.
 const defaultDesigners = [
@@ -400,6 +403,7 @@ export default function DailyActivityPage() {
     activity_date: string;
     designers: string[];
     jenis_pekerjaan: string;
+    jenis_lainnya: string;
     task_description: string;
     status: string;
     remarks: string;
@@ -410,6 +414,7 @@ export default function DailyActivityPage() {
     activity_date: getTodayDate(),
     designers: [],
     jenis_pekerjaan: jenisPekerjaanOptions[0],
+    jenis_lainnya: "",
     task_description: "",
     status: activityStatuses[4],
     remarks: "",
@@ -702,6 +707,7 @@ export default function DailyActivityPage() {
         selectedDate || (activePeriod === todayDate.slice(0, 7) ? todayDate : `${activePeriod}-01`),
       designers: isDesigner && userName ? [userName] : [defaultDesigners[0]],
       jenis_pekerjaan: jenisPekerjaanOptions[0],
+      jenis_lainnya: "",
       task_description: "",
       status: activityStatuses[4],
       remarks: "",
@@ -715,10 +721,14 @@ export default function DailyActivityPage() {
   // Open Edit Dialog
   const handleOpenEditForm = (activity: DailyActivity) => {
     setEditingActivity(activity);
+    // Jenis di luar daftar baku dianggap "Lainnya" dengan teks manual.
+    const jenis = activity.jenis_pekerjaan || "";
+    const isPreset = (jenisPekerjaanOptions as readonly string[]).includes(jenis);
     setFormData({
       activity_date: activity.activity_date,
       designers: splitDesigners(activity.name),
-      jenis_pekerjaan: activity.jenis_pekerjaan || "",
+      jenis_pekerjaan: !jenis || isPreset ? jenis : JENIS_LAINNYA,
+      jenis_lainnya: !jenis || isPreset ? "" : jenis,
       task_description: activity.task_description,
       status: activity.status || activityStatuses[4],
       remarks: activity.remarks || "",
@@ -738,6 +748,14 @@ export default function DailyActivityPage() {
     }
     if (!formData.jenis_pekerjaan) {
       toast.error("Pilih jenis pekerjaan.");
+      return;
+    }
+    const jenisPekerjaan =
+      formData.jenis_pekerjaan === JENIS_LAINNYA
+        ? formData.jenis_lainnya.trim()
+        : formData.jenis_pekerjaan;
+    if (!jenisPekerjaan) {
+      toast.error("Isi jenis pekerjaan lainnya.");
       return;
     }
     if (!formData.task_description.trim() || !formData.activity_date) {
@@ -766,7 +784,7 @@ export default function DailyActivityPage() {
               ...act,
               activity_date: formData.activity_date,
               name: designerName,
-              jenis_pekerjaan: formData.jenis_pekerjaan,
+              jenis_pekerjaan: jenisPekerjaan,
               task_description: formData.task_description.trim(),
               status: formData.status,
               remarks: formData.remarks.trim() || null,
@@ -784,7 +802,7 @@ export default function DailyActivityPage() {
             id: editingActivity.id,
             activity_date: formData.activity_date,
             name: designerName,
-            jenis_pekerjaan: formData.jenis_pekerjaan,
+            jenis_pekerjaan: jenisPekerjaan,
             task_description: formData.task_description.trim(),
             status: formData.status,
             remarks: formData.remarks.trim() || null,
@@ -806,7 +824,7 @@ export default function DailyActivityPage() {
           id: newId,
           activity_date: formData.activity_date,
           name: designerName,
-          jenis_pekerjaan: formData.jenis_pekerjaan,
+          jenis_pekerjaan: jenisPekerjaan,
           task_description: formData.task_description.trim(),
           status: formData.status || activityStatuses[4],
           remarks: formData.remarks.trim() || null,
@@ -2086,6 +2104,17 @@ export default function DailyActivityPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {formData.jenis_pekerjaan === JENIS_LAINNYA && (
+                    <Input
+                      id="form-jenis-lainnya"
+                      value={formData.jenis_lainnya}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, jenis_lainnya: e.target.value }))}
+                      placeholder="Tulis jenis pekerjaan..."
+                      required
+                      autoFocus
+                      className="h-9 text-xs"
+                    />
+                  )}
                 </div>
               </div>
 

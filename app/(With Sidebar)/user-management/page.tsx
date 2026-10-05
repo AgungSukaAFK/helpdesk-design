@@ -28,7 +28,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -53,6 +53,7 @@ interface UserItem {
   name: string;
   role: string;
   departemen: string;
+  avatar_url?: string | null;
   created_at: string;
   last_sign_in_at?: string;
 }
@@ -418,6 +419,7 @@ export default function UserManagementPage() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8 text-xs font-semibold">
+                            {u.avatar_url && <AvatarImage src={u.avatar_url} alt={u.name} className="object-cover" />}
                             <AvatarFallback className={isUserAdmin ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold" : "bg-muted text-foreground"}>
                               {initials}
                             </AvatarFallback>

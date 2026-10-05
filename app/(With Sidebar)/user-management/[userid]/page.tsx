@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -59,6 +59,7 @@ interface UserData {
   name: string;
   role: string;
   departemen: string;
+  avatar_url?: string | null;
 }
 
 export default function EditUserPage({
@@ -208,6 +209,7 @@ export default function EditUserPage({
         {/* PROFILE HEADER CARD */}
         <div className="flex items-center gap-4 p-4 rounded-lg border bg-muted/30">
           <Avatar className="h-14 w-14 border-2 border-background shadow-sm text-base font-bold">
+            {user.avatar_url && <AvatarImage src={user.avatar_url} alt={name} className="object-cover" />}
             <AvatarFallback className={role === "admin" ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold" : "bg-primary/10 text-primary"}>
               {initials}
             </AvatarFallback>
