@@ -125,8 +125,10 @@ export function FeedbackClientContent() {
           .eq("status", "DONE")
           .not("rating", "is", null);
 
-        // User biasa hanya lihat review milik sendiri
-        if (role !== "admin") {
+        // Desainer lihat review tiket yang ia kerjakan; user biasa hanya review milik sendiri
+        if (role === "designer") {
+          baseQuery = baseQuery.eq("admin", user.id);
+        } else if (role !== "admin") {
           baseQuery = baseQuery.eq("requester", user.id);
         }
 
@@ -178,7 +180,8 @@ export function FeedbackClientContent() {
           .select("rating")
           .eq("status", "DONE")
           .not("rating", "is", null);
-        if (role !== "admin") sumQuery = sumQuery.eq("requester", user.id);
+        if (role === "designer") sumQuery = sumQuery.eq("admin", user.id);
+        else if (role !== "admin") sumQuery = sumQuery.eq("requester", user.id);
         const { data: allRatings } = await sumQuery;
 
         if (allRatings && allRatings.length > 0) {
@@ -351,7 +354,7 @@ export function FeedbackClientContent() {
                       {item.judul}
                     </h4>
                     <div className="flex items-center gap-2 shrink-0">
-                      {userRole === "admin" && item.requester_name && (
+                      {(userRole === "admin" || userRole === "designer") && item.requester_name && (
                         <Badge variant="outline" className="text-[10px] h-5 px-1.5 gap-1">
                           <Users className="h-2.5 w-2.5" />
                           {item.requester_name}

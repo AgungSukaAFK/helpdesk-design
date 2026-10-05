@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("daily_activities")
-      .select("id, request_id, activity_date, name, task_description, status, remarks, created_at, user_id, departemen, project, due_date")
+      .select("id, request_id, activity_date, name, task_description, status, remarks, created_at, user_id, departemen, project, due_date, lokasi, jam_mulai, jam_selesai")
       .order("activity_date", { ascending: false })
       .order("created_at", { ascending: false });
 
@@ -50,6 +50,18 @@ export async function GET(request: NextRequest) {
 }
 
 const DEFAULT_USER_ID = "bcfdf89c-d1e2-4602-80aa-005a1beb1d3c";
+
+const normalizeTime = (value: unknown): string | null => {
+  const text = String(value ?? "").trim();
+  return /^\d{2}:\d{2}(:\d{2})?$/.test(text) ? text : null;
+};
+
+const validateJam = (jamMulai: string | null, jamSelesai: string | null) => {
+  if (jamMulai && jamSelesai && jamSelesai <= jamMulai) {
+    return "Jam selesai harus lebih besar dari jam mulai";
+  }
+  return null;
+};
 
 // POST /api/daily-activity (insert single or batch)
 export async function POST(request: NextRequest) {
@@ -101,6 +113,23 @@ export async function POST(request: NextRequest) {
       status,
       remarks,
     } = body;
+    const jam_mulai = normalizeTime(body.jam_mulai);
+    const jam_selesai = normalizeTime(body.jam_selesai);
+    const jamError = validateJam(jam_mulai, jam_selesai);
+    if (jamError) {
+      return NextResponse.json({ error: jamError }, { status: 400 });
+    }
+
+    // Lokasi pekerjaan: pakai input form, fallback ke profil akun yang menginput.
+    let lokasi: string | null = String(body.lokasi ?? "").trim() || null;
+    if (!lokasi) {
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("lokasi")
+        .eq("id", access.user.id)
+        .maybeSingle();
+      lokasi = profile?.lokasi || null;
+    }
 
     const { data, error } = await supabase
       .from("daily_activities")
@@ -113,6 +142,9 @@ export async function POST(request: NextRequest) {
         status: status || "✅ Done (Selesai)",
         remarks: remarks || null,
         description: remarks || null,
+        lokasi,
+        jam_mulai,
+        jam_selesai,
       })
       .select()
       .single();
@@ -140,6 +172,13 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Missing activity ID" }, { status: 400 });
     }
 
+    const jam_mulai = normalizeTime(body.jam_mulai);
+    const jam_selesai = normalizeTime(body.jam_selesai);
+    const jamError = validateJam(jam_mulai, jam_selesai);
+    if (jamError) {
+      return NextResponse.json({ error: jamError }, { status: 400 });
+    }
+
     const { data, error } = await supabase
       .from("daily_activities")
       .update({
@@ -150,6 +189,9 @@ export async function PATCH(request: NextRequest) {
         status,
         remarks: remarks || null,
         description: remarks || null,
+        jam_mulai,
+        jam_selesai,
+        ...(body.lokasi !== undefined ? { lokasi: String(body.lokasi ?? "").trim() || null } : {}),
       })
       .eq("id", id)
       .select()

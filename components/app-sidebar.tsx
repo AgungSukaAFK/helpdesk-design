@@ -163,6 +163,11 @@ const data = {
       icon: Clock,
     },
     {
+      title: "Review & Rating",
+      url: "/feedback",
+      icon: MessageSquareDot,
+    },
+    {
       title: "Artikel",
       url: "/artikel-admin",
       icon: Newspaper,
@@ -289,9 +294,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         ) : (
           <NavMain label="Menu" items={markActive(data.navMain)} />
         )}
-        {profile?.role !== "designer" && (
-          <NavMain label="About" items={markActive(data.navSecondary)} />
-        )}
+        <NavMain label="About" items={markActive(data.navSecondary)} />
       </SidebarContent>
 
       <SidebarFooter>

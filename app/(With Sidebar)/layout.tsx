@@ -56,6 +56,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             pathname === "/riwayat-pengerjaan" ||
             pathname === "/artikel-admin" ||
             pathname === "/notifikasi" ||
+            pathname === "/profile" ||
+            pathname === "/feedback" ||
+            pathname === "/dokumentasi" ||
+            pathname === "/tentang-app" ||
             pathname.startsWith("/artikel-admin/") ||
             isRequestWorkRoute;
 
