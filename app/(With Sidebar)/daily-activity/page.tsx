@@ -98,11 +98,11 @@ const jenisPekerjaanOptions = [
 
 const JENIS_LAINNYA = "Lainnya";
 
-// Desainer default; nama lain diambil dari data aktivitas yang sudah ada.
-const defaultDesigners = [
-  "Paulus Petrus Parlindungan Sianipar",
-  "Muhammad Farel Ramadhan",
-];
+interface DesignerProfile {
+  name: string;
+  email: string | null;
+  role: string;
+}
 
 // Satu aktivitas bisa dikerjakan lebih dari satu desainer, disimpan di kolom `name` dipisah koma.
 const splitDesigners = (name: string | null | undefined): string[] =>
@@ -326,6 +326,8 @@ export default function DailyActivityPage() {
   const [userLokasi, setUserLokasi] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [lokasiOptions, setLokasiOptions] = useState<string[]>([]);
+  // Akun admin/desainer (nama + email) sebagai sumber pilihan desainer.
+  const [designerProfiles, setDesignerProfiles] = useState<DesignerProfile[]>([]);
   const isAdmin = userRole === "admin";
   const isDesigner = userRole === "designer";
   const canEditActivities = isAdmin || isDesigner;
@@ -340,19 +342,33 @@ export default function DailyActivityPage() {
     async function loadRole() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const [{ data: profile }, { data: lokasiRows }] = await Promise.all([
+      const [{ data: profile }, { data: lokasiRows }, { data: designerRows }] = await Promise.all([
         supabase
           .from("user_profiles")
           .select("role, lokasi, name")
           .eq("id", user.id)
           .maybeSingle(),
         supabase.from("master_lokasi").select("nama").order("nama"),
+        supabase
+          .from("user_profiles")
+          .select("name, email, role")
+          .in("role", ["designer", "admin"])
+          .order("name"),
       ]);
       const role = profile?.role || "user";
       setUserRole(role);
       setUserLokasi(profile?.lokasi || null);
       setUserName(profile?.name?.trim() || null);
       setLokasiOptions((lokasiRows || []).map((row: { nama: string }) => row.nama));
+      setDesignerProfiles(
+        (designerRows || [])
+          .map((row: { name: string | null; email: string | null; role: string }) => ({
+            name: row.name?.trim() || "",
+            email: row.email,
+            role: row.role,
+          }))
+          .filter((row) => row.name)
+      );
 
       // Default tampilan (sekali saja), dihitung di client agar tanggal ikut zona waktu browser:
       // desainer -> aktivitas miliknya sendiri hari ini, admin -> bulan berjalan.
@@ -627,16 +643,25 @@ export default function DailyActivityPage() {
     }));
   }, [monthActivities, staffFilter]);
 
-  // Pilihan desainer di form: default + semua nama dari data + desainer yang sedang login (unik).
+  // Email per nama akun, untuk membedakan desainer dengan nama mirip (mis. "Paulus" vs "Paulus Sianipar").
+  const designerEmailByName = useMemo(() => {
+    const map = new Map<string, string>();
+    designerProfiles.forEach((p) => {
+      if (p.email) map.set(p.name, p.email);
+    });
+    return map;
+  }, [designerProfiles]);
+
+  // Pilihan desainer di form: akun desainer/admin + desainer yang sedang login + nama yang sudah
+  // terpilih (mis. data lama saat edit). Tidak lagi dari nama bebas di data agar tidak dobel.
   const designerOptions = useMemo(() => {
-    const names = new Set<string>(defaultDesigners);
+    const names = new Set<string>(designerProfiles.map((p) => p.name));
     if (userName) names.add(userName);
-    activities.forEach((a) => splitDesigners(a.name).forEach((n) => names.add(n)));
     formData.designers.forEach((n) => names.add(n));
     names.delete("Staff");
     names.delete("Permintaan Desain");
     return Array.from(names);
-  }, [activities, userName, formData.designers]);
+  }, [designerProfiles, userName, formData.designers]);
 
   const toggleFormDesigner = (designer: string) => {
     setFormData((prev) => ({
@@ -705,7 +730,9 @@ export default function DailyActivityPage() {
     setFormData({
       activity_date:
         selectedDate || (activePeriod === todayDate.slice(0, 7) ? todayDate : `${activePeriod}-01`),
-      designers: isDesigner && userName ? [userName] : [defaultDesigners[0]],
+      designers: isDesigner && userName
+        ? [userName]
+        : designerProfiles.filter((p) => p.role === "designer").slice(0, 1).map((p) => p.name),
       jenis_pekerjaan: jenisPekerjaanOptions[0],
       jenis_lainnya: "",
       task_description: "",
@@ -1551,6 +1578,9 @@ export default function DailyActivityPage() {
               {uniqueStaff.map((staff) => (
                 <SelectItem key={staff.name} value={staff.name}>
                   {staff.name} ({staff.count})
+                  {designerEmailByName.get(staff.name) && (
+                    <span className="text-xs text-muted-foreground">{designerEmailByName.get(staff.name)}</span>
+                  )}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1679,9 +1709,14 @@ export default function DailyActivityPage() {
                     {/* Desainer = name dengan dot warna */}
                     <TableCell>
                       {(rowDesigners.length > 0 ? rowDesigners : [activity.name]).map((designer) => (
-                        <div key={designer} className="flex items-center gap-1.5">
-                          <span className={`inline-block size-2 rounded-full shrink-0 ${designerDotClass(designer)}`} />
-                          <span className="font-medium text-sm text-foreground">{designer}</span>
+                        <div key={designer}>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-block size-2 rounded-full shrink-0 ${designerDotClass(designer)}`} />
+                            <span className="font-medium text-sm text-foreground">{designer}</span>
+                          </div>
+                          {designerEmailByName.get(designer) && (
+                            <div className="text-xs text-muted-foreground pl-3.5">{designerEmailByName.get(designer)}</div>
+                          )}
                         </div>
                       ))}
                       {activity.lokasi && (
@@ -1873,7 +1908,14 @@ export default function DailyActivityPage() {
                   </div>
                   <div>
                     <span className="text-muted-foreground block">Desainer</span>
-                    <span className="font-medium text-foreground">{detailActivity.name}</span>
+                    {splitDesigners(detailActivity.name).map((designer) => (
+                      <span key={designer} className="block">
+                        <span className="font-medium text-foreground">{designer}</span>
+                        {designerEmailByName.get(designer) && (
+                          <span className="block text-muted-foreground">{designerEmailByName.get(designer)}</span>
+                        )}
+                      </span>
+                    ))}
                   </div>
                   <div>
                     <span className="text-muted-foreground block">Peminta / Departemen</span>
@@ -2143,7 +2185,14 @@ export default function DailyActivityPage() {
                         ) : (
                           <span className={`inline-block size-2 rounded-full shrink-0 ${designerDotClass(designer)}`} />
                         )}
-                        {designer}
+                        <span className="flex flex-col items-start leading-tight">
+                          <span>{designer}</span>
+                          {designerEmailByName.get(designer) && (
+                            <span className="text-[10px] font-normal text-muted-foreground">
+                              {designerEmailByName.get(designer)}
+                            </span>
+                          )}
+                        </span>
                       </button>
                     );
                   })}
