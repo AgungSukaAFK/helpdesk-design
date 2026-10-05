@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("daily_activities")
-      .select("id, request_id, activity_date, name, task_description, status, remarks, created_at, user_id, departemen, project, due_date, lokasi, jam_mulai, jam_selesai")
+      .select("id, request_id, activity_date, name, task_description, status, remarks, created_at, user_id, departemen, project, due_date, lokasi, jam_mulai, jam_selesai, jenis_pekerjaan")
       .order("activity_date", { ascending: false })
       .order("created_at", { ascending: false });
 
@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
         lokasi,
         jam_mulai,
         jam_selesai,
+        jenis_pekerjaan: String(body.jenis_pekerjaan ?? "").trim() || null,
       })
       .select()
       .single();
@@ -191,6 +192,9 @@ export async function PATCH(request: NextRequest) {
         description: remarks || null,
         jam_mulai,
         jam_selesai,
+        ...(body.jenis_pekerjaan !== undefined
+          ? { jenis_pekerjaan: String(body.jenis_pekerjaan ?? "").trim() || null }
+          : {}),
         ...(body.lokasi !== undefined ? { lokasi: String(body.lokasi ?? "").trim() || null } : {}),
       })
       .eq("id", id)

@@ -84,7 +84,40 @@ export interface DailyActivity {
   lokasi?: string | null;
   jam_mulai?: string | null;
   jam_selesai?: string | null;
+  jenis_pekerjaan?: string | null;
 }
+
+const jenisPekerjaanOptions = [
+  "Design",
+  "Photografi",
+  "Videoshoot",
+  "Editing",
+  "Meeting/Koordinasi",
+] as const;
+
+// Desainer default; nama lain diambil dari data aktivitas yang sudah ada.
+const defaultDesigners = [
+  "Paulus Petrus Parlindungan Sianipar",
+  "Muhammad Farel Ramadhan",
+];
+
+// Satu aktivitas bisa dikerjakan lebih dari satu desainer, disimpan di kolom `name` dipisah koma.
+const splitDesigners = (name: string | null | undefined): string[] =>
+  Array.from(
+    new Set(
+      String(name ?? "")
+        .split(",")
+        .map((n) => n.trim())
+        .filter(Boolean)
+    )
+  );
+
+const designerDotClass = (name: string) => {
+  const lower = name.toLowerCase();
+  if (lower.includes("paulus")) return "bg-sky-500";
+  if (lower.includes("farel")) return "bg-indigo-500";
+  return "bg-emerald-500";
+};
 
 const activityStatuses = [
   "⏳ Waiting (Menunggu)",
@@ -365,7 +398,8 @@ export default function DailyActivityPage() {
   const [editingActivity, setEditingActivity] = useState<DailyActivity | null>(null);
   const [formData, setFormData] = useState<{
     activity_date: string;
-    name: string;
+    designers: string[];
+    jenis_pekerjaan: string;
     task_description: string;
     status: string;
     remarks: string;
@@ -374,7 +408,8 @@ export default function DailyActivityPage() {
     lokasi: string;
   }>({
     activity_date: getTodayDate(),
-    name: "",
+    designers: [],
+    jenis_pekerjaan: jenisPekerjaanOptions[0],
     task_description: "",
     status: activityStatuses[4],
     remarks: "",
@@ -414,6 +449,7 @@ export default function DailyActivityPage() {
             lokasi: d.lokasi || null,
             jam_mulai: d.jam_mulai || null,
             jam_selesai: d.jam_selesai || null,
+            jenis_pekerjaan: d.jenis_pekerjaan || null,
           }));
           setActivities(mapped);
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(mapped));
@@ -575,9 +611,9 @@ export default function DailyActivityPage() {
   const uniqueStaff = useMemo(() => {
     const map = new Map<string, number>();
     monthActivities.forEach((a) => {
-      if (a.name) {
-        map.set(a.name, (map.get(a.name) || 0) + 1);
-      }
+      splitDesigners(a.name).forEach((n) => {
+        map.set(n, (map.get(n) || 0) + 1);
+      });
     });
     if (staffFilter !== "all" && !map.has(staffFilter)) map.set(staffFilter, 0);
     return Array.from(map.entries()).map(([name, count]) => ({
@@ -585,6 +621,26 @@ export default function DailyActivityPage() {
       count,
     }));
   }, [monthActivities, staffFilter]);
+
+  // Pilihan desainer di form: default + semua nama dari data + desainer yang sedang login (unik).
+  const designerOptions = useMemo(() => {
+    const names = new Set<string>(defaultDesigners);
+    if (userName) names.add(userName);
+    activities.forEach((a) => splitDesigners(a.name).forEach((n) => names.add(n)));
+    formData.designers.forEach((n) => names.add(n));
+    names.delete("Staff");
+    names.delete("Permintaan Desain");
+    return Array.from(names);
+  }, [activities, userName, formData.designers]);
+
+  const toggleFormDesigner = (designer: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      designers: prev.designers.includes(designer)
+        ? prev.designers.filter((n) => n !== designer)
+        : [...prev.designers, designer],
+    }));
+  };
 
   // Filtered & Paginated records
   const filteredActivities = useMemo(() => {
@@ -598,7 +654,8 @@ export default function DailyActivityPage() {
         const matchRemarks = act.remarks?.toLowerCase().includes(q);
         const matchDate = act.activity_date?.toLowerCase().includes(q);
         const matchLokasi = act.lokasi?.toLowerCase().includes(q);
-        if (!matchName && !matchTask && !matchStatus && !matchRemarks && !matchDate && !matchLokasi) {
+        const matchJenis = act.jenis_pekerjaan?.toLowerCase().includes(q);
+        if (!matchName && !matchTask && !matchStatus && !matchRemarks && !matchDate && !matchLokasi && !matchJenis) {
           return false;
         }
       }
@@ -614,7 +671,7 @@ export default function DailyActivityPage() {
       }
 
       // Staff filter
-      if (staffFilter !== "all" && act.name !== staffFilter) {
+      if (staffFilter !== "all" && !splitDesigners(act.name).includes(staffFilter)) {
         return false;
       }
 
@@ -643,7 +700,8 @@ export default function DailyActivityPage() {
     setFormData({
       activity_date:
         selectedDate || (activePeriod === todayDate.slice(0, 7) ? todayDate : `${activePeriod}-01`),
-      name: (isDesigner && userName) || activities[0]?.name || "Paulus Petrus Parlindungan Sianipar",
+      designers: isDesigner && userName ? [userName] : [defaultDesigners[0]],
+      jenis_pekerjaan: jenisPekerjaanOptions[0],
       task_description: "",
       status: activityStatuses[4],
       remarks: "",
@@ -659,7 +717,8 @@ export default function DailyActivityPage() {
     setEditingActivity(activity);
     setFormData({
       activity_date: activity.activity_date,
-      name: activity.name,
+      designers: splitDesigners(activity.name),
+      jenis_pekerjaan: activity.jenis_pekerjaan || "",
       task_description: activity.task_description,
       status: activity.status || activityStatuses[4],
       remarks: activity.remarks || "",
@@ -673,10 +732,19 @@ export default function DailyActivityPage() {
   // Submit Add or Edit Form
   const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.task_description.trim() || !formData.activity_date) {
+    if (formData.designers.length === 0) {
+      toast.error("Pilih minimal satu desainer.");
+      return;
+    }
+    if (!formData.jenis_pekerjaan) {
+      toast.error("Pilih jenis pekerjaan.");
+      return;
+    }
+    if (!formData.task_description.trim() || !formData.activity_date) {
       toast.error("Mohon lengkapi data yang wajib diisi.");
       return;
     }
+    const designerName = formData.designers.join(", ");
     if (formData.jam_mulai && formData.jam_selesai && formData.jam_selesai <= formData.jam_mulai) {
       toast.error("Jam selesai harus lebih besar dari jam mulai.");
       return;
@@ -697,7 +765,8 @@ export default function DailyActivityPage() {
             ? {
               ...act,
               activity_date: formData.activity_date,
-              name: formData.name.trim(),
+              name: designerName,
+              jenis_pekerjaan: formData.jenis_pekerjaan,
               task_description: formData.task_description.trim(),
               status: formData.status,
               remarks: formData.remarks.trim() || null,
@@ -714,7 +783,8 @@ export default function DailyActivityPage() {
           body: JSON.stringify({
             id: editingActivity.id,
             activity_date: formData.activity_date,
-            name: formData.name.trim(),
+            name: designerName,
+            jenis_pekerjaan: formData.jenis_pekerjaan,
             task_description: formData.task_description.trim(),
             status: formData.status,
             remarks: formData.remarks.trim() || null,
@@ -735,7 +805,8 @@ export default function DailyActivityPage() {
         const newActivity: DailyActivity = {
           id: newId,
           activity_date: formData.activity_date,
-          name: formData.name.trim(),
+          name: designerName,
+          jenis_pekerjaan: formData.jenis_pekerjaan,
           task_description: formData.task_description.trim(),
           status: formData.status || activityStatuses[4],
           remarks: formData.remarks.trim() || null,
@@ -752,6 +823,7 @@ export default function DailyActivityPage() {
             user_id: user?.id || null,
             activity_date: newActivity.activity_date,
             name: newActivity.name,
+            jenis_pekerjaan: newActivity.jenis_pekerjaan,
             task_description: newActivity.task_description,
             status: newActivity.status,
             remarks: newActivity.remarks,
@@ -862,6 +934,7 @@ export default function DailyActivityPage() {
       "Jam Mulai": formatTime(activity.jam_mulai) || "-",
       "Jam Selesai": formatTime(activity.jam_selesai) || "-",
       Name: activity.name,
+      "Jenis Pekerjaan": activity.jenis_pekerjaan || "-",
       Lokasi: activity.lokasi || "-",
       "Task Description": activity.task_description,
       Status: activity.status,
@@ -875,6 +948,7 @@ export default function DailyActivityPage() {
       { wch: 10 },
       { wch: 10 },
       { wch: 32 },
+      { wch: 20 },
       { wch: 18 },
       { wch: 45 },
       { wch: 28 },
@@ -1522,8 +1596,7 @@ export default function DailyActivityPage() {
             ) : paginatedActivities.length > 0 ? (
               paginatedActivities.map((activity, index) => {
                 const displayIndex = (currentPage - 1) * pageSize + index + 1;
-                const isPaulus = activity.name.toLowerCase().includes("paulus");
-                const isFarel = activity.name.toLowerCase().includes("farel");
+                const rowDesigners = splitDesigners(activity.name);
                 return (
                   <TableRow key={activity.id || index} className="hover:bg-muted/30 transition-colors">
                     {/* No */}
@@ -1554,11 +1627,18 @@ export default function DailyActivityPage() {
                       <div className="font-semibold text-sm text-foreground line-clamp-2" title={activity.task_description}>
                         {activity.task_description}
                       </div>
-                      {activity.request_id && (
-                        <div className="mt-1">
-                          <Badge variant="outline" className="text-[11px] px-1.5 py-0 font-normal">
-                            Permintaan Desain
-                          </Badge>
+                      {(activity.jenis_pekerjaan || activity.request_id) && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {activity.jenis_pekerjaan && (
+                            <Badge variant="secondary" className="text-[11px] px-1.5 py-0 font-normal">
+                              {activity.jenis_pekerjaan}
+                            </Badge>
+                          )}
+                          {activity.request_id && (
+                            <Badge variant="outline" className="text-[11px] px-1.5 py-0 font-normal">
+                              Permintaan Desain
+                            </Badge>
+                          )}
                         </div>
                       )}
                     </TableCell>
@@ -1580,15 +1660,12 @@ export default function DailyActivityPage() {
 
                     {/* Desainer = name dengan dot warna */}
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`inline-block size-2 rounded-full shrink-0 ${isPaulus ? "bg-sky-500" : isFarel ? "bg-indigo-500" : "bg-emerald-500"
-                            }`}
-                        />
-                        <span className="font-medium text-sm text-foreground">
-                          {activity.name}
-                        </span>
-                      </div>
+                      {(rowDesigners.length > 0 ? rowDesigners : [activity.name]).map((designer) => (
+                        <div key={designer} className="flex items-center gap-1.5">
+                          <span className={`inline-block size-2 rounded-full shrink-0 ${designerDotClass(designer)}`} />
+                          <span className="font-medium text-sm text-foreground">{designer}</span>
+                        </div>
+                      ))}
                       {activity.lokasi && (
                         <div className="text-xs text-muted-foreground pl-3.5">{activity.lokasi}</div>
                       )}
@@ -1760,14 +1837,7 @@ export default function DailyActivityPage() {
               <div className="bg-muted/40 rounded-xl border p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-block size-2.5 rounded-full ${detailActivity.name.toLowerCase().includes("paulus")
-                        ? "bg-sky-500"
-                        : detailActivity.name.toLowerCase().includes("farel")
-                          ? "bg-indigo-500"
-                          : "bg-emerald-500"
-                        }`}
-                    />
+                    <span className={`inline-block size-2.5 rounded-full ${designerDotClass(detailActivity.name)}`} />
                     <span className="font-semibold text-foreground">{detailActivity.name}</span>
                     <Badge variant="outline" className="text-[11px] font-normal">IT / Creative</Badge>
                   </div>
@@ -1790,6 +1860,10 @@ export default function DailyActivityPage() {
                   <div>
                     <span className="text-muted-foreground block">Peminta / Departemen</span>
                     <span className="font-medium text-foreground">{getDisplayPeminta(detailActivity).title}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block">Jenis Pekerjaan</span>
+                    <span className="font-medium text-foreground">{detailActivity.jenis_pekerjaan || "-"}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block">Target Selesai</span>
@@ -1980,7 +2054,7 @@ export default function DailyActivityPage() {
             </DialogHeader>
 
             <div className="space-y-3.5 text-xs">
-              {/* Row 1: Tanggal Pengajuan + Desainer (dropdown) */}
+              {/* Row 1: Tanggal Pengajuan + Jenis Pekerjaan */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="form-activity-date" className="text-xs">
@@ -1996,46 +2070,54 @@ export default function DailyActivityPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="form-activity-desainer" className="text-xs">
-                    Desainer <span className="text-rose-500">*</span>
+                  <Label htmlFor="form-jenis-pekerjaan" className="text-xs">
+                    Jenis Pekerjaan <span className="text-rose-500">*</span>
                   </Label>
                   <Select
-                    value={formData.name}
-                    onValueChange={(val) => setFormData((prev) => ({ ...prev, name: val }))}
+                    value={formData.jenis_pekerjaan}
+                    onValueChange={(val) => setFormData((prev) => ({ ...prev, jenis_pekerjaan: val }))}
                   >
-                    <SelectTrigger id="form-activity-desainer" className="h-9 text-xs">
-                      <SelectValue placeholder="Pilih Desainer" />
+                    <SelectTrigger id="form-jenis-pekerjaan" className="h-9 text-xs">
+                      <SelectValue placeholder="Pilih Jenis Pekerjaan" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Paulus Petrus Parlindungan Sianipar" className="text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-block size-2 rounded-full bg-sky-500 shrink-0" />
-                          Paulus Sianipar
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="Muhammad Farel Ramadhan" className="text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-block size-2 rounded-full bg-indigo-500 shrink-0" />
-                          Farel Ramadhan
-                        </div>
-                      </SelectItem>
-                      {/* Tampilkan nama lain dari data aktual jika ada */}
-                      {uniqueStaff
-                        .filter(
-                          (s) =>
-                            s.name !== "Paulus Sianipar" &&
-                            s.name !== "Farel Ramadhan"
-                        )
-                        .map((s) => (
-                          <SelectItem key={s.name} value={s.name} className="text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="inline-block size-2 rounded-full bg-emerald-500 shrink-0" />
-                              {s.name}
-                            </div>
-                          </SelectItem>
-                        ))}
+                      {jenisPekerjaanOptions.map((jenis) => (
+                        <SelectItem key={jenis} value={jenis} className="text-xs">{jenis}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              {/* Desainer: bisa pilih lebih dari satu */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  Desainer <span className="text-rose-500">*</span>
+                  <span className="ml-1 font-normal text-muted-foreground">(bisa pilih lebih dari satu)</span>
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {designerOptions.map((designer) => {
+                    const selected = formData.designers.includes(designer);
+                    return (
+                      <button
+                        key={designer}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => toggleFormDesigner(designer)}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${selected
+                          ? "border-primary bg-primary/10 text-foreground font-medium"
+                          : "bg-background text-muted-foreground hover:bg-muted"
+                          }`}
+                      >
+                        {selected ? (
+                          <CheckCircle2 className="size-3.5 text-primary" />
+                        ) : (
+                          <span className={`inline-block size-2 rounded-full shrink-0 ${designerDotClass(designer)}`} />
+                        )}
+                        {designer}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
