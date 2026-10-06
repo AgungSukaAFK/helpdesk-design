@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserManagementAdminClient } from "@/lib/supabase/user-management-admin";
-import { getSiteRedirectUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -114,6 +113,7 @@ export async function POST(request: NextRequest) {
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const role = ["admin", "user", "designer"].includes(body.role) ? body.role : "";
     const departemen = typeof body.departemen === "string" ? body.departemen.trim() : "";
+    const password = typeof body.password === "string" ? body.password : "";
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: "Alamat email tidak valid" }, { status: 400 });
@@ -127,18 +127,24 @@ export async function POST(request: NextRequest) {
     if (!departemen) {
       return NextResponse.json({ error: "Departemen wajib diisi" }, { status: 400 });
     }
+    if (password.length < 6) {
+      return NextResponse.json({ error: "Password minimal 6 karakter" }, { status: 400 });
+    }
 
     const supabase = access.client;
-    const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-      data: { name, role, departemen },
-      redirectTo: getSiteRedirectUrl("/protected"),
+    // Akun langsung terkonfirmasi, tanpa email undangan/konfirmasi
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name, role, departemen },
     });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     if (!data.user) {
-      return NextResponse.json({ error: "Undangan pengguna gagal dibuat" }, { status: 500 });
+      return NextResponse.json({ error: "Pengguna gagal dibuat" }, { status: 500 });
     }
 
     const profile = {

@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { getSiteRedirectUrl } from "@/lib/site-url";
 
 export function SignUpForm({
   className,
@@ -41,15 +40,10 @@ export function SignUpForm({
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: getSiteRedirectUrl("/auth/confirm?next=/auth/login"),
-        },
-      });
+      const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) throw error;
-      router.push("/auth/sign-up-success");
+      // Auto confirm aktif: signUp langsung mengembalikan session
+      router.push(data.session ? "/dashboard" : "/auth/login");
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "An error occurred";
       setError(

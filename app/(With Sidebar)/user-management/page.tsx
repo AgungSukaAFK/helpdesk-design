@@ -82,6 +82,7 @@ export default function UserManagementPage() {
   const [newUser, setNewUser] = useState({
     email: "",
     name: "",
+    password: "",
     role: "user",
     departemen: "General Affair",
   });
@@ -178,9 +179,9 @@ export default function UserManagementPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Gagal menambahkan pengguna");
 
-      toast.success("Undangan pengguna berhasil dikirim melalui email");
+      toast.success("Pengguna berhasil ditambahkan dan bisa langsung login");
       setIsAddDialogOpen(false);
-      setNewUser({ email: "", name: "", role: "user", departemen: "General Affair" });
+      setNewUser({ email: "", name: "", password: "", role: "user", departemen: "General Affair" });
       setSelectedUserIds([]);
       if (page === 1) await fetchUsers();
       else setPage(1);
@@ -618,7 +619,7 @@ export default function UserManagementPage() {
               Tambah User
             </DialogTitle>
             <DialogDescription>
-              Undangan untuk membuat akun akan dikirim ke alamat email pengguna.
+              Akun langsung aktif dan bisa dipakai login dengan email dan password di bawah.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateUser} className="space-y-4">
@@ -640,6 +641,18 @@ export default function UserManagementPage() {
                 value={newUser.email}
                 onChange={(event) => setNewUser({ ...newUser, email: event.target.value })}
                 autoComplete="email"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-user-password">Password</Label>
+              <Input
+                id="new-user-password"
+                type="password"
+                value={newUser.password}
+                onChange={(event) => setNewUser({ ...newUser, password: event.target.value })}
+                autoComplete="new-password"
+                minLength={6}
                 required
               />
             </div>
@@ -681,7 +694,7 @@ export default function UserManagementPage() {
               </Button>
               <Button type="submit" disabled={isCreatingUser} className="gap-1.5">
                 {isCreatingUser && <Loader2 className="h-4 w-4 animate-spin" />}
-                Kirim Undangan
+                Tambah User
               </Button>
             </DialogFooter>
           </form>
