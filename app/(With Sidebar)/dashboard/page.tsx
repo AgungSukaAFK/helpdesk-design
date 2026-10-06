@@ -158,12 +158,11 @@ export default function DashboardPage() {
   const [exporting, setExporting] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
-  // Filter Month for Chart 1 (Area) & Chart 2 (Bar)
+  // Filter Month for Charts (Unified for Area & Bar Charts)
   const today = new Date();
   const currentYear = today.getFullYear();
   const currentMonthIdx = String(today.getMonth());
-  const [selectedMonthArea, setSelectedMonthArea] = useState<string>(currentMonthIdx);
-  const [selectedMonthBar, setSelectedMonthBar] = useState<string>(currentMonthIdx);
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthIdx);
 
   // Raw items state for dynamic chart calculations
   const [integratedMonths, setIntegratedMonths] = useState<IntegratedDashboardMonth[]>([]);
@@ -439,9 +438,9 @@ export default function DashboardPage() {
     async function fetchDailyTrend() {
       setLoadingDailyTrend(true);
       try {
-        const monthNum = String(Number(selectedMonthArea) + 1).padStart(2, "0");
+        const monthNum = String(Number(selectedMonth) + 1).padStart(2, "0");
         const periodMonth = `${currentYear}-${monthNum}`;
-        const daysInMonth = new Date(currentYear, Number(selectedMonthArea) + 1, 0).getDate();
+        const daysInMonth = new Date(currentYear, Number(selectedMonth) + 1, 0).getDate();
         const lastDayStr = String(daysInMonth).padStart(2, "0");
 
         // 1. Coba gunakan data dailyTrend yang sudah dihitung rapi dari API rekap-bulanan
@@ -531,11 +530,11 @@ export default function DashboardPage() {
       }
     }
     fetchDailyTrend();
-  }, [s, selectedMonthArea, currentYear, integratedMonths]);
+  }, [s, selectedMonth, currentYear, integratedMonths]);
 
   const moduleStats = useMemo(() => {
     const months = integratedMonths.filter(
-        (month) => month.monthNum === String(Number(selectedMonthBar) + 1).padStart(2, "0")
+        (month) => month.monthNum === String(Number(selectedMonth) + 1).padStart(2, "0")
       );
     const sum = (getValue: (month: IntegratedDashboardMonth) => number) =>
       months.reduce((total, month) => total + getValue(month), 0);
@@ -545,7 +544,7 @@ export default function DashboardPage() {
       { name: "Attendance", total: sum((month) => month.attendance.totalRecords) },
       { name: "Safety Toolbox Meeting", total: sum((month) => month.safetyToolboxMeeting.totalStandby) },
     ];
-  }, [integratedMonths, selectedMonthBar]);
+  }, [integratedMonths, selectedMonth]);
 
   const renderLoading = () => (
     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground inline" />
@@ -558,9 +557,7 @@ export default function DashboardPage() {
   const currentMonthName = format(today, "MMMM", { locale: idLocale });
   const defaultDateFooter = `Diambil dari tanggal 1 ${currentMonthName} ${currentYear}`;
 
-  const periodSubtitleArea = `Tren harian bulan ${monthNamesLong[parseInt(selectedMonthArea, 10)]} ${currentYear}`;
-
-  const periodSubtitleBar = `Periode ${monthNamesLong[parseInt(selectedMonthBar, 10)]} ${currentYear}`;
+  const periodSubtitle = `Periode ${monthNamesLong[parseInt(selectedMonth, 10)]} ${currentYear}`;
 
   return (
     <>
@@ -630,14 +627,19 @@ export default function DashboardPage() {
       {/* SECTION: DUA CHART UTAMA (Area Chart Kiri & Bar Chart Kanan)             */}
       {/* ========================================================================= */}
 
-      {/* CHART KIRI: Tren Bulanan Empat Modul */}
-      <div className="col-span-12 lg:col-span-6 bg-card text-card-foreground rounded-xl border border-border/70 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
-        {/* Top Filter Buttons */}
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="text-xs font-semibold text-foreground">
-            Filter Periode
-          </div>
-          <Select value={selectedMonthArea} onValueChange={setSelectedMonthArea}>
+      {/* Unified Filter Header Bar */}
+      <div className="col-span-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-card text-card-foreground rounded-xl border border-border/70 p-3.5 sm:px-5 shadow-xs">
+        <div>
+          <h2 className="text-sm sm:text-base font-bold text-foreground flex items-center gap-2">
+            <span>Aktivitas & Performa Modul</span>
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Menampilkan grafik tren harian dan perbandingan volume empat modul untuk {periodSubtitle}
+          </p>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs font-semibold text-foreground whitespace-nowrap">Filter Periode:</span>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger className="h-8 text-xs w-[160px] bg-background/50 border-border/70 rounded-lg">
               <SelectValue placeholder="Pilih Bulan" />
             </SelectTrigger>
@@ -649,6 +651,19 @@ export default function DashboardPage() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+      </div>
+
+      {/* CHART KIRI: Tren Bulanan Empat Modul */}
+      <div className="col-span-12 lg:col-span-6 bg-card text-card-foreground rounded-xl border border-border/70 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+        {/* Top Header */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="text-xs font-semibold text-foreground">
+            Tren Harian Empat Modul
+          </div>
+          <span className="text-[11px] text-muted-foreground font-medium">
+            {monthNamesLong[parseInt(selectedMonth, 10)]} {currentYear}
+          </span>
         </div>
 
         {/* Smooth Natural Area Chart */}
@@ -699,7 +714,7 @@ export default function DashboardPage() {
                       return (
                         <div className="rounded-lg border bg-popover/95 backdrop-blur-sm p-2 text-xs shadow-md space-y-1">
                           <p className="font-semibold text-popover-foreground">
-                            {label} {monthNamesLong[parseInt(selectedMonthArea, 10)]} {currentYear}
+                            {label} {monthNamesLong[parseInt(selectedMonth, 10)]} {currentYear}
                           </p>
                           {payload.map((item) => (
                             <p key={item.dataKey} style={{ color: item.color }} className="flex items-center justify-between gap-3">
@@ -760,30 +775,21 @@ export default function DashboardPage() {
             <TrendingUp className="size-3.5 text-foreground/80 inline" />
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            {periodSubtitleArea}
+            Tren harian bulan {monthNamesLong[parseInt(selectedMonth, 10)]} {currentYear}
           </p>
         </div>
       </div>
 
       {/* CHART KANAN: Perbandingan Volume per Modul */}
       <div className="col-span-12 lg:col-span-6 bg-card text-card-foreground rounded-xl border border-border/70 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
-        {/* Top Filter Buttons */}
+        {/* Top Header */}
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="text-xs font-semibold text-foreground">
-            Filter Periode
+            Perbandingan Volume per Modul
           </div>
-          <Select value={selectedMonthBar} onValueChange={setSelectedMonthBar}>
-            <SelectTrigger className="h-8 text-xs w-[160px] bg-background/50 border-border/70 rounded-lg">
-              <SelectValue placeholder="Pilih Bulan" />
-            </SelectTrigger>
-            <SelectContent align="end">
-              {monthNamesLong.map((m, idx) => (
-                <SelectItem key={idx} value={String(idx)}>
-                  {m} {currentYear}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <span className="text-[11px] text-muted-foreground font-medium">
+            {monthNamesLong[parseInt(selectedMonth, 10)]} {currentYear}
+          </span>
         </div>
 
         {/* Rounded Teal Bar Chart */}
@@ -842,7 +848,7 @@ export default function DashboardPage() {
             <TrendingUp className="size-3.5 text-foreground/80 inline" />
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            {periodSubtitleBar}
+            {periodSubtitle}
           </p>
         </div>
       </div>
