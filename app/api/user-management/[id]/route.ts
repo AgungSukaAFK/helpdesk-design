@@ -40,6 +40,7 @@ export async function GET(
         name,
         role,
         departemen,
+        avatar_url: profile?.avatar_url || null,
         created_at: user.created_at,
         last_sign_in_at: user.last_sign_in_at,
       },

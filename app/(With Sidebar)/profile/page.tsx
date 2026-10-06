@@ -222,6 +222,7 @@ export default function ProfilePage() {
 
       if (userError) throw userError;
       if (profileError) throw profileError;
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: { name: formData.name } }));
 
       // Check if email changed
       if (formData.email !== user.email && formData.email) {
@@ -287,6 +288,7 @@ export default function ProfilePage() {
       }
       setProfile((current) => current ? { ...current, avatar_url: data.publicUrl } : current);
       setFormData((current) => ({ ...current, avatar_url: data.publicUrl }));
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: { avatar_url: data.publicUrl } }));
       toast.success("Foto profil berhasil diperbarui.");
     } catch (error) {
       toast.error("Gagal mengunggah foto: " + (error instanceof Error ? error.message : "Terjadi kesalahan."));
@@ -312,6 +314,7 @@ export default function ProfilePage() {
       if (profileError) throw profileError;
       setProfile((current) => current ? { ...current, avatar_url: null } : current);
       setFormData((current) => ({ ...current, avatar_url: null }));
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: { avatar_url: null } }));
       toast.success("Foto profil dihapus.");
     } catch (error) {
       toast.error("Gagal menghapus foto: " + (error instanceof Error ? error.message : "Terjadi kesalahan."));

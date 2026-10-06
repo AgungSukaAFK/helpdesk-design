@@ -163,6 +163,11 @@ const data = {
       icon: Clock,
     },
     {
+      title: "Review & Rating",
+      url: "/feedback",
+      icon: MessageSquareDot,
+    },
+    {
       title: "Artikel",
       url: "/artikel-admin",
       icon: Newspaper,
@@ -253,20 +258,30 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
   const [user, setUser] = React.useState<any>(null);
   const [profile, setProfile] = React.useState<any>(null);
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const getUser = async () => {
       const { data, error } = await supabase.auth.getUser();
       if (!error) setUser(data.user);
       if (!data.user) redirect("auth/login");
-      const profileRes = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", data.user.id)
-        .single();
+      const [profileRes, userProfileRes] = await Promise.all([
+        supabase.from("users").select("*").eq("id", data.user.id).single(),
+        supabase.from("user_profiles").select("name, avatar_url").eq("id", data.user.id).maybeSingle(),
+      ]);
       if (profileRes.data) setProfile(profileRes.data);
+      setAvatarUrl(userProfileRes.data?.avatar_url || null);
     };
     getUser();
+
+    // Sinkron dengan perubahan foto/nama dari halaman profil.
+    const onProfileUpdated = (e: Event) => {
+      const detail = (e as CustomEvent<{ name?: string; avatar_url?: string | null }>).detail || {};
+      if ("avatar_url" in detail) setAvatarUrl(detail.avatar_url || null);
+      if (detail.name) setProfile((current: any) => (current ? { ...current, name: detail.name } : current));
+    };
+    window.addEventListener("profile-updated", onProfileUpdated);
+    return () => window.removeEventListener("profile-updated", onProfileUpdated);
   }, [supabase]);
 
   const markActive = (items: readonly { title: string; url: string; icon: typeof LayoutDashboard }[]) =>
@@ -289,16 +304,14 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         ) : (
           <NavMain label="Menu" items={markActive(data.navMain)} />
         )}
-        {profile?.role !== "designer" && (
-          <NavMain label="About" items={markActive(data.navSecondary)} />
-        )}
+        <NavMain label="About" items={markActive(data.navSecondary)} />
       </SidebarContent>
 
       <SidebarFooter>
         {user && (
           <NavUser
             user={{
-              avatar: `https://ui-avatars.com/api/?name=${user.email}`,
+              avatar: avatarUrl || "",
               email: user.email || "",
               name: profile?.name || "-",
             }}

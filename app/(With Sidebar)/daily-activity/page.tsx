@@ -81,7 +81,46 @@ export interface DailyActivity {
   departemen?: string | null;
   project?: string | null;
   due_date?: string | null;
+  lokasi?: string | null;
+  jam_mulai?: string | null;
+  jam_selesai?: string | null;
+  jenis_pekerjaan?: string | null;
 }
+
+const jenisPekerjaanOptions = [
+  "Design",
+  "Photografi",
+  "Videoshoot",
+  "Editing",
+  "Meeting/Koordinasi",
+  "Lainnya",
+] as const;
+
+const JENIS_LAINNYA = "Lainnya";
+
+interface DesignerProfile {
+  name: string;
+  email: string | null;
+  role: string;
+}
+
+// Satu aktivitas bisa dikerjakan lebih dari satu desainer, disimpan di kolom `name` dipisah koma.
+const splitDesigners = (name: string | null | undefined): string[] =>
+  Array.from(
+    new Set(
+      String(name ?? "")
+        .split(",")
+        .map((n) => n.trim())
+        .filter(Boolean)
+    )
+  );
+
+const designerDotClass = (name: string) => {
+  const lower = name.toLowerCase();
+  if (lower.includes("paulus")) return "bg-sky-500";
+  if (lower.includes("farel")) return "bg-indigo-500";
+  return "bg-emerald-500";
+};
 
 const activityStatuses = [
   "⏳ Waiting (Menunggu)",
@@ -108,6 +147,27 @@ const getCurrentMonthPeriod = () => {
   const m = String(now.getMonth() + 1).padStart(2, "0");
   return `${y}-${m}`;
 };
+
+const getCurrentTime = () => {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+};
+
+const shiftDate = (dateStr: string, days: number) => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+// "HH:MM:SS" dari Postgres -> "HH:MM"
+const formatTime = (value?: string | null) => (value ? value.slice(0, 5) : "");
+
+function formatJamRange(activity: Pick<DailyActivity, "jam_mulai" | "jam_selesai">): string {
+  const mulai = formatTime(activity.jam_mulai);
+  const selesai = formatTime(activity.jam_selesai);
+  if (!mulai && !selesai) return "";
+  return `${mulai || "?"} – ${selesai || "..."}`;
+}
 
 function formatPeriodMonth(period: string): string {
   if (!period || !period.includes("-")) return period || "-";
@@ -263,25 +323,79 @@ export default function DailyActivityPage() {
   const [activities, setActivities] = useState<DailyActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userLokasi, setUserLokasi] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [lokasiOptions, setLokasiOptions] = useState<string[]>([]);
+  // Akun admin/desainer (nama + email) sebagai sumber pilihan desainer.
+  const [designerProfiles, setDesignerProfiles] = useState<DesignerProfile[]>([]);
   const isAdmin = userRole === "admin";
-  const canEditActivities = isAdmin || userRole === "designer";
+  const isDesigner = userRole === "designer";
+  const canEditActivities = isAdmin || isDesigner;
+  const defaultsApplied = useRef(false);
+
+  // Period navigation state: filter per hari atau per bulan (selectedDate = null)
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [today, setToday] = useState<string>("");
 
   useEffect(() => {
     async function loadRole() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-      setUserRole(profile?.role || "user");
+      const [{ data: profile }, { data: lokasiRows }, { data: designerRows }] = await Promise.all([
+        supabase
+          .from("user_profiles")
+          .select("role, lokasi, name")
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase.from("master_lokasi").select("nama").order("nama"),
+        supabase
+          .from("user_profiles")
+          .select("name, email, role")
+          .in("role", ["designer", "admin"])
+          .order("name"),
+      ]);
+      const role = profile?.role || "user";
+      setUserRole(role);
+      setUserLokasi(profile?.lokasi || null);
+      setUserName(profile?.name?.trim() || null);
+      setLokasiOptions((lokasiRows || []).map((row: { nama: string }) => row.nama));
+      setDesignerProfiles(
+        (designerRows || [])
+          .map((row: { name: string | null; email: string | null; role: string }) => ({
+            name: row.name?.trim() || "",
+            email: row.email,
+            role: row.role,
+          }))
+          .filter((row) => row.name)
+      );
+
+      // Default tampilan (sekali saja), dihitung di client agar tanggal ikut zona waktu browser:
+      // desainer -> aktivitas miliknya sendiri hari ini, admin -> bulan berjalan.
+      if (defaultsApplied.current) return;
+      defaultsApplied.current = true;
+      const t = getTodayDate();
+      setToday(t);
+      setSelectedMonth(t.slice(0, 7));
+      if (role === "designer") {
+        setSelectedDate(t);
+        if (profile?.name?.trim()) setStaffFilter(profile.name.trim());
+      }
     }
     loadRole();
   }, [supabase]);
 
-  // Month navigation state
-  const [selectedMonth, setSelectedMonth] = useState<string>("2026-09");
+  const selectDate = (date: string) => {
+    setSelectedDate(date);
+    setSelectedMonth(date.slice(0, 7));
+    setCurrentPage(1);
+  };
+
+  const periodLabel = selectedDate
+    ? `${selectedDate === today ? "Hari Ini, " : ""}${formatDateDisplay(selectedDate)}`
+    : selectedMonth === "all"
+      ? "Semua Periode"
+      : formatPeriodMonth(selectedMonth);
 
   // Filters & Search & Pagination
   const [searchTerm, setSearchTerm] = useState("");
@@ -303,16 +417,26 @@ export default function DailyActivityPage() {
   const [editingActivity, setEditingActivity] = useState<DailyActivity | null>(null);
   const [formData, setFormData] = useState<{
     activity_date: string;
-    name: string;
+    designers: string[];
+    jenis_pekerjaan: string;
+    jenis_lainnya: string;
     task_description: string;
     status: string;
     remarks: string;
+    jam_mulai: string;
+    jam_selesai: string;
+    lokasi: string;
   }>({
     activity_date: getTodayDate(),
-    name: "",
+    designers: [],
+    jenis_pekerjaan: jenisPekerjaanOptions[0],
+    jenis_lainnya: "",
     task_description: "",
     status: activityStatuses[4],
     remarks: "",
+    jam_mulai: "",
+    jam_selesai: "",
+    lokasi: "",
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -343,20 +467,13 @@ export default function DailyActivityPage() {
             departemen: d.departemen || null,
             project: d.project || null,
             due_date: d.due_date || null,
+            lokasi: d.lokasi || null,
+            jam_mulai: d.jam_mulai || null,
+            jam_selesai: d.jam_selesai || null,
+            jenis_pekerjaan: d.jenis_pekerjaan || null,
           }));
           setActivities(mapped);
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(mapped));
-
-          // Set default selected month if not yet aligned
-          const currentP = getCurrentMonthPeriod();
-          if (mapped.length > 0) {
-            const hasCurrentMonth = mapped.some((m) => m.activity_date?.startsWith(currentP));
-            if (hasCurrentMonth) {
-              setSelectedMonth(currentP);
-            } else if (mapped[0]?.activity_date) {
-              setSelectedMonth(mapped[0].activity_date.slice(0, 7));
-            }
-          }
           return;
         }
       }
@@ -440,6 +557,7 @@ export default function DailyActivityPage() {
     const newPeriod = `${newY}-${newM}`;
 
     setSelectedMonth(newPeriod);
+    setSelectedDate(null);
     setCurrentPage(1);
   };
 
@@ -476,11 +594,12 @@ export default function DailyActivityPage() {
     );
   };
 
-  // Activities filtered by selected month
+  // Activities filtered by selected day (if any) or selected month
   const monthActivities = useMemo(() => {
+    if (selectedDate) return activities.filter((a) => a.activity_date?.slice(0, 10) === selectedDate);
     if (selectedMonth === "all") return activities;
     return activities.filter((a) => a.activity_date?.startsWith(selectedMonth));
-  }, [activities, selectedMonth]);
+  }, [activities, selectedMonth, selectedDate]);
 
   // KPI calculations for 6 summary cards
   const stats = useMemo(() => {
@@ -513,15 +632,45 @@ export default function DailyActivityPage() {
   const uniqueStaff = useMemo(() => {
     const map = new Map<string, number>();
     monthActivities.forEach((a) => {
-      if (a.name) {
-        map.set(a.name, (map.get(a.name) || 0) + 1);
-      }
+      splitDesigners(a.name).forEach((n) => {
+        map.set(n, (map.get(n) || 0) + 1);
+      });
     });
+    if (staffFilter !== "all" && !map.has(staffFilter)) map.set(staffFilter, 0);
     return Array.from(map.entries()).map(([name, count]) => ({
       name,
       count,
     }));
-  }, [monthActivities]);
+  }, [monthActivities, staffFilter]);
+
+  // Email per nama akun, untuk membedakan desainer dengan nama mirip (mis. "Paulus" vs "Paulus Sianipar").
+  const designerEmailByName = useMemo(() => {
+    const map = new Map<string, string>();
+    designerProfiles.forEach((p) => {
+      if (p.email) map.set(p.name, p.email);
+    });
+    return map;
+  }, [designerProfiles]);
+
+  // Pilihan desainer di form: akun desainer/admin + desainer yang sedang login + nama yang sudah
+  // terpilih (mis. data lama saat edit). Tidak lagi dari nama bebas di data agar tidak dobel.
+  const designerOptions = useMemo(() => {
+    const names = new Set<string>(designerProfiles.map((p) => p.name));
+    if (userName) names.add(userName);
+    formData.designers.forEach((n) => names.add(n));
+    names.delete("Staff");
+    names.delete("Permintaan Desain");
+    return Array.from(names);
+  }, [designerProfiles, userName, formData.designers]);
+
+  const toggleFormDesigner = (designer: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      designers: prev.designers.includes(designer)
+        ? prev.designers.filter((n) => n !== designer)
+        : [...prev.designers, designer],
+    }));
+  };
 
   // Filtered & Paginated records
   const filteredActivities = useMemo(() => {
@@ -534,7 +683,9 @@ export default function DailyActivityPage() {
         const matchStatus = act.status?.toLowerCase().includes(q);
         const matchRemarks = act.remarks?.toLowerCase().includes(q);
         const matchDate = act.activity_date?.toLowerCase().includes(q);
-        if (!matchName && !matchTask && !matchStatus && !matchRemarks && !matchDate) {
+        const matchLokasi = act.lokasi?.toLowerCase().includes(q);
+        const matchJenis = act.jenis_pekerjaan?.toLowerCase().includes(q);
+        if (!matchName && !matchTask && !matchStatus && !matchRemarks && !matchDate && !matchLokasi && !matchJenis) {
           return false;
         }
       }
@@ -550,7 +701,7 @@ export default function DailyActivityPage() {
       }
 
       // Staff filter
-      if (staffFilter !== "all" && act.name !== staffFilter) {
+      if (staffFilter !== "all" && !splitDesigners(act.name).includes(staffFilter)) {
         return false;
       }
 
@@ -574,13 +725,22 @@ export default function DailyActivityPage() {
   // Open Add Dialog
   const handleOpenAddForm = () => {
     setEditingActivity(null);
+    const todayDate = getTodayDate();
     const activePeriod = selectedMonth !== "all" ? selectedMonth : getCurrentMonthPeriod();
     setFormData({
-      activity_date: `${activePeriod}-01`,
-      name: activities[0]?.name || "Paulus Petrus Parlindungan Sianipar",
+      activity_date:
+        selectedDate || (activePeriod === todayDate.slice(0, 7) ? todayDate : `${activePeriod}-01`),
+      designers: isDesigner && userName
+        ? [userName]
+        : designerProfiles.filter((p) => p.role === "designer").slice(0, 1).map((p) => p.name),
+      jenis_pekerjaan: jenisPekerjaanOptions[0],
+      jenis_lainnya: "",
       task_description: "",
       status: activityStatuses[4],
       remarks: "",
+      jam_mulai: getCurrentTime(),
+      jam_selesai: "",
+      lokasi: userLokasi || "",
     });
     setIsFormOpen(true);
   };
@@ -588,12 +748,20 @@ export default function DailyActivityPage() {
   // Open Edit Dialog
   const handleOpenEditForm = (activity: DailyActivity) => {
     setEditingActivity(activity);
+    // Jenis di luar daftar baku dianggap "Lainnya" dengan teks manual.
+    const jenis = activity.jenis_pekerjaan || "";
+    const isPreset = (jenisPekerjaanOptions as readonly string[]).includes(jenis);
     setFormData({
       activity_date: activity.activity_date,
-      name: activity.name,
+      designers: splitDesigners(activity.name),
+      jenis_pekerjaan: !jenis || isPreset ? jenis : JENIS_LAINNYA,
+      jenis_lainnya: !jenis || isPreset ? "" : jenis,
       task_description: activity.task_description,
       status: activity.status || activityStatuses[4],
       remarks: activity.remarks || "",
+      jam_mulai: formatTime(activity.jam_mulai),
+      jam_selesai: formatTime(activity.jam_selesai),
+      lokasi: activity.lokasi || "",
     });
     setIsFormOpen(true);
   };
@@ -601,10 +769,33 @@ export default function DailyActivityPage() {
   // Submit Add or Edit Form
   const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.task_description.trim() || !formData.activity_date) {
+    if (formData.designers.length === 0) {
+      toast.error("Pilih minimal satu desainer.");
+      return;
+    }
+    if (!formData.jenis_pekerjaan) {
+      toast.error("Pilih jenis pekerjaan.");
+      return;
+    }
+    const jenisPekerjaan =
+      formData.jenis_pekerjaan === JENIS_LAINNYA
+        ? formData.jenis_lainnya.trim()
+        : formData.jenis_pekerjaan;
+    if (!jenisPekerjaan) {
+      toast.error("Isi jenis pekerjaan lainnya.");
+      return;
+    }
+    if (!formData.task_description.trim() || !formData.activity_date) {
       toast.error("Mohon lengkapi data yang wajib diisi.");
       return;
     }
+    const designerName = formData.designers.join(", ");
+    if (formData.jam_mulai && formData.jam_selesai && formData.jam_selesai <= formData.jam_mulai) {
+      toast.error("Jam selesai harus lebih besar dari jam mulai.");
+      return;
+    }
+    const jamMulai = formData.jam_mulai || null;
+    const jamSelesai = formData.jam_selesai || null;
 
     setIsSaving(true);
     try {
@@ -619,27 +810,38 @@ export default function DailyActivityPage() {
             ? {
               ...act,
               activity_date: formData.activity_date,
-              name: formData.name.trim(),
+              name: designerName,
+              jenis_pekerjaan: jenisPekerjaan,
               task_description: formData.task_description.trim(),
               status: formData.status,
               remarks: formData.remarks.trim() || null,
+              jam_mulai: jamMulai,
+              jam_selesai: jamSelesai,
+              lokasi: formData.lokasi.trim() || null,
             }
             : act
         );
-        saveLocalActivities(updatedList);
 
-        await fetch("/api/daily-activity", {
+        const res = await fetch("/api/daily-activity", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: editingActivity.id,
             activity_date: formData.activity_date,
-            name: formData.name.trim(),
+            name: designerName,
+            jenis_pekerjaan: jenisPekerjaan,
             task_description: formData.task_description.trim(),
             status: formData.status,
             remarks: formData.remarks.trim() || null,
+            jam_mulai: jamMulai,
+            jam_selesai: jamSelesai,
+            lokasi: formData.lokasi.trim() || null,
           }),
         });
+        if (!res.ok) {
+          throw new Error((await res.json().catch(() => null))?.error || "Gagal memperbarui aktivitas");
+        }
+        saveLocalActivities(updatedList);
 
         toast.success("Aktivitas berhasil diperbarui.");
       } else {
@@ -648,32 +850,43 @@ export default function DailyActivityPage() {
         const newActivity: DailyActivity = {
           id: newId,
           activity_date: formData.activity_date,
-          name: formData.name.trim(),
+          name: designerName,
+          jenis_pekerjaan: jenisPekerjaan,
           task_description: formData.task_description.trim(),
           status: formData.status || activityStatuses[4],
           remarks: formData.remarks.trim() || null,
           created_at: new Date().toISOString(),
+          lokasi: formData.lokasi.trim() || null,
+          jam_mulai: jamMulai,
+          jam_selesai: jamSelesai,
         };
 
-        const updatedList = [newActivity, ...activities];
-        saveLocalActivities(updatedList);
-
-        await fetch("/api/daily-activity", {
+        const res = await fetch("/api/daily-activity", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: user?.id || null,
             activity_date: newActivity.activity_date,
             name: newActivity.name,
+            jenis_pekerjaan: newActivity.jenis_pekerjaan,
             task_description: newActivity.task_description,
             status: newActivity.status,
             remarks: newActivity.remarks,
+            jam_mulai: jamMulai,
+            jam_selesai: jamSelesai,
+            lokasi: newActivity.lokasi,
           }),
         });
+        if (!res.ok) {
+          throw new Error((await res.json().catch(() => null))?.error || "Gagal menambahkan aktivitas");
+        }
+        saveLocalActivities([newActivity, ...activities]);
 
-        // Align selected month
+        // Align selected period
         const inputMonth = formData.activity_date.slice(0, 7);
-        if (selectedMonth !== "all" && selectedMonth !== inputMonth) {
+        if (selectedDate) {
+          if (selectedDate !== formData.activity_date) selectDate(formData.activity_date);
+        } else if (selectedMonth !== "all" && selectedMonth !== inputMonth) {
           setSelectedMonth(inputMonth);
         }
 
@@ -763,7 +976,11 @@ export default function DailyActivityPage() {
     const rows = rowsToExport.map((activity, index) => ({
       "No.": index + 1,
       "Activity Date": activity.activity_date,
+      "Jam Mulai": formatTime(activity.jam_mulai) || "-",
+      "Jam Selesai": formatTime(activity.jam_selesai) || "-",
       Name: activity.name,
+      "Jenis Pekerjaan": activity.jenis_pekerjaan || "-",
+      Lokasi: activity.lokasi || "-",
       "Task Description": activity.task_description,
       Status: activity.status,
       Remarks: activity.remarks || "-",
@@ -773,7 +990,11 @@ export default function DailyActivityPage() {
     worksheet["!cols"] = [
       { wch: 6 },
       { wch: 16 },
+      { wch: 10 },
+      { wch: 10 },
       { wch: 32 },
+      { wch: 20 },
+      { wch: 18 },
       { wch: 45 },
       { wch: 28 },
       { wch: 35 },
@@ -782,8 +1003,9 @@ export default function DailyActivityPage() {
     const sheetName = selectedMonth !== "all" ? formatPeriodMonth(selectedMonth) : "Daily Activity";
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-    const filename =
-      selectedMonth !== "all"
+    const filename = selectedDate
+      ? `Daily_Activity_${selectedDate}.xlsx`
+      : selectedMonth !== "all"
         ? `Daily_Activity_${selectedMonth}.xlsx`
         : `Daily_Activity_Semua_Bulan.xlsx`;
 
@@ -1013,7 +1235,7 @@ export default function DailyActivityPage() {
   return (
     <Content
       title="Daily Activity"
-      description={`Menampilkan catatan aktivitas pekerjaan harian tim per bulan (${selectedMonth === "all" ? "Semua Periode" : formatPeriodMonth(selectedMonth)}).`}
+      description={`Menampilkan catatan aktivitas pekerjaan harian tim (${periodLabel}).`}
       size="lg"
       cardAction={
         <div className="flex flex-wrap items-center gap-2">
@@ -1087,9 +1309,9 @@ export default function DailyActivityPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleShiftMonth(-1)}
-              disabled={selectedMonth === "all"}
-              title="Bulan Sebelumnya"
+              onClick={() => (selectedDate ? selectDate(shiftDate(selectedDate, -1)) : handleShiftMonth(-1))}
+              disabled={!selectedDate && selectedMonth === "all"}
+              title={selectedDate ? "Hari Sebelumnya" : "Bulan Sebelumnya"}
               className="h-8 w-8 rounded-md hover:bg-background"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -1098,21 +1320,57 @@ export default function DailyActivityPage() {
             <div className="px-3 py-1 flex items-center gap-2 min-w-[150px] justify-center">
               <CalendarDays className="h-4 w-4 text-primary" />
               <span className="font-semibold text-sm">
-                {selectedMonth === "all" ? "Semua Bulan" : formatPeriodMonth(selectedMonth)}
+                {selectedDate ? periodLabel : selectedMonth === "all" ? "Semua Bulan" : formatPeriodMonth(selectedMonth)}
               </span>
             </div>
 
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleShiftMonth(1)}
-              disabled={selectedMonth === "all"}
-              title="Bulan Berikutnya"
+              onClick={() => (selectedDate ? selectDate(shiftDate(selectedDate, 1)) : handleShiftMonth(1))}
+              disabled={!selectedDate && selectedMonth === "all"}
+              title={selectedDate ? "Hari Berikutnya" : "Bulan Berikutnya"}
               className="h-8 w-8 rounded-md hover:bg-background"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* Filter Harian */}
+          <Button
+            variant={selectedDate && selectedDate === today ? "default" : "outline"}
+            size="sm"
+            className="h-9 text-xs"
+            onClick={() => selectDate(getTodayDate())}
+          >
+            Hari Ini
+          </Button>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground border rounded-lg px-2.5 h-9 bg-background">
+            <CalendarCheck2 className="h-3.5 w-3.5 text-primary" />
+            <input
+              type="date"
+              value={selectedDate || ""}
+              onChange={(e) => {
+                if (e.target.value) selectDate(e.target.value);
+              }}
+              className="bg-transparent text-xs text-foreground outline-none cursor-pointer"
+              title="Pilih Tanggal"
+            />
+          </div>
+          {selectedDate && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 text-xs text-muted-foreground"
+              onClick={() => {
+                setSelectedDate(null);
+                setCurrentPage(1);
+              }}
+              title="Tampilkan semua tanggal di bulan ini"
+            >
+              Sebulan Penuh
+            </Button>
+          )}
 
           {/* Dropdown Bulan */}
           <div className="w-full sm:w-[210px]">
@@ -1120,6 +1378,7 @@ export default function DailyActivityPage() {
               value={selectedMonth}
               onValueChange={(val) => {
                 setSelectedMonth(val);
+                setSelectedDate(null);
                 setCurrentPage(1);
               }}
             >
@@ -1146,6 +1405,7 @@ export default function DailyActivityPage() {
               onChange={(e) => {
                 if (e.target.value) {
                   setSelectedMonth(e.target.value);
+                  setSelectedDate(null);
                   setCurrentPage(1);
                 }
               }}
@@ -1159,7 +1419,7 @@ export default function DailyActivityPage() {
         <div className="flex items-center gap-2 self-start md:self-auto text-xs text-muted-foreground">
           <span>Tabel Periode:</span>
           <Badge variant="outline" className="font-semibold text-primary border-primary/30">
-            {selectedMonth === "all" ? "Semua Periode" : formatPeriodMonth(selectedMonth)}
+            {periodLabel}
           </Badge>
           <span className="font-mono">({monthActivities.length} aktivitas)</span>
         </div>
@@ -1318,6 +1578,9 @@ export default function DailyActivityPage() {
               {uniqueStaff.map((staff) => (
                 <SelectItem key={staff.name} value={staff.name}>
                   {staff.name} ({staff.count})
+                  {designerEmailByName.get(staff.name) && (
+                    <span className="text-xs text-muted-foreground">{designerEmailByName.get(staff.name)}</span>
+                  )}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1347,7 +1610,7 @@ export default function DailyActivityPage() {
           <div className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-primary" />
             <span className="font-semibold text-sm text-foreground">
-              Daftar Aktivitas: {selectedMonth === "all" ? "Semua Periode" : formatPeriodMonth(selectedMonth)}
+              Daftar Aktivitas: {periodLabel}
             </span>
           </div>
           <span className="text-xs text-muted-foreground font-medium">
@@ -1359,7 +1622,7 @@ export default function DailyActivityPage() {
           <TableHeader>
             <TableRow className="bg-muted/20">
               <TableHead className="w-[50px] font-semibold">No</TableHead>
-              <TableHead className="font-semibold w-[140px]">Tanggal Pengajuan</TableHead>
+              <TableHead className="font-semibold w-[140px]">Tanggal / Jam</TableHead>
               <TableHead className="font-semibold">Judul Permintaan</TableHead>
               <TableHead className="font-semibold min-w-[180px]">Peminta / Departemen</TableHead>
               <TableHead className="font-semibold min-w-[160px]">Desainer</TableHead>
@@ -1374,15 +1637,14 @@ export default function DailyActivityPage() {
                 <TableCell colSpan={8} className="text-center h-32">
                   <div className="flex justify-center items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    <span>Memuat data daily activity {formatPeriodMonth(selectedMonth)}...</span>
+                    <span>Memuat data daily activity {periodLabel}...</span>
                   </div>
                 </TableCell>
               </TableRow>
             ) : paginatedActivities.length > 0 ? (
               paginatedActivities.map((activity, index) => {
                 const displayIndex = (currentPage - 1) * pageSize + index + 1;
-                const isPaulus = activity.name.toLowerCase().includes("paulus");
-                const isFarel = activity.name.toLowerCase().includes("farel");
+                const rowDesigners = splitDesigners(activity.name);
                 return (
                   <TableRow key={activity.id || index} className="hover:bg-muted/30 transition-colors">
                     {/* No */}
@@ -1400,7 +1662,7 @@ export default function DailyActivityPage() {
                             })}
                           </span>
                           <span className="text-[11px] text-muted-foreground">
-                            {formatDateDisplay(activity.activity_date)}
+                            {formatJamRange(activity) || formatDateDisplay(activity.activity_date)}
                           </span>
                         </div>
                       ) : (
@@ -1413,11 +1675,18 @@ export default function DailyActivityPage() {
                       <div className="font-semibold text-sm text-foreground line-clamp-2" title={activity.task_description}>
                         {activity.task_description}
                       </div>
-                      {activity.request_id && (
-                        <div className="mt-1">
-                          <Badge variant="outline" className="text-[11px] px-1.5 py-0 font-normal">
-                            Permintaan Desain
-                          </Badge>
+                      {(activity.jenis_pekerjaan || activity.request_id) && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {activity.jenis_pekerjaan && (
+                            <Badge variant="secondary" className="text-[11px] px-1.5 py-0 font-normal">
+                              {activity.jenis_pekerjaan}
+                            </Badge>
+                          )}
+                          {activity.request_id && (
+                            <Badge variant="outline" className="text-[11px] px-1.5 py-0 font-normal">
+                              Permintaan Desain
+                            </Badge>
+                          )}
                         </div>
                       )}
                     </TableCell>
@@ -1439,15 +1708,20 @@ export default function DailyActivityPage() {
 
                     {/* Desainer = name dengan dot warna */}
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`inline-block size-2 rounded-full shrink-0 ${isPaulus ? "bg-sky-500" : isFarel ? "bg-indigo-500" : "bg-emerald-500"
-                            }`}
-                        />
-                        <span className="font-medium text-sm text-foreground">
-                          {activity.name}
-                        </span>
-                      </div>
+                      {(rowDesigners.length > 0 ? rowDesigners : [activity.name]).map((designer) => (
+                        <div key={designer}>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-block size-2 rounded-full shrink-0 ${designerDotClass(designer)}`} />
+                            <span className="font-medium text-sm text-foreground">{designer}</span>
+                          </div>
+                          {designerEmailByName.get(designer) && (
+                            <div className="text-xs text-muted-foreground pl-3.5">{designerEmailByName.get(designer)}</div>
+                          )}
+                        </div>
+                      ))}
+                      {activity.lokasi && (
+                        <div className="text-xs text-muted-foreground pl-3.5">{activity.lokasi}</div>
+                      )}
                     </TableCell>
 
                     {/* Status */}
@@ -1508,10 +1782,10 @@ export default function DailyActivityPage() {
                   <div className="flex flex-col items-center justify-center gap-2">
                     <CalendarCheck2 className="h-8 w-8 text-muted-foreground/50" />
                     <p className="font-medium text-foreground">
-                      Tidak ada aktivitas pada {selectedMonth === "all" ? "semua periode" : formatPeriodMonth(selectedMonth)}
+                      Tidak ada aktivitas pada {periodLabel}
                     </p>
                     <p className="text-xs text-muted-foreground max-w-sm">
-                      Tidak ada aktivitas yang cocok dengan filter yang dipilih. Anda dapat berpindah ke bulan lain atau mereset filter.
+                      Tidak ada aktivitas yang cocok dengan filter yang dipilih. Anda dapat berpindah ke tanggal/bulan lain atau mereset filter.
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       {isAdmin && <Button
@@ -1565,7 +1839,7 @@ export default function DailyActivityPage() {
           <span>
             aktivitas per halaman (Total {filteredActivities.length} aktivitas
             {filteredActivities.length !== monthActivities.length &&
-              ` difilter dari ${monthActivities.length} bulan ini`}
+              ` difilter dari ${monthActivities.length} ${selectedDate ? "hari ini" : "bulan ini"}`}
             )
           </span>
         </div>
@@ -1616,14 +1890,7 @@ export default function DailyActivityPage() {
               <div className="bg-muted/40 rounded-xl border p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-block size-2.5 rounded-full ${detailActivity.name.toLowerCase().includes("paulus")
-                        ? "bg-sky-500"
-                        : detailActivity.name.toLowerCase().includes("farel")
-                          ? "bg-indigo-500"
-                          : "bg-emerald-500"
-                        }`}
-                    />
+                    <span className={`inline-block size-2.5 rounded-full ${designerDotClass(detailActivity.name)}`} />
                     <span className="font-semibold text-foreground">{detailActivity.name}</span>
                     <Badge variant="outline" className="text-[11px] font-normal">IT / Creative</Badge>
                   </div>
@@ -1641,15 +1908,34 @@ export default function DailyActivityPage() {
                   </div>
                   <div>
                     <span className="text-muted-foreground block">Desainer</span>
-                    <span className="font-medium text-foreground">{detailActivity.name}</span>
+                    {splitDesigners(detailActivity.name).map((designer) => (
+                      <span key={designer} className="block">
+                        <span className="font-medium text-foreground">{designer}</span>
+                        {designerEmailByName.get(designer) && (
+                          <span className="block text-muted-foreground">{designerEmailByName.get(designer)}</span>
+                        )}
+                      </span>
+                    ))}
                   </div>
                   <div>
                     <span className="text-muted-foreground block">Peminta / Departemen</span>
                     <span className="font-medium text-foreground">{getDisplayPeminta(detailActivity).title}</span>
                   </div>
                   <div>
+                    <span className="text-muted-foreground block">Jenis Pekerjaan</span>
+                    <span className="font-medium text-foreground">{detailActivity.jenis_pekerjaan || "-"}</span>
+                  </div>
+                  <div>
                     <span className="text-muted-foreground block">Target Selesai</span>
                     <span className="font-medium text-foreground">{getDisplayTargetSelesai(detailActivity)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block">Jam Kerja</span>
+                    <span className="font-medium text-foreground">{formatJamRange(detailActivity) || "-"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block">Lokasi Pekerjaan</span>
+                    <span className="font-medium text-foreground">{detailActivity.lokasi || "-"}</span>
                   </div>
                 </div>
               </div>
@@ -1828,7 +2114,7 @@ export default function DailyActivityPage() {
             </DialogHeader>
 
             <div className="space-y-3.5 text-xs">
-              {/* Row 1: Tanggal Pengajuan + Desainer (dropdown) */}
+              {/* Row 1: Tanggal Pengajuan + Jenis Pekerjaan */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="form-activity-date" className="text-xs">
@@ -1844,46 +2130,72 @@ export default function DailyActivityPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="form-activity-desainer" className="text-xs">
-                    Desainer <span className="text-rose-500">*</span>
+                  <Label htmlFor="form-jenis-pekerjaan" className="text-xs">
+                    Jenis Pekerjaan <span className="text-rose-500">*</span>
                   </Label>
                   <Select
-                    value={formData.name}
-                    onValueChange={(val) => setFormData((prev) => ({ ...prev, name: val }))}
+                    value={formData.jenis_pekerjaan}
+                    onValueChange={(val) => setFormData((prev) => ({ ...prev, jenis_pekerjaan: val }))}
                   >
-                    <SelectTrigger id="form-activity-desainer" className="h-9 text-xs">
-                      <SelectValue placeholder="Pilih Desainer" />
+                    <SelectTrigger id="form-jenis-pekerjaan" className="h-9 text-xs">
+                      <SelectValue placeholder="Pilih Jenis Pekerjaan" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Paulus Petrus Parlindungan Sianipar" className="text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-block size-2 rounded-full bg-sky-500 shrink-0" />
-                          Paulus Sianipar
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="Muhammad Farel Ramadhan" className="text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-block size-2 rounded-full bg-indigo-500 shrink-0" />
-                          Farel Ramadhan
-                        </div>
-                      </SelectItem>
-                      {/* Tampilkan nama lain dari data aktual jika ada */}
-                      {uniqueStaff
-                        .filter(
-                          (s) =>
-                            s.name !== "Paulus Sianipar" &&
-                            s.name !== "Farel Ramadhan"
-                        )
-                        .map((s) => (
-                          <SelectItem key={s.name} value={s.name} className="text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="inline-block size-2 rounded-full bg-emerald-500 shrink-0" />
-                              {s.name}
-                            </div>
-                          </SelectItem>
-                        ))}
+                      {jenisPekerjaanOptions.map((jenis) => (
+                        <SelectItem key={jenis} value={jenis} className="text-xs">{jenis}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {formData.jenis_pekerjaan === JENIS_LAINNYA && (
+                    <Input
+                      id="form-jenis-lainnya"
+                      value={formData.jenis_lainnya}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, jenis_lainnya: e.target.value }))}
+                      placeholder="Tulis jenis pekerjaan..."
+                      required
+                      autoFocus
+                      className="h-9 text-xs"
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Desainer: bisa pilih lebih dari satu */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  Desainer <span className="text-rose-500">*</span>
+                  <span className="ml-1 font-normal text-muted-foreground">(bisa pilih lebih dari satu)</span>
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {designerOptions.map((designer) => {
+                    const selected = formData.designers.includes(designer);
+                    return (
+                      <button
+                        key={designer}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => toggleFormDesigner(designer)}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${selected
+                          ? "border-primary bg-primary/10 text-foreground font-medium"
+                          : "bg-background text-muted-foreground hover:bg-muted"
+                          }`}
+                      >
+                        {selected ? (
+                          <CheckCircle2 className="size-3.5 text-primary" />
+                        ) : (
+                          <span className={`inline-block size-2 rounded-full shrink-0 ${designerDotClass(designer)}`} />
+                        )}
+                        <span className="flex flex-col items-start leading-tight">
+                          <span>{designer}</span>
+                          {designerEmailByName.get(designer) && (
+                            <span className="text-[10px] font-normal text-muted-foreground">
+                              {designerEmailByName.get(designer)}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1906,6 +2218,55 @@ export default function DailyActivityPage() {
                     <SelectContent>
                       {activityStatuses.map((st) => (
                         <SelectItem key={st} value={st} className="text-xs">{st}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Row 3: Jam Mulai + Jam Selesai + Lokasi (otomatis dari akun) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="form-jam-mulai" className="text-xs">
+                    Jam Mulai {!editingActivity && <span className="text-rose-500">*</span>}
+                  </Label>
+                  <Input
+                    id="form-jam-mulai"
+                    type="time"
+                    value={formData.jam_mulai}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, jam_mulai: e.target.value }))}
+                    required={!editingActivity}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="form-jam-selesai" className="text-xs">
+                    Jam Selesai
+                  </Label>
+                  <Input
+                    id="form-jam-selesai"
+                    type="time"
+                    value={formData.jam_selesai}
+                    min={formData.jam_mulai || undefined}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, jam_selesai: e.target.value }))}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="form-activity-lokasi" className="text-xs">Lokasi Pekerjaan</Label>
+                  <Select
+                    value={formData.lokasi}
+                    onValueChange={(val) => setFormData((prev) => ({ ...prev, lokasi: val }))}
+                  >
+                    <SelectTrigger id="form-activity-lokasi" className="h-9 text-xs" title="Otomatis dari profil akun, bisa diubah">
+                      <SelectValue placeholder={userLokasi ? "Pilih Lokasi" : "Belum diatur di Profil"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(formData.lokasi && !lokasiOptions.includes(formData.lokasi)
+                        ? [formData.lokasi, ...lokasiOptions]
+                        : lokasiOptions
+                      ).map((loc) => (
+                        <SelectItem key={loc} value={loc} className="text-xs">{loc}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
