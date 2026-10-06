@@ -82,7 +82,7 @@ export function RekapBulananPage() {
         const { data } = await supabase.auth.getUser();
         if (data?.user) {
           const { data: profile } = await supabase
-            .from("users")
+            .from("user_profiles")
             .select("role")
             .eq("id", data.user.id)
             .single();

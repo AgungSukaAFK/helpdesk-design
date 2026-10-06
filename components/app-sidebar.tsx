@@ -265,12 +265,13 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       const { data, error } = await supabase.auth.getUser();
       if (!error) setUser(data.user);
       if (!data.user) redirect("auth/login");
-      const [profileRes, userProfileRes] = await Promise.all([
-        supabase.from("users").select("*").eq("id", data.user.id).single(),
-        supabase.from("user_profiles").select("name, avatar_url").eq("id", data.user.id).maybeSingle(),
-      ]);
+      const profileRes = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("id", data.user.id)
+        .maybeSingle();
       if (profileRes.data) setProfile(profileRes.data);
-      setAvatarUrl(userProfileRes.data?.avatar_url || null);
+      setAvatarUrl(profileRes.data?.avatar_url || null);
     };
     getUser();
 

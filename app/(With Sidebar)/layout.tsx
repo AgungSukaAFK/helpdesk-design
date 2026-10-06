@@ -135,7 +135,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         redirect("/auth/login");
       }
       const profileRes = await supabase
-        .from("users")
+        .from("user_profiles")
         .select("*")
         .eq("id", user.id)
         .single();

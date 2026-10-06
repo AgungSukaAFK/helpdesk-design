@@ -152,6 +152,7 @@ export async function POST(request: NextRequest) {
       email,
       name,
       role,
+      departemen,
       updated_at: new Date().toISOString(),
     };
     const { error: profileError } = await supabase.from("user_profiles").upsert(profile);
@@ -159,9 +160,8 @@ export async function POST(request: NextRequest) {
       await supabase.auth.admin.deleteUser(data.user.id);
       return NextResponse.json({ error: profileError.message }, { status: 500 });
     }
-    await supabase.from("users").upsert(profile);
 
-    return NextResponse.json({ success: true, data: { ...profile, departemen } }, { status: 201 });
+    return NextResponse.json({ success: true, data: profile }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Internal server error" },

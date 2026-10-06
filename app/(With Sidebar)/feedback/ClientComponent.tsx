@@ -105,7 +105,7 @@ export function FeedbackClientContent() {
 
         // Cek role
         const { data: profile } = await s
-          .from("users")
+          .from("user_profiles")
           .select("role")
           .eq("id", user.id)
           .single();

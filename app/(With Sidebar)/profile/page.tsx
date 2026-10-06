@@ -210,17 +210,13 @@ export default function ProfilePage() {
     const supabase = createClient();
 
     try {
-      const [{ error: userError }, { error: profileError }] = await Promise.all([
-        supabase.from("users").update({ name: formData.name }).eq("id", user.id),
-        supabase.from("user_profiles").update({
-          name: formData.name,
-          perusahaan: formData.perusahaan,
-          lokasi: formData.lokasi,
-          departemen: formData.departemen,
-        }).eq("id", user.id),
-      ]);
+      const { error: profileError } = await supabase.from("user_profiles").update({
+        name: formData.name,
+        perusahaan: formData.perusahaan,
+        lokasi: formData.lokasi,
+        departemen: formData.departemen,
+      }).eq("id", user.id);
 
-      if (userError) throw userError;
       if (profileError) throw profileError;
       window.dispatchEvent(new CustomEvent("profile-updated", { detail: { name: formData.name } }));
 

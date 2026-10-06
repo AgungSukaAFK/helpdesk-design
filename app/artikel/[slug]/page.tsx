@@ -166,7 +166,7 @@ export default async function ArtikelDetailPage({
   if (article.author) {
     if (/^[0-9a-fA-F-]{36}$/.test(article.author)) {
       const { data: userData } = await getServiceSupabase()
-        .from("users")
+        .from("user_profiles")
         .select("name")
         .eq("id", article.author)
         .maybeSingle();

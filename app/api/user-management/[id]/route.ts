@@ -105,11 +105,9 @@ export async function PATCH(
     };
     if (name !== undefined) profileUpdates.name = name.trim();
     if (role !== undefined) profileUpdates.role = role;
+    if (departemen !== undefined) profileUpdates.departemen = departemen.trim();
 
     await supabase.from("user_profiles").upsert(profileUpdates);
-    try {
-      await supabase.from("users").upsert(profileUpdates);
-    } catch (_) {}
 
     // 4. Update departemen in permintaan table for historical consistency
     if (departemen) {
@@ -159,9 +157,6 @@ export async function DELETE(
 
     // 2. Clean up user_profiles
     await supabase.from("user_profiles").delete().eq("id", id);
-    try {
-      await supabase.from("users").delete().eq("id", id);
-    } catch (_) {}
 
     return NextResponse.json({ success: true, message: "User berhasil dihapus" });
   } catch (err: any) {
