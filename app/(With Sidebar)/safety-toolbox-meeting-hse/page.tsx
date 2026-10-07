@@ -237,31 +237,13 @@ export default function SafetyToolboxMeetingHsePage() {
 
         setSupabaseConnected(true);
         loadedFromDb = true;
-
-        // Periode yang masih hanya ada di localStorage (mis. roster yang diinput
-        // sebelum migrasi dijalankan) ikut di-push ke Supabase, jangan dihapus.
-        const cached = readCached();
-        if (cached && cached.length > 0) {
-          const dbPeriods = new Set(dbRecords.map((r) => r.period_month));
-          const localOnly = cached.filter((r) => !dbPeriods.has(r.period_month));
-          if (localOnly.length > 0) {
-            const merged = [...dbRecords, ...localOnly];
-            setRecords(merged);
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
-            try {
-              await syncToSupabase(merged);
-            } catch (syncErr) {
-              console.warn("Gagal push roster HSE lokal ke Supabase:", syncErr);
-            }
-            setLoading(false);
-            return;
-          }
-        }
-
         setRecords(dbRecords);
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dbRecords));
       } else if (!error && data && data.length === 0) {
         setSupabaseConnected(true);
+        loadedFromDb = true;
+        setRecords([]);
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
       }
     } catch {
       setSupabaseConnected(false);

@@ -199,18 +199,8 @@ export default function AttendancePage() {
           setSelectedMonth(mapped[0].period_month);
         }
       } else if (!error && data && data.length === 0) {
-        // Tabel ada di Supabase tapi kosong -> Gunakan initial seed
-        const localSaved = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (localSaved) {
-          try {
-            setRecords(JSON.parse(localSaved));
-          } catch {
-            setRecords(INITIAL_ATTENDANCE_DATA);
-          }
-        } else {
-          setRecords(INITIAL_ATTENDANCE_DATA);
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_ATTENDANCE_DATA));
-        }
+        setRecords([]);
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
         setSupabaseConnected(true);
         setShowDbNotice(false);
       } else {

@@ -128,55 +128,7 @@ export function calculatePersonStats(schedule: Record<number, string>) {
   };
 }
 
-/**
- * Data awal (Initial Seed) persis sesuai lampiran Excel untuk bulan Juni 2026
- */
-export const INITIAL_SAFETY_TOOLBOX_MEETING_HSE_DATA: SafetyToolboxMeetingHseRosterRecord[] = [
-  {
-    id: "safety-toolbox-meeting-2026-06-01",
-    period_month: "2026-06",
-    employee_no: "GIS19040039",
-    name: "Paulus Petrus Parlindungan Sianipar",
-    role: "HSE Coordinator",
-    phone: "0812-3456-7890",
-    schedule: {
-      1: "H",
-      4: "h",
-      8: "H",
-      11: "h",
-      15: "H",
-      18: "H",
-      22: "H",
-      25: "H",
-      29: "H",
-    },
-    notes: "Roster Standby HSE Juni 2026",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "safety-toolbox-meeting-2026-06-02",
-    period_month: "2026-06",
-    employee_no: "GIS25100212",
-    name: "Muhammad Farel Ramadhan",
-    role: "HSE Officer",
-    phone: "0813-9876-5432",
-    schedule: {
-      1: "H",
-      4: "h",
-      8: "H",
-      11: "h",
-      15: "H",
-      18: "H",
-      22: "H",
-      25: "H",
-      29: "H",
-    },
-    notes: "Roster Standby HSE Juni 2026",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
+export const INITIAL_SAFETY_TOOLBOX_MEETING_HSE_DATA: SafetyToolboxMeetingHseRosterRecord[] = [];
 
 /**
  * Deteksi nama bulan dari teks (e.g. "Juni", "June", "06", "Jadwal Safety Toolbox Meeting HSE Juli 2026")

@@ -203,7 +203,7 @@ export default function KpiClientComponent() {
     note: "A1",
   });
 
-  const getStorageKey = useCallback((period: string) => `kpi_custom_rows_v3_${period}`, []);
+  const getStorageKey = useCallback((period: string) => `kpi_custom_rows_v4_${period}`, []);
 
   const calculateRowScore = (
     realisasi: number | null,
@@ -240,7 +240,7 @@ export default function KpiClientComponent() {
       const json: KpiApiResponse = await res.json();
 
       // Check if user has customized rows in localStorage for this period
-      const storageKey = `kpi_custom_rows_v3_${selectedMonth}`;
+      const storageKey = `kpi_custom_rows_v4_${selectedMonth}`;
       const saved = typeof window !== "undefined" ? localStorage.getItem(storageKey) : null;
       if (saved) {
         try {
@@ -336,7 +336,7 @@ export default function KpiClientComponent() {
 
     setData(updatedData);
     if (typeof window !== "undefined") {
-      localStorage.setItem(`kpi_custom_rows_v3_${selectedMonth}`, JSON.stringify(updatedRows));
+      localStorage.setItem(`kpi_custom_rows_v4_${selectedMonth}`, JSON.stringify(updatedRows));
     }
     setIsCustomized(true);
     setEditingRow(null);
@@ -363,7 +363,7 @@ export default function KpiClientComponent() {
 
     setData(updatedData);
     if (typeof window !== "undefined") {
-      localStorage.setItem(`kpi_custom_rows_v3_${selectedMonth}`, JSON.stringify(updatedRows));
+      localStorage.setItem(`kpi_custom_rows_v4_${selectedMonth}`, JSON.stringify(updatedRows));
     }
     setIsCustomized(true);
     setDeleteTarget(null);
@@ -374,7 +374,7 @@ export default function KpiClientComponent() {
   // Reset to Default Calculation
   const handleResetDefault = async () => {
     if (typeof window !== "undefined") {
-      localStorage.removeItem(`kpi_custom_rows_v3_${selectedMonth}`);
+      localStorage.removeItem(`kpi_custom_rows_v4_${selectedMonth}`);
     }
     setIsCustomized(false);
     toast.info("Mengembalikan KPI ke kalkulasi default sistem...");

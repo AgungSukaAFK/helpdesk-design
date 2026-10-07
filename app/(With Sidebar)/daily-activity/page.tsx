@@ -454,31 +454,33 @@ export default function DailyActivityPage() {
       if (res.ok) {
         const json = await res.json();
         const data = json.data || [];
-        if (data.length > 0) {
-          const mapped: DailyActivity[] = data.map((d: any) => ({
-            id: d.id,
-            request_id: d.request_id,
-            activity_date: d.activity_date,
-            name: d.name || "Staff",
-            task_description: d.task_description || "-",
-            status: d.status || activityStatuses[4],
-            remarks: d.remarks || null,
-            created_at: d.created_at,
-            departemen: d.departemen || null,
-            project: d.project || null,
-            due_date: d.due_date || null,
-            lokasi: d.lokasi || null,
-            jam_mulai: d.jam_mulai || null,
-            jam_selesai: d.jam_selesai || null,
-            jenis_pekerjaan: d.jenis_pekerjaan || null,
-          }));
-          setActivities(mapped);
+        const mapped: DailyActivity[] = data.map((d: any) => ({
+          id: d.id,
+          request_id: d.request_id,
+          activity_date: d.activity_date,
+          name: d.name || "Staff",
+          task_description: d.task_description || "-",
+          status: d.status || activityStatuses[4],
+          remarks: d.remarks || null,
+          created_at: d.created_at,
+          departemen: d.departemen || null,
+          project: d.project || null,
+          due_date: d.due_date || null,
+          lokasi: d.lokasi || null,
+          jam_mulai: d.jam_mulai || null,
+          jam_selesai: d.jam_selesai || null,
+          jenis_pekerjaan: d.jenis_pekerjaan || null,
+        }));
+        setActivities(mapped);
+        if (mapped.length > 0) {
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(mapped));
-          return;
+        } else {
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
         }
+        return;
       }
 
-      // Fallback to local storage if user not logged in or Supabase empty
+      // Fallback to local storage if user not logged in
       const localSaved = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (localSaved) {
         try {
