@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthorizedContext } from "@/lib/supabase/authorization";
+import { canEditPermintaan } from "@/lib/permintaan-workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -121,7 +122,7 @@ export async function PATCH(
 
     const { data: currentTicket, error: currentTicketError } = await supabase
       .from("permintaan")
-      .select("requester, admin")
+      .select("requester, admin, status")
       .eq("id", targetId)
       .maybeSingle();
     if (currentTicketError) {
@@ -130,30 +131,27 @@ export async function PATCH(
     if (!currentTicket) {
       return NextResponse.json({ error: "Data permintaan tidak ditemukan" }, { status: 404 });
     }
-    if (role === "user" && currentTicket.requester !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    if (role === "designer") {
-      const isAssignedToDesigner = currentTicket.admin === user.id;
-      const isClaimingUnassigned = !currentTicket.admin && admin === user.id;
-      if (!isAssignedToDesigner && !isClaimingUnassigned) {
-        return NextResponse.json({ error: "Designer hanya dapat mengubah tiket yang ditugaskan kepadanya" }, { status: 403 });
-      }
-      if (admin !== undefined && admin !== user.id) {
-        return NextResponse.json({ error: "Designer tidak dapat mengubah penugasan tiket" }, { status: 403 });
-      }
+    if (!canEditPermintaan(currentTicket, { id: user.id, role })) {
+      return NextResponse.json(
+        { error: "Anda hanya dapat mengedit permintaan milik Anda sendiri yang belum selesai" },
+        { status: 403 }
+      );
     }
 
     const updates: Record<string, any> = {
       updated_at: new Date().toISOString(),
+      updated_by: user.id,
     };
     if (judul !== undefined) updates.judul = cleanJudul(judul);
     if (project !== undefined) updates.project = project;
     if (departemen !== undefined) updates.departemen = departemen;
-    if (status !== undefined) updates.status = status;
     if (due_date !== undefined) updates.due_date = due_date;
     if (deskripsi !== undefined) updates.deskripsi = cleanDeskripsi(deskripsi);
-    if (admin !== undefined && role !== "user") updates.admin = admin;
+    // Status & PIC: non-admin wajib lewat aksi alur kerja (/api/permintaan/[id]/aksi)
+    if (role === "admin") {
+      if (status !== undefined) updates.status = status;
+      if (admin !== undefined) updates.admin = admin;
+    }
 
     const { data, error } = await supabase
       .from("permintaan")

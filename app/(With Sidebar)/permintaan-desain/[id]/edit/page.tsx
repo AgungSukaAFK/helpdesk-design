@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
+import { canEditPermintaan, type Role } from "@/lib/permintaan-workflow";
 import { ArrowLeft, Loader2, Save, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -95,8 +96,8 @@ export default function EditPermintaanDesainPage() {
   const s = createClient();
   const id = params.id as string;
 
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [isDesigner, setIsDesigner] = useState(false);
+  const [canEdit, setCanEdit] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [data, setData] = useState<PermintaanData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -117,8 +118,7 @@ export default function EditPermintaanDesainPage() {
           data: { user },
         } = await s.auth.getUser();
 
-        let isUserAdmin = false;
-        let isUserDesigner = false;
+        let role: Role = "user";
         if (user) {
           const { data: profile } = await s
             .from("user_profiles")
@@ -126,9 +126,8 @@ export default function EditPermintaanDesainPage() {
             .eq("id", user.id)
             .maybeSingle();
 
-          isUserAdmin = profile?.role === "admin";
-          isUserDesigner = profile?.role === "designer";
-          setIsDesigner(isUserDesigner);
+          if (profile?.role === "admin" || profile?.role === "designer") role = profile.role;
+          setIsAdmin(role === "admin");
         }
 
         // Fetch detail permintaan via API (bypasses RLS & safely handles single record)
@@ -141,13 +140,12 @@ export default function EditPermintaanDesainPage() {
         const item = json.data;
         if (!item) throw new Error("Data permintaan tidak ditemukan");
 
-        // Designers can edit only tickets assigned to them; requesters can edit their own.
-        const canEdit = isUserAdmin || (isUserDesigner && item.admin === user?.id) || (user && item.requester === user.id);
-        if (!canEdit) {
-          setIsAdmin(false);
+        // Admin: semua; designer: tiket yang ditugaskan; user: hanya milik sendiri & belum selesai.
+        if (!user || !canEditPermintaan(item, { id: user.id, role })) {
+          setCanEdit(false);
           return;
         }
-        setIsAdmin(true);
+        setCanEdit(true);
 
         setJudul(item.judul || "");
         setDeskripsi(item.deskripsi || "");
@@ -212,9 +210,9 @@ export default function EditPermintaanDesainPage() {
           deskripsi,
           project: projectValue,
           departemen: selectedDepartemen,
-          status: isDesigner ? data?.status || status : status,
           due_date: new Date(dueDate).toISOString(),
-          admin: isDesigner ? data?.admin : admin === "none" ? null : admin,
+          // Status & PIC hanya dikirim oleh admin; peran lain lewat tombol alur kerja di halaman detail
+          ...(isAdmin && { status, admin: admin === "none" ? null : admin }),
         }),
       });
       const json = await res.json();
@@ -238,13 +236,15 @@ export default function EditPermintaanDesainPage() {
     );
   }
 
-  if (isAdmin === false) {
+  if (canEdit === false) {
     return (
       <Content title="Akses Ditolak" size="md">
         <Alert variant="destructive">
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription>
-            Anda tidak memiliki akses untuk mengedit permintaan desain ini.
+            Anda hanya dapat mengedit permintaan desain milik Anda sendiri
+            yang belum selesai. Untuk permintaan yang sudah selesai, gunakan
+            tombol &quot;Ajukan Revisi&quot; di halaman detail.
           </AlertDescription>
         </Alert>
         <div className="mt-4">
@@ -347,7 +347,17 @@ export default function EditPermintaanDesainPage() {
           />
         </div>
 
-        {!isDesigner && <div className="flex flex-col gap-2">
+        {!isAdmin && (
+          <Alert>
+            <AlertDescription>
+              Status dan desainer diatur otomatis lewat tombol alur kerja di
+              halaman detail (Ambil, Kirim untuk Review, Ajukan Revisi, Terima
+              Hasil).
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {isAdmin && <div className="flex flex-col gap-2">
           <Label htmlFor="status">Status</Label>
           <Select
             value={status}
@@ -367,7 +377,7 @@ export default function EditPermintaanDesainPage() {
           </Select>
         </div>}
 
-        {!isDesigner && <div className="flex flex-col gap-2">
+        {isAdmin && <div className="flex flex-col gap-2">
           <Label htmlFor="admin">Desainer (PIC)</Label>
           <Combobox
             data={[{ label: "Kosong (belum ada)", value: "none" }, ...dataDesigner]}

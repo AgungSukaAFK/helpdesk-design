@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthorizedContext } from "@/lib/supabase/authorization";
+import { canEditPermintaan } from "@/lib/permintaan-workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -197,10 +198,35 @@ export async function GET(request: NextRequest) {
         if (r) requesterInfo = r;
       }
 
+      // Riwayat status (audit timeline). Tabel dari migration 0021; abaikan jika belum ada.
+      const { data: riwayatRows } = await supabase
+        .from("permintaan_riwayat")
+        .select("id, created_at, status_from, status_to, changed_by, catatan")
+        .eq("permintaan_id", id)
+        .order("created_at", { ascending: true });
+      const actorIds = Array.from(
+        new Set((riwayatRows || []).map((r) => r.changed_by).filter(Boolean))
+      ) as string[];
+      const actorNames: Record<string, string> = {};
+      if (actorIds.length > 0) {
+        const { data: actors } = await supabase
+          .from("user_profiles")
+          .select("id, name")
+          .in("id", actorIds);
+        actors?.forEach((p) => {
+          if (p.name) actorNames[p.id] = p.name;
+        });
+      }
+      const riwayat = (riwayatRows || []).map((r) => ({
+        ...r,
+        changed_by_name: r.changed_by ? actorNames[r.changed_by] || null : null,
+      }));
+
       const formatted = {
         ...item,
         judul: cleanJudul(item.judul),
         deskripsi: cleanDeskripsi(item.deskripsi),
+        riwayat,
         admin_data: adminInfo,
         requester_data: requesterInfo,
         admin_name: adminInfo?.name || (item.admin === FAREL_ID ? "Farel Ramadhan" : item.admin === PAULUS_ID ? "Paulus Sianipar" : "-"),
@@ -478,7 +504,7 @@ export async function PATCH(request: NextRequest) {
 
     const { data: currentTicket, error: currentTicketError } = await supabase
       .from("permintaan")
-      .select("requester, admin")
+      .select("requester, admin, status")
       .eq("id", id)
       .maybeSingle();
     if (currentTicketError) {
@@ -487,33 +513,27 @@ export async function PATCH(request: NextRequest) {
     if (!currentTicket) {
       return NextResponse.json({ error: "Data permintaan tidak ditemukan" }, { status: 404 });
     }
-    if (role === "user" && currentTicket.requester !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    if (role === "designer") {
-      if (currentTicket.admin && currentTicket.admin !== user.id) {
-        return NextResponse.json({ error: "Tiket sudah ditugaskan ke Designer lain" }, { status: 403 });
-      }
-      const isAssignedToDesigner = currentTicket.admin === user.id;
-      const isClaimingUnassigned = !currentTicket.admin && admin === user.id;
-      if (!isAssignedToDesigner && !isClaimingUnassigned) {
-        return NextResponse.json({ error: "Designer harus mengambil tiket sebelum mengubahnya" }, { status: 403 });
-      }
-      if (admin !== undefined && admin !== user.id) {
-        return NextResponse.json({ error: "Designer tidak dapat mengubah penugasan tiket" }, { status: 403 });
-      }
+    if (!canEditPermintaan(currentTicket, { id: user.id, role })) {
+      return NextResponse.json(
+        { error: "Anda hanya dapat mengedit permintaan milik Anda sendiri yang belum selesai" },
+        { status: 403 }
+      );
     }
 
     const updates: Record<string, any> = {
       updated_at: new Date().toISOString(),
+      updated_by: user.id,
     };
     if (judul !== undefined) updates.judul = judul.trim();
     if (project !== undefined) updates.project = project;
     if (departemen !== undefined) updates.departemen = departemen;
-    if (status !== undefined) updates.status = status;
     if (due_date !== undefined) updates.due_date = due_date;
     if (deskripsi !== undefined) updates.deskripsi = deskripsi;
-    if (admin !== undefined && role !== "user") updates.admin = admin;
+    // Status & PIC: non-admin wajib lewat aksi alur kerja (/api/permintaan/[id]/aksi)
+    if (role === "admin") {
+      if (status !== undefined) updates.status = status;
+      if (admin !== undefined) updates.admin = admin;
+    }
 
     const { data, error } = await supabase
       .from("permintaan")

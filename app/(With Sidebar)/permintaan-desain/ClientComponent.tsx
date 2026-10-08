@@ -79,6 +79,14 @@ import {
 } from "react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import {
+  canEditPermintaan,
+  normalizeStatus,
+  STATUS_META,
+  waitingOn,
+  type Role,
+} from "@/lib/permintaan-workflow";
+import { cn } from "@/lib/utils";
 
 interface Permintaan {
   id: string;
@@ -97,6 +105,11 @@ interface Permintaan {
   category?: string;
   is_tercapai?: boolean;
   hasil_label?: string;
+  progress_at?: string | null;
+  review_at?: string | null;
+  revision_at?: string | null;
+  revision_count?: number | null;
+  done_at?: string | null;
 }
 
 interface MonthStats {
@@ -446,6 +459,16 @@ export default function PermintaanList() {
         "Peminta / Pelapor": item.requester_name || "Pelapor",
         Desainer: item.admin_name || "-",
         Status: item.status,
+        "Jumlah Revisi": item.revision_count ?? 0,
+        "Revisi Terakhir": item.revision_at
+          ? new Date(item.revision_at).toLocaleString("id-ID", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "-",
         "Deskripsi / Kendala": item.deskripsi,
       }));
 
@@ -757,38 +780,10 @@ export default function PermintaanList() {
   };
 
   const getStatusBadge = (status: string) => {
-    const s = (status || "").toUpperCase();
-    if (s === "DONE") {
-      return (
-        <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 font-medium text-xs">
-          Done
-        </Badge>
-      );
-    }
-    if (s === "PROGRESS") {
-      return (
-        <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30 hover:bg-blue-500/20 font-medium text-xs">
-          Progress
-        </Badge>
-      );
-    }
-    if (s === "REVIEW") {
-      return (
-        <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/20 font-medium text-xs">
-          Review
-        </Badge>
-      );
-    }
-    if (s === "REVISION") {
-      return (
-        <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30 hover:bg-rose-500/20 font-medium text-xs">
-          Revision
-        </Badge>
-      );
-    }
+    const meta = STATUS_META[normalizeStatus(status)];
     return (
-      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20 font-medium text-xs">
-        To Do
+      <Badge className={cn("font-medium text-xs", meta.badgeClass)}>
+        {meta.short}
       </Badge>
     );
   };
@@ -1571,73 +1566,7 @@ export default function PermintaanList() {
 
                   {/* Audit Timeline Waktu */}
                   <TableCell className="whitespace-nowrap">
-                    <div className="flex flex-col gap-2 text-xs">
-                      {/* Dibuat */}
-                      <div className="flex items-center gap-4 justify-between">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                          <span>Dibuat:</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 font-medium">
-                          {item.created_at ? (
-                            <>
-                              <span>
-                                {new Date(item.created_at).toLocaleDateString("en-GB")}
-                              </span>
-                              <Badge variant="secondary" className="bg-blue-500/10 text-blue-700 hover:bg-blue-500/10 px-1 py-0 text-[10px] rounded">
-                                {new Date(item.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
-                              </Badge>
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Proses */}
-                      <div className="flex items-center gap-4 justify-between">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                          <span>Proses:</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 font-medium">
-                          {["PROGRESS", "REVIEW", "REVISION", "DONE"].includes(item.status?.toUpperCase()) && item.updated_at ? (
-                            <>
-                              <span>
-                                {new Date(item.updated_at).toLocaleDateString("en-GB")}
-                              </span>
-                              <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 hover:bg-orange-500/10 px-1 py-0 text-[10px] rounded">
-                                {new Date(item.updated_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
-                              </Badge>
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Selesai */}
-                      <div className="flex items-center gap-4 justify-between">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                          <span>Selesai:</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 font-medium text-green-600">
-                          {item.status?.toUpperCase() === "DONE" && item.updated_at ? (
-                            <>
-                              <span>
-                                {new Date(item.updated_at).toLocaleDateString("en-GB")}
-                              </span>
-                              <Badge variant="secondary" className="bg-green-500/10 text-green-700 hover:bg-green-500/10 px-1 py-0 text-[10px] rounded">
-                                {new Date(item.updated_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
-                              </Badge>
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <AuditTimelineCell item={item} />
                   </TableCell>
 
                   {/* Judul, Project, Kategori & Hasil */}
@@ -1693,7 +1622,20 @@ export default function PermintaanList() {
 
                   {/* Kolom Status */}
                   <TableCell>
-                    {getStatusBadge(item.status)}
+                    <div className="flex flex-col items-start gap-1">
+                      {getStatusBadge(item.status)}
+                      {waitingOn(item.status) && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {waitingOn(item.status) === "requester"
+                            ? item.requester === currentUser?.id
+                              ? "Menunggu respon Anda"
+                              : "Menunggu respon peminta"
+                            : item.admin
+                              ? "Dikerjakan desainer"
+                              : "Belum ada desainer"}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
 
                   {/* Due Date */}
@@ -1720,7 +1662,8 @@ export default function PermintaanList() {
                       <Button variant="outline" size="sm" className="h-8 text-xs px-2.5" asChild>
                         <Link href={`/permintaan-desain/${item.id}`}>Detail</Link>
                       </Button>
-                      {(userRole === "admin" || (userRole === "designer" && item.admin === currentUser?.id)) && (
+                      {currentUser &&
+                        canEditPermintaan(item, { id: currentUser.id, role: userRole as Role }) && (
                         <Button variant="outline" size="sm" className="h-8 text-xs px-2" asChild>
                           <Link href={`/permintaan-desain/${item.id}/edit`} title="Edit Permintaan">
                             <Pencil className="h-3.5 w-3.5" />
@@ -1998,5 +1941,100 @@ export default function PermintaanList() {
         )}
       </div>
     </Content>
+  );
+}
+
+// --- Audit timeline per baris: Dibuat → Proses → Revisi (jika ada) → Selesai ---
+
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB");
+const fmtTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+
+function TimelineRow({
+  label,
+  dotClass,
+  chipClass,
+  value,
+  extra,
+}: {
+  label: string;
+  dotClass: string;
+  chipClass: string;
+  value?: string | null;
+  extra?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-4 justify-between">
+      <div className="flex items-center gap-1.5 text-muted-foreground">
+        <div className={cn("w-2 h-2 rounded-full", dotClass)} />
+        <span>{label}:</span>
+        {extra}
+      </div>
+      <div className="flex items-center gap-1.5 font-medium">
+        {value ? (
+          <>
+            <span>{fmtDate(value)}</span>
+            <Badge
+              variant="secondary"
+              className={cn("px-1 py-0 text-[10px] rounded", chipClass)}
+            >
+              {fmtTime(value)}
+            </Badge>
+          </>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AuditTimelineCell({ item }: { item: Permintaan }) {
+  const status = normalizeStatus(item.status);
+  const started = status !== "TO DO";
+  // Fallback ke updated_at untuk data lama sebelum kolom waktu per tahap tersedia
+  const progressAt = item.progress_at ?? (started ? item.updated_at : null);
+  const doneAt = status === "DONE" ? item.done_at ?? item.updated_at : null;
+  const revisionCount = item.revision_count ?? 0;
+
+  return (
+    <div className="flex flex-col gap-2 text-xs">
+      <TimelineRow
+        label="Dibuat"
+        dotClass="bg-blue-600"
+        chipClass="bg-blue-500/10 text-blue-700 hover:bg-blue-500/10"
+        value={item.created_at}
+      />
+      <TimelineRow
+        label="Proses"
+        dotClass="bg-orange-500"
+        chipClass="bg-orange-500/10 text-orange-600 hover:bg-orange-500/10"
+        value={progressAt}
+      />
+      {(revisionCount > 0 || status === "REVISION") && (
+        <TimelineRow
+          label="Revisi"
+          dotClass="bg-rose-500"
+          chipClass="bg-rose-500/10 text-rose-700 hover:bg-rose-500/10"
+          value={item.revision_at ?? (status === "REVISION" ? item.updated_at : null)}
+          extra={
+            revisionCount > 1 ? (
+              <span
+                className="rounded bg-rose-500/10 px-1 text-[10px] font-semibold text-rose-700 dark:text-rose-400"
+                title={`Sudah direvisi ${revisionCount} kali (menampilkan revisi terakhir)`}
+              >
+                ×{revisionCount}
+              </span>
+            ) : null
+          }
+        />
+      )}
+      <TimelineRow
+        label="Selesai"
+        dotClass="bg-green-500"
+        chipClass="bg-green-500/10 text-green-700 hover:bg-green-500/10"
+        value={doneAt}
+      />
+    </div>
   );
 }
