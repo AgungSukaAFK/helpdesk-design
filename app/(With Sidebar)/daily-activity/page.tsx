@@ -94,6 +94,10 @@ const jenisPekerjaanOptions = [
   "Videoshoot",
   "Editing",
   "Meeting/Koordinasi",
+  "Export",
+  "Membuat List",
+  "Mengambil Barang",
+  "Sortir List",
   "Lainnya",
 ] as const;
 
