@@ -5,7 +5,9 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
+import type { EditorView } from "@tiptap/pm/view";
+import { filesFromClipboard } from "@/components/file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { ARTICLES_BUCKET, articleImageUrl } from "@/lib/articles";
 import { toast } from "sonner";
@@ -65,9 +67,53 @@ function ToolbarButton({
   );
 }
 
+/** Unggah gambar konten artikel, kembalikan URL publiknya (null bila gagal). */
+async function uploadContentImage(file: File): Promise<string | null> {
+  if (!file.type.startsWith("image/")) {
+    toast.error("File harus berupa gambar.");
+    return null;
+  }
+
+  const s = createClient();
+  const { data: { user } } = await s.auth.getUser();
+  if (!user) {
+    toast.error("Sesi berakhir, silakan login ulang.");
+    return null;
+  }
+
+  const toastId = toast.loading("Mengunggah gambar...");
+  const path = `authors/${user.id}/content/${Date.now()}_${file.name.replace(/\s+/g, "-")}`;
+  const { error } = await s.storage.from(ARTICLES_BUCKET).upload(path, file);
+
+  if (error) {
+    toast.error("Gagal mengunggah gambar", {
+      id: toastId,
+      description: error.message,
+    });
+    return null;
+  }
+
+  toast.success("Gambar ditambahkan.", { id: toastId });
+  return articleImageUrl(path);
+}
+
+/** Sisipkan gambar ke editor pada posisi tertentu (default: posisi kursor). */
+async function insertImages(view: EditorView, files: File[], pos?: number) {
+  for (const file of files) {
+    const src = await uploadContentImage(file);
+    if (!src || view.isDestroyed) continue;
+    const node = view.state.schema.nodes.image.create({ src });
+    const tr =
+      pos === undefined
+        ? view.state.tr.replaceSelectionWith(node)
+        : view.state.tr.insert(Math.min(pos, view.state.doc.content.size), node);
+    view.dispatch(tr);
+    if (pos !== undefined) pos += node.nodeSize;
+  }
+}
+
 function Toolbar({ editor }: { editor: Editor }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const s = createClient();
 
   const handleImageSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,35 +121,10 @@ function Toolbar({ editor }: { editor: Editor }) {
       e.target.value = "";
       if (!file) return;
 
-      if (!file.type.startsWith("image/")) {
-        toast.error("File harus berupa gambar.");
-        return;
-      }
-
-      const { data: { user } } = await s.auth.getUser();
-      if (!user) {
-        toast.error("Sesi berakhir, silakan login ulang.");
-        return;
-      }
-
-      const toastId = toast.loading("Mengunggah gambar...");
-      const path = `authors/${user.id}/content/${Date.now()}_${file.name.replace(/\s+/g, "-")}`;
-      const { error } = await s.storage
-        .from(ARTICLES_BUCKET)
-        .upload(path, file);
-
-      if (error) {
-        toast.error("Gagal mengunggah gambar", {
-          id: toastId,
-          description: error.message,
-        });
-        return;
-      }
-
-      editor.chain().focus().setImage({ src: articleImageUrl(path) }).run();
-      toast.success("Gambar ditambahkan.", { id: toastId });
+      const src = await uploadContentImage(file);
+      if (src) editor.chain().focus().setImage({ src }).run();
     },
-    [editor, s]
+    [editor]
   );
 
   const setLink = useCallback(() => {
@@ -248,6 +269,8 @@ function Toolbar({ editor }: { editor: Editor }) {
 }
 
 export function ArticleEditor({ value, onChange }: ArticleEditorProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const dragDepth = useRef(0);
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -265,6 +288,26 @@ export function ArticleEditor({ value, onChange }: ArticleEditorProps) {
     ],
     content: value,
     editorProps: {
+      handlePaste: (view, event) => {
+        const images = filesFromClipboard(event.clipboardData).filter((f) =>
+          f.type.startsWith("image/")
+        );
+        if (images.length === 0) return false;
+        event.preventDefault();
+        void insertImages(view, images);
+        return true;
+      },
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved) return false;
+        const images = Array.from(event.dataTransfer?.files ?? []).filter((f) =>
+          f.type.startsWith("image/")
+        );
+        if (images.length === 0) return false;
+        event.preventDefault();
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
+        void insertImages(view, images, pos);
+        return true;
+      },
       attributes: {
         class:
           "prose prose-sm dark:prose-invert max-w-none min-h-[320px] px-4 py-3 focus:outline-none",
@@ -283,9 +326,41 @@ export function ArticleEditor({ value, onChange }: ArticleEditorProps) {
   }
 
   return (
-    <div className="rounded-md border focus-within:ring-1 focus-within:ring-ring">
-      <Toolbar editor={editor} />
-      <EditorContent editor={editor} />
+    <div className="space-y-1.5">
+      <div
+        className={cn(
+          "relative rounded-md border focus-within:ring-1 focus-within:ring-ring",
+          isDragging && "border-primary ring-2 ring-primary/40"
+        )}
+        onDragEnter={(e) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
+          dragDepth.current += 1;
+          setIsDragging(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
+          dragDepth.current = Math.max(0, dragDepth.current - 1);
+          if (dragDepth.current === 0) setIsDragging(false);
+        }}
+        onDrop={() => {
+          dragDepth.current = 0;
+          setIsDragging(false);
+        }}
+      >
+        <Toolbar editor={editor} />
+        <EditorContent editor={editor} />
+        {isDragging && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+            <span className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow">
+              <ImagePlus className="h-3.5 w-3.5" />
+              Lepaskan gambar di posisi yang diinginkan
+            </span>
+          </div>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Tips: tarik &amp; lepas gambar ke dalam editor, atau salin gambar/screenshot lalu tekan Ctrl+V.
+      </p>
     </div>
   );
 }

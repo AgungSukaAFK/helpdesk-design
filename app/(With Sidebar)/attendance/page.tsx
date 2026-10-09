@@ -1,4 +1,5 @@
 "use client";
+import { DropHint, PageFileDrop } from "@/components/file-drop";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -730,9 +731,11 @@ export default function AttendancePage() {
   // Handler file input change
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
     e.target.value = "";
+    if (file) await importExcelFile(file);
+  };
+
+  const importExcelFile = async (file: File) => {
 
     try {
       toast.loading("Menganalisis file Excel...", { id: "import-excel" });
@@ -1136,6 +1139,12 @@ notify pgrst, 'reload schema';`;
         accept=".xlsx,.xls,.csv"
         className="hidden"
       />
+      <PageFileDrop
+        onFiles={(files) => importExcelFile(files[0])}
+        accept=".xlsx,.xls,.csv"
+        disabled={false}
+        label="Lepaskan file untuk import presensi"
+      />
 
       {/* Header Halaman */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-card border rounded-xl p-5 shadow-xs">
@@ -1149,6 +1158,7 @@ notify pgrst, 'reload schema';`;
           <p className="text-sm text-muted-foreground mt-1">
             Kelola dan impor rekap data presensi karyawan per bulan dengan format kolom presisi.
           </p>
+          <DropHint className="mt-1" />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

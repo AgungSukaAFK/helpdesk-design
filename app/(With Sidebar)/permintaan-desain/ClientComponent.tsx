@@ -1,4 +1,5 @@
 "use client";
+import { DropHint, PageFileDrop } from "@/components/file-drop";
 
 import { Content } from "@/components/content";
 import { PaginationComponent } from "@/components/pagination";
@@ -573,7 +574,10 @@ export default function PermintaanList() {
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (file) await importExcelFile(file);
+  };
+
+  const importExcelFile = async (file: File) => {
 
     setIsReadingFile(true);
     setImportFileName(file.name);
@@ -835,12 +839,18 @@ export default function PermintaanList() {
             accept=".xlsx,.xls,.csv"
             className="hidden"
           />
+          <PageFileDrop
+            onFiles={(files) => importExcelFile(files[0])}
+            accept=".xlsx,.xls,.csv"
+            disabled={userRole !== "admin" || isReadingFile || isProcessingImport}
+            label="Lepaskan file untuk import tiket"
+          />
           {userRole === "admin" && <Button
             onClick={() => fileInputRef.current?.click()}
             disabled={isReadingFile || isProcessingImport}
             variant="outline"
             className="flex items-center gap-1.5 border-primary/30 text-primary hover:bg-primary/10 transition-colors"
-            title="Import tiket dari file Excel (.xlsx, .xls) atau CSV"
+            title="Import tiket dari file Excel (.xlsx, .xls) atau CSV — bisa juga tarik & lepas file ke halaman ini"
           >
             {isReadingFile ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -874,6 +884,11 @@ export default function PermintaanList() {
         </div>
       }
     >
+      {userRole === "admin" && (
+        <DropHint className="mb-3">
+          Tips: tarik &amp; lepas file Excel/CSV ke mana saja di halaman ini untuk import tiket.
+        </DropHint>
+      )}
       {/* 1. PEMILIH BULAN (MONTH SELECTOR) */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-card border rounded-xl p-3.5 shadow-xs mb-4">
         <div className="flex flex-wrap items-center gap-2">

@@ -1,4 +1,5 @@
 "use client";
+import { DropHint, PageFileDrop } from "@/components/file-drop";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -725,8 +726,11 @@ export default function ProgramKerjaPage() {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
     e.target.value = "";
+    if (file) await importExcelFile(file);
+  };
+
+  const importExcelFile = async (file: File) => {
 
     try {
       toast.loading("Menganalisis file...", { id: "import-proker" });
@@ -1021,6 +1025,12 @@ notify pgrst, 'reload schema';`;
         accept=".xlsx,.xls,.csv"
         className="hidden"
       />
+      <PageFileDrop
+        onFiles={(files) => importExcelFile(files[0])}
+        accept=".xlsx,.xls,.csv"
+        disabled={false}
+        label="Lepaskan file untuk import program kerja"
+      />
 
       {/* ==================== 1. TOP HEADER & YEAR NAVIGATOR ==================== */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card border rounded-2xl p-6 shadow-xs relative overflow-hidden">
@@ -1041,6 +1051,7 @@ notify pgrst, 'reload schema';`;
               <p className="text-sm text-muted-foreground">
                 Agenda kerja per quartal, pelacakan realisasi aktual, status, dan import/export tahunan.
               </p>
+              <DropHint className="mt-1" />
             </div>
           </div>
         </div>

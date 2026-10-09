@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { FileDropzone } from "@/components/file-drop";
 import {
   Table,
   TableBody,
@@ -60,6 +60,7 @@ export default function DetailPermintaanPage({
   const [userCred, setUserCred] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const s = createClient();
 
@@ -208,34 +209,27 @@ export default function DetailPermintaanPage({
     updateStatus();
   }
 
-  async function handleAddFile(e: FormEvent) {
-    e.preventDefault();
-    if (!permin) return;
-    const form = e.target as HTMLFormElement;
-    const formData = new FormData(form);
-    const file = formData.get("file") as File;
-    if (!file || file.size === 0) {
-      toast.error("File harus dipilih.");
-      return;
-    }
+  async function handleAddFiles(files: File[]) {
+    if (!permin || files.length === 0) return;
 
-    setLoading(true);
+    setIsUploading(true);
     try {
-      const filePath = `${permin.id}/${file.name}`;
-      const { error: uploadError } = await s.storage
-        .from("hasil-desain")
-        .upload(filePath, file, { upsert: true });
+      let updatedFiles = permin.files ?? [];
+      for (const file of files) {
+        const filePath = `${permin.id}/${file.name}`;
+        const { error: uploadError } = await s.storage
+          .from("hasil-desain")
+          .upload(filePath, file, { upsert: true });
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      const { data: publicUrlData } = s.storage
-        .from("hasil-desain")
-        .getPublicUrl(filePath);
+        const { data: publicUrlData } = s.storage
+          .from("hasil-desain")
+          .getPublicUrl(filePath);
 
-      const fileObject = { name: file.name, url: publicUrlData.publicUrl };
-      const updatedFiles = permin.files
-        ? [...permin.files.filter((f) => f.name !== file.name), fileObject]
-        : [fileObject];
+        const fileObject = { name: file.name, url: publicUrlData.publicUrl };
+        updatedFiles = [...updatedFiles.filter((f) => f.name !== file.name), fileObject];
+      }
 
       const { error: updateError } = await s
         .from("permintaan")
@@ -244,13 +238,12 @@ export default function DetailPermintaanPage({
 
       if (updateError) throw updateError;
 
-      form.reset();
       setPermin({ ...permin, files: updatedFiles });
-      toast.success("File berhasil diunggah.");
+      toast.success(`${files.length} file berhasil diunggah.`);
     } catch (error: any) {
       toast.error("Gagal mengunggah file: " + error.message);
     } finally {
-      setLoading(false);
+      setIsUploading(false);
     }
   }
 
@@ -541,15 +534,15 @@ export default function DetailPermintaanPage({
               </Button>
             </form>
 
-            <form className="flex flex-col gap-4" onSubmit={handleAddFile}>
-              <div className="flex flex-col gap-2">
-                <Label>Unggah File Hasil Desain</Label>
-                <Input type="file" name="file" required />
-              </div>
-              <Button type="submit" disabled={loading}>
-                {loading ? <Loader2 className="animate-spin" /> : "Unggah File"}
-              </Button>
-            </form>
+            <div className="flex flex-col gap-2">
+              <Label>Unggah File Hasil Desain</Label>
+              <FileDropzone
+                onFiles={handleAddFiles}
+                disabled={loading}
+                loading={isUploading}
+                hint="file langsung terunggah setelah dipilih"
+              />
+            </div>
           </div>
         </Content>
       )}

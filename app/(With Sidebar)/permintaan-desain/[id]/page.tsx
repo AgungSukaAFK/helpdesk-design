@@ -74,6 +74,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { FileDropArea, FileDropzone } from "@/components/file-drop";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 // --- TIPE DATA ---
@@ -407,9 +408,8 @@ export default function DetailPermintaanPage() {
     }
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !data) return;
+  const handleUpload = async (files: File[]) => {
+    if (files.length === 0 || !data) return;
 
     setIsUploading(true);
     const toastId = toast.loading("Mengunggah file...");
@@ -443,7 +443,6 @@ export default function DetailPermintaanPage() {
     }
 
     setIsUploading(false);
-    e.target.value = "";
   };
 
   // --- DISKUSI ---
@@ -781,7 +780,13 @@ export default function DetailPermintaanPage() {
             </div>
 
             {/* Lampiran */}
-            <div className="border rounded-lg p-5 bg-card shadow-sm space-y-3">
+            <FileDropArea
+              onFiles={handleUpload}
+              disabled={!canUpload || isUploading}
+              paste={canUpload && !isUploading}
+              label={isOwner && !isPic ? "Lepaskan untuk menambah referensi" : "Lepaskan untuk mengunggah hasil"}
+              className="border rounded-lg p-5 bg-card shadow-sm space-y-3"
+            >
               <div className="flex justify-between items-center gap-2">
                 <h3 className="font-semibold flex items-center gap-2">
                   <Paperclip className="h-4 w-4" /> Lampiran & Hasil Desain
@@ -796,7 +801,11 @@ export default function DetailPermintaanPage() {
                       id="file-upload"
                       className="hidden"
                       multiple
-                      onChange={handleUpload}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        e.target.value = "";
+                        void handleUpload(files);
+                      }}
                       disabled={isUploading}
                     />
                     <Button variant="outline" size="sm" asChild disabled={isUploading}>
@@ -848,12 +857,22 @@ export default function DetailPermintaanPage() {
                     </li>
                   ))}
                 </ul>
-              ) : (
+              ) : !canUpload ? (
                 <div className="text-center p-6 border border-dashed rounded-md text-muted-foreground text-sm">
                   Belum ada file.
                 </div>
+              ) : null}
+
+              {canUpload && (
+                <FileDropzone
+                  onFiles={handleUpload}
+                  loading={isUploading}
+                  paste={false}
+                  className={fileCount > 0 ? "py-4" : undefined}
+                  hint="Ctrl+V di halaman ini juga menempel gambar/screenshot"
+                />
               )}
-            </div>
+            </FileDropArea>
 
             {/* Diskusi */}
             <div className="border rounded-lg bg-card shadow-sm flex flex-col h-[500px]">

@@ -1,4 +1,5 @@
 "use client";
+import { DropHint, PageFileDrop } from "@/components/file-drop";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -778,8 +779,11 @@ export default function SafetyToolboxMeetingHsePage() {
   // Parse Excel or CSV (supports both semicolon ';' and comma ',' matrix format)
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
     e.target.value = "";
+    if (file) await importExcelFile(file);
+  };
+
+  const importExcelFile = async (file: File) => {
 
     try {
       toast.loading("Menganalisis file Safety Toolbox Meeting HSE...", { id: "import-safety toolbx meeting hse" });
@@ -1033,6 +1037,12 @@ notify pgrst, 'reload schema';`;
         accept=".xlsx, .xls, .csv"
         className="hidden"
       />
+      <PageFileDrop
+        onFiles={(files) => importExcelFile(files[0])}
+        accept=".xlsx,.xls,.csv"
+        disabled={false}
+        label="Lepaskan file untuk import roster Safety Toolbox Meeting"
+      />
 
       {/* ==================== 1. HEADER & ACTION BUTTONS ==================== */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-5">
@@ -1052,6 +1062,7 @@ notify pgrst, 'reload schema';`;
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               Kelola jadwal dan roster standby personil Health, Safety & Environment (HSE) secara bulanan.
             </p>
+            <DropHint className="mt-1" />
           </div>
         </div>
 
@@ -1105,7 +1116,7 @@ notify pgrst, 'reload schema';`;
             size="sm"
             onClick={() => fileInputRef.current?.click()}
             className="gap-1.5 font-medium shadow-2xs border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-            title="Import Excel atau CSV Roster Per-Bulan"
+            title="Import Excel atau CSV Roster Per-Bulan — bisa juga tarik & lepas file ke halaman ini"
           >
             <FileUp className="size-4" />
             <span>Import Per-Bulan</span>

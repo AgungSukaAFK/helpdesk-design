@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { FileDropArea } from "@/components/file-drop";
 import { createClient } from "@/lib/supabase/client";
 import {
   Article,
@@ -141,11 +142,7 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
     if (!slugTouched) setSlug(slugify(title));
   }, [title, slugTouched]);
 
-  const handleCoverUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
+  const handleCoverUpload = async (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       toast.error("File harus berupa gambar.");
@@ -341,7 +338,15 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
         <div className="space-y-5">
           <div className="space-y-2">
             <Label>Cover</Label>
-            <div className="overflow-hidden rounded-lg border">
+            <FileDropArea
+              onFiles={(files) => handleCoverUpload(files[0])}
+              accept="image/*"
+              multiple={false}
+              disabled={uploadingCover}
+              paste={!uploadingCover}
+              label={coverImage ? "Lepaskan untuk mengganti cover" : "Lepaskan gambar untuk cover"}
+              className="overflow-hidden rounded-lg border"
+            >
               {coverImage ? (
                 <div className="relative aspect-video bg-muted">
                   <Image
@@ -371,18 +376,30 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
                   ) : (
                     <>
                       <ImagePlus className="h-6 w-6" />
-                      <span className="text-sm">Unggah cover</span>
+                      <span className="text-sm font-medium">Unggah cover</span>
+                      <span className="px-4 text-center text-xs">
+                        Klik, tarik &amp; lepas gambar ke sini, atau tempel dengan Ctrl+V
+                      </span>
                     </>
                   )}
                 </button>
               )}
-            </div>
+            </FileDropArea>
+            <p className="text-xs text-muted-foreground">
+              {coverImage
+                ? "Tarik gambar baru ke cover atau tekan Ctrl+V (di luar editor konten) untuk mengganti."
+                : "Ctrl+V di luar editor konten akan menempel gambar sebagai cover."}
+            </p>
             <input
               ref={coverInputRef}
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={handleCoverUpload}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                void handleCoverUpload(file);
+              }}
             />
           </div>
 

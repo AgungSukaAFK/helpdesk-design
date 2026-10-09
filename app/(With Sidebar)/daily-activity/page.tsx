@@ -1,4 +1,5 @@
 "use client";
+import { DropHint, PageFileDrop } from "@/components/file-drop";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -1019,7 +1020,10 @@ export default function DailyActivityPage() {
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (file) await importExcelFile(file);
+  };
+
+  const importExcelFile = async (file: File) => {
 
     setImporting(true);
     try {
@@ -1302,6 +1306,13 @@ export default function DailyActivityPage() {
         accept=".xlsx,.xls,.csv"
         className="hidden"
       />
+      <PageFileDrop
+        onFiles={(files) => importExcelFile(files[0])}
+        accept=".xlsx,.xls,.csv"
+        disabled={!isAdmin || importing || isProcessingImport}
+        label="Lepaskan file untuk import aktivitas"
+      />
+      {isAdmin && <DropHint className="mb-3" />}
 
       {/* 1. MONTH SELECTOR */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-card border rounded-xl p-3.5 shadow-xs mb-4">

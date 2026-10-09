@@ -33,6 +33,7 @@ import {
   Loader2
 } from "lucide-react";
 import Image from "next/image";
+import { FileDropArea } from "@/components/file-drop";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   readNotificationPreferences,
@@ -248,6 +249,10 @@ export default function ProfilePage() {
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
+    await uploadAvatarFile(file);
+  };
+
+  const uploadAvatarFile = async (file: File | undefined) => {
     if (!file || !user) return;
     if (!file.type.startsWith("image/")) {
       toast.error("File foto harus berupa gambar.");
@@ -370,6 +375,10 @@ export default function ProfilePage() {
   const handleRingtoneUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
+    await saveRingtoneFile(file);
+  };
+
+  const saveRingtoneFile = async (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith("audio/")) {
       toast.error("File ringtone harus berupa audio.");
@@ -514,7 +523,14 @@ export default function ProfilePage() {
         <div className="p-6">
           <h2 className="text-lg font-semibold mb-6">Data Profil</h2>
           
-          <div className="flex items-center gap-6 mb-8">
+          <FileDropArea
+            onFiles={(files) => uploadAvatarFile(files[0])}
+            accept="image/png,image/jpeg,image/webp"
+            multiple={false}
+            disabled={isUploadingAvatar}
+            label="Lepaskan untuk mengganti foto profil"
+            className="flex items-center gap-6 mb-8 rounded-xl"
+          >
             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border bg-muted">
               {formData.avatar_url ? (
                 <Image src={formData.avatar_url} alt="Avatar" fill className="object-cover" />
@@ -527,7 +543,7 @@ export default function ProfilePage() {
             <div className="flex flex-col gap-2">
               <h3 className="font-semibold text-base">{formData.name || "-"}</h3>
               <p className="text-xs text-muted-foreground mb-1">
-                JPG, PNG, atau WebP. Maksimal 10 MB.
+                JPG, PNG, atau WebP. Maksimal 10 MB. Bisa juga tarik &amp; lepas foto ke area ini.
               </p>
               <div className="flex items-center gap-2">
                 <Button size="sm" className="h-8 gap-2 bg-emerald-500 hover:bg-emerald-600" onClick={triggerFileUpload} disabled={isUploadingAvatar}>
@@ -540,7 +556,7 @@ export default function ProfilePage() {
                 </Button>
               </div>
             </div>
-          </div>
+          </FileDropArea>
 
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-2">
@@ -813,12 +829,19 @@ export default function ProfilePage() {
             </div>
 
             {/* Ringtone Custom */}
-            <div className="flex flex-col gap-3 pt-2 border-t mt-2">
+            <FileDropArea
+              onFiles={(files) => saveRingtoneFile(files[0])}
+              accept="audio/*"
+              multiple={false}
+              label="Lepaskan file audio untuk dijadikan ringtone"
+              className="flex flex-col gap-3 pt-2 border-t mt-2"
+            >
               <div>
                 <p className="font-medium text-sm">Ringtone Custom</p>
                 <p className="text-xs text-muted-foreground mt-1 max-w-[90%]">
                   Upload file audio atau rekam suara langsung, maks 30 detik. Tersimpan lokal di perangkat ini saja 
                   (tidak diunggah ke server) - perlu di-set ulang kalau ganti device/browser.
+                  File audio juga bisa langsung ditarik &amp; dilepas ke bagian ini.
                 </p>
               </div>
 
@@ -848,7 +871,7 @@ export default function ProfilePage() {
                   <Mic className="h-3.5 w-3.5" /> {isRecordingRingtone ? "Selesai Rekam" : "Rekam Suara"}
                 </Button>
               </div>
-            </div>
+            </FileDropArea>
 
             {/* Notifikasi Browser */}
             <div className="flex items-center justify-between pt-2 border-t mt-2">

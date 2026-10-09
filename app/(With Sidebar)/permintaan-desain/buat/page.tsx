@@ -12,7 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import { FormEvent, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Paperclip, Trash2 } from "lucide-react";
+import { Paperclip, Trash2 } from "lucide-react";
+import { FileDropzone } from "@/components/file-drop";
 import {
   Table,
   TableBody,
@@ -100,9 +101,8 @@ export default function BuatPermintaanDesainPage() {
   const { push } = useRouter();
 
   // --- FUNGSI UNTUK MENGELOLA LAMPIRAN ---
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  const handleFileUpload = async (files: globalThis.File[]) => {
+    if (files.length === 0) return;
 
     setIsUploading(true);
     const toastId = toast.loading(`Mengunggah ${files.length} file...`);
@@ -136,7 +136,6 @@ export default function BuatPermintaanDesainPage() {
       toast.dismiss(toastId);
     }
     setIsUploading(false);
-    e.target.value = ""; // Reset input file
   };
 
   const handleRemoveFile = async (index: number, path: string) => {
@@ -309,18 +308,13 @@ export default function BuatPermintaanDesainPage() {
           {/* BAGIAN LAMPIRAN BARU */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="attachments">Lampiran (Opsional)</Label>
-            <Input
+            <FileDropzone
               id="attachments"
-              type="file"
-              multiple
-              disabled={loading || isUploading}
-              onChange={handleFileUpload}
+              onFiles={handleFileUpload}
+              disabled={loading}
+              loading={isUploading}
+              hint="contoh: referensi desain, logo, brief"
             />
-            {isUploading && (
-              <div className="flex items-center text-sm text-muted-foreground">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mengunggah...
-              </div>
-            )}
 
             {uploadedFiles.length > 0 && (
               <div className="mt-2 rounded-md border">
