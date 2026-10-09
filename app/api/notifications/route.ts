@@ -1,14 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthorizedContext } from "@/lib/supabase/authorization";
-
-function getAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createClient(supabaseUrl, supabaseKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
+import { createNotifications } from "@/lib/notifications/server";
 
 // GET: Get notifications for current user
 export async function GET(request: NextRequest) {
@@ -70,11 +62,10 @@ export async function POST(request: NextRequest) {
   try {
     const access = await getAuthorizedContext(["admin", "user", "designer"]);
     if (!access.client) return access.response;
-    const { user } = access;
-    
+    const { client: adminClient, user } = access;
+
     const body = await request.json();
     const { type, title, message, link, target_user_id } = body;
-    const adminClient = getAdminClient();
 
     if (type === "notify_admins") {
       // Find all admins and designers
@@ -82,23 +73,20 @@ export async function POST(request: NextRequest) {
         .from("user_profiles")
         .select("id")
         .in("role", ["admin", "designer"]);
-        
+
       if (admins && admins.length > 0) {
-        const notifs = admins.map(a => ({
-          user_id: a.id,
-          title,
-          message,
-          link,
-        }));
-        await adminClient.from("notifications").insert(notifs);
+        await createNotifications(
+          adminClient,
+          admins.map((a) => ({ user_id: a.id, title, message, link })),
+          { actorId: user.id },
+        );
       }
     } else if (target_user_id) {
-      await adminClient.from("notifications").insert([{
-        user_id: target_user_id,
-        title,
-        message,
-        link,
-      }]);
+      await createNotifications(
+        adminClient,
+        [{ user_id: target_user_id, title, message, link }],
+        { actorId: user.id },
+      );
     }
 
     return NextResponse.json({ success: true });

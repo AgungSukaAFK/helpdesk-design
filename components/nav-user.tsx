@@ -35,6 +35,7 @@ export function NavUser({
   const [logoutDialog, setLogoutDialog] = useState<boolean>(false);
   const [mounted, setMounted] = useState<boolean>(false);
   const { setTheme, resolvedTheme } = useTheme();
+  const isDarkTheme = resolvedTheme === "dark" || resolvedTheme === "soft-dark";
 
   const { isMobile, setOpenMobile } = useSidebar();
 
@@ -119,9 +120,9 @@ export function NavUser({
                 {mounted && (
                   <DropdownMenuItem
                     className="w-full flex items-center gap-2 cursor-pointer"
-                    onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                    onClick={() => setTheme(isDarkTheme ? "light" : "dark")}
                   >
-                    {resolvedTheme === "dark" ? (
+                    {isDarkTheme ? (
                       <>
                         <Sun className="size-4 text-amber-500" />
                         <span>Mode Terang (Light)</span>

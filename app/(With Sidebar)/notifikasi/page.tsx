@@ -1,76 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Content } from "@/components/content";
 import { Bell, Check, Trash2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  link: string | null;
-  is_read: boolean;
-  created_at: string;
-}
+import { useNotifications } from "@/components/providers/notification-provider";
 
 export default function NotifikasiPage() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { notifications, loading, markAsRead: markRead, markAllRead } = useNotifications();
   const router = useRouter();
 
-  useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch("/api/notifications");
-      const json = await res.json();
-      if (json.success) {
-        setNotifications(json.data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch notifications", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const markAsRead = async (id: string, link: string | null) => {
-    try {
-      await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
-      );
-      if (link) {
-        router.push(link);
-      }
-    } catch (e) {
-      console.error("Failed to mark as read", e);
-    }
+    await markRead(id);
+    if (link) router.push(link);
   };
 
-  const markAllAsRead = async () => {
-    try {
-      await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ read_all: true }),
-      });
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-    } catch (e) {
-      console.error("Failed to mark all as read", e);
-    }
-  };
+  const markAllAsRead = () => markAllRead();
 
   return (
     <Content title="Notifikasi" size="lg">

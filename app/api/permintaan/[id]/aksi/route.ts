@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthorizedContext } from "@/lib/supabase/authorization";
+import { createNotifications } from "@/lib/notifications/server";
 import {
   allowedActions,
   normalizeStatus,
@@ -148,12 +149,12 @@ export async function POST(
         .insert({ permintaan_id: id, user_id: user.id, message: systemChat });
     }
     if (notifyTarget && notifyTarget !== user.id) {
-      await supabase.from("notifications").insert({
+      await createNotifications(supabase, [{
         user_id: notifyTarget,
         title: notifyTitle,
         message: notifyMessage,
         link: `/permintaan-desain/${id}`,
-      });
+      }], { actorId: user.id });
     }
 
     return NextResponse.json({ success: true, data: updated });

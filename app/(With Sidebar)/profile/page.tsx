@@ -7,9 +7,9 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { User } from "@supabase/supabase-js";
-import { ThemeSwitcher } from "@/components/theme-switcher";
+import { AppearanceSwitchers } from "@/components/theme-switcher";
+import { NotificationSettings } from "@/components/notification-settings";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -18,38 +18,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { 
-  Camera, 
-  Trash2, 
-  Eye, 
-  EyeOff, 
-  KeyRound, 
-  Upload, 
-  Mic, 
-  Bell, 
-  Play,
-  Download,
-  Smartphone,
-  Loader2
+import {
+  Camera,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import { FileDropArea } from "@/components/file-drop";
-import {
-  DEFAULT_NOTIFICATION_PREFERENCES,
-  readNotificationPreferences,
-  writeNotificationPreferences,
-  type NotificationPreferences,
-} from "@/lib/notification-preferences";
-import { playNotificationAudio } from "@/lib/notification-audio";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-}
 
 const MAX_AVATAR_SIZE = 10 * 1024 * 1024;
-const MAX_RINGTONE_SIZE = 1.5 * 1024 * 1024;
-const MAX_RINGTONE_DURATION_SECONDS = 30;
 
 function getAvatarStoragePath(avatarUrl: string | null | undefined) {
   if (!avatarUrl) return null;
@@ -61,15 +40,6 @@ function getAvatarStoragePath(avatarUrl: string | null | undefined) {
   } catch {
     return avatarUrl.startsWith("avatars/") ? avatarUrl : null;
   }
-}
-
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("File audio tidak dapat dibaca."));
-    reader.onerror = () => reject(new Error("File audio tidak dapat dibaca."));
-    reader.readAsDataURL(blob);
-  });
 }
 
 type Profile = {
@@ -109,18 +79,8 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [notificationPreferences, setNotificationPreferences] =
-    useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
-  const [isRecordingRingtone, setIsRecordingRingtone] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const ringtoneInputRef = useRef<HTMLInputElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordingChunksRef = useRef<Blob[]>([]);
-  const ringtoneAudioRef = useRef<HTMLAudioElement | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -166,36 +126,6 @@ export default function ProfilePage() {
 
     fetchUserData();
   }, [router]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    setNotificationPreferences(readNotificationPreferences(user.id));
-    setPreferencesLoaded(true);
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!user?.id || !preferencesLoaded) return;
-    if (!writeNotificationPreferences(user.id, notificationPreferences)) {
-      toast.error("Pengaturan notifikasi tidak dapat disimpan di perangkat ini.");
-    }
-  }, [user?.id, preferencesLoaded, notificationPreferences]);
-
-  useEffect(() => {
-    const handleInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-    };
-    const mediaQuery = window.matchMedia("(display-mode: standalone)");
-    setIsInstalled(mediaQuery.matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
-    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
-    window.addEventListener("appinstalled", () => setIsInstalled(true));
-    if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker.register("/sw.js").catch((error) => {
-        console.error("Service worker registration failed:", error);
-      });
-    }
-    return () => window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
-  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -322,151 +252,6 @@ export default function ProfilePage() {
     } finally {
       setIsUploadingAvatar(false);
     }
-  };
-
-  const updateNotificationPreferences = <K extends keyof NotificationPreferences>(
-    key: K,
-    value: NotificationPreferences[K]
-  ) => {
-    setNotificationPreferences((current) => ({ ...current, [key]: value }));
-  };
-
-  const requestNotificationPermission = async () => {
-    if (!("Notification" in window)) {
-      toast.error("Browser ini tidak mendukung notifikasi.");
-      return false;
-    }
-    const permission = Notification.permission === "granted"
-      ? "granted"
-      : await Notification.requestPermission();
-    if (permission !== "granted") {
-      toast.error("Izin notifikasi belum diberikan di pengaturan browser.");
-      return false;
-    }
-    return true;
-  };
-
-  const handleBrowserNotificationToggle = async (enabled: boolean) => {
-    if (enabled && !(await requestNotificationPermission())) return;
-    updateNotificationPreferences("browser", enabled);
-  };
-
-  const handleDeviceNotificationToggle = async (enabled: boolean) => {
-    if (enabled) {
-      if (!("serviceWorker" in navigator) || !(await requestNotificationPermission())) return;
-      try {
-        await navigator.serviceWorker.ready;
-      } catch {
-        toast.error("Service worker tidak dapat diaktifkan di perangkat ini.");
-        return;
-      }
-    }
-    updateNotificationPreferences("device", enabled);
-  };
-
-  const handlePreviewSound = async () => {
-    try {
-      await playNotificationAudio({ ...notificationPreferences, sound: true });
-    } catch {
-      toast.error("Browser memblokir pemutaran suara. Coba lagi setelah berinteraksi dengan halaman.");
-    }
-  };
-
-  const handleRingtoneUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    await saveRingtoneFile(file);
-  };
-
-  const saveRingtoneFile = async (file: File | undefined) => {
-    if (!file) return;
-    if (!file.type.startsWith("audio/")) {
-      toast.error("File ringtone harus berupa audio.");
-      return;
-    }
-    if (file.size > MAX_RINGTONE_SIZE) {
-      toast.error("Ukuran ringtone maksimal 1,5 MB.");
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    try {
-      const duration = await new Promise<number>((resolve, reject) => {
-        const audio = new Audio();
-        audio.onloadedmetadata = () => resolve(audio.duration);
-        audio.onerror = () => reject(new Error("Audio tidak dapat dibaca."));
-        audio.src = objectUrl;
-      });
-      if (!Number.isFinite(duration) || duration > MAX_RINGTONE_DURATION_SECONDS) {
-        throw new Error("Durasi ringtone maksimal 30 detik.");
-      }
-      const dataUrl = await blobToDataUrl(file);
-      updateNotificationPreferences("customAudioName", file.name);
-      updateNotificationPreferences("customAudioDataUrl", dataUrl);
-      toast.success("Ringtone tersimpan di perangkat ini.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal memuat ringtone.");
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-    }
-  };
-
-  const handleStartRecording = async () => {
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      toast.error("Rekam suara tidak didukung browser ini.");
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      recordingChunksRef.current = [];
-      mediaRecorderRef.current = recorder;
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) recordingChunksRef.current.push(event.data);
-      };
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop());
-        setIsRecordingRingtone(false);
-        const recording = new Blob(recordingChunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        if (recording.size > MAX_RINGTONE_SIZE) {
-          toast.error("Rekaman melebihi batas 1,5 MB. Coba rekam suara yang lebih singkat.");
-          return;
-        }
-        try {
-          const dataUrl = await blobToDataUrl(recording);
-          updateNotificationPreferences("customAudioName", "Rekaman suara.webm");
-          updateNotificationPreferences("customAudioDataUrl", dataUrl);
-          toast.success("Rekaman tersimpan di perangkat ini.");
-        } catch (error) {
-          toast.error(error instanceof Error ? error.message : "Gagal menyimpan rekaman.");
-        }
-      };
-      recorder.start();
-      setIsRecordingRingtone(true);
-      window.setTimeout(() => {
-        if (recorder.state === "recording") recorder.stop();
-      }, MAX_RINGTONE_DURATION_SECONDS * 1000);
-    } catch {
-      toast.error("Izin mikrofon ditolak atau tidak tersedia.");
-    }
-  };
-
-  const handleInstallApp = async () => {
-    if (isInstalled) {
-      toast.info("Aplikasi sudah terpasang di perangkat ini.");
-      return;
-    }
-    if (installPrompt) {
-      await installPrompt.prompt();
-      const choice = await installPrompt.userChoice;
-      if (choice.outcome === "accepted") setIsInstalled(true);
-      setInstallPrompt(null);
-      return;
-    }
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    toast.info(isIos
-      ? "Di Safari, ketuk Bagikan lalu pilih Tambahkan ke Layar Utama."
-      : "Gunakan menu browser dan pilih Instal aplikasi atau Tambahkan ke layar utama.");
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -751,169 +536,16 @@ export default function ProfilePage() {
 
       {/* 3. PENGATURAN TEMA */}
       <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
-        <div className="p-6 flex items-center justify-between">
+        <div className="p-6 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Pengaturan Tema</h2>
-          <ThemeSwitcher />
+          <AppearanceSwitchers />
         </div>
       </div>
 
       {/* 4. PENGATURAN NOTIFIKASI */}
       <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
         <div className="p-6">
-          <h2 className="text-lg font-semibold flex items-center gap-2 mb-6">
-            <Bell className="h-5 w-5" /> Pengaturan Notifikasi
-          </h2>
-
-          <div className="flex flex-col gap-6">
-            {/* Realtime Notif */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-sm">Notifikasi realtime</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Tampilkan alert (suara, browser, popup) saat ada notif baru.</p>
-              </div>
-              <Switch checked={notificationPreferences.realtime} onCheckedChange={(checked) => updateNotificationPreferences("realtime", checked)} />
-            </div>
-
-            {/* Sound Notif */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-sm">Suara notifikasi</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Bunyikan saat notif masuk.</p>
-              </div>
-              <Switch checked={notificationPreferences.sound} onCheckedChange={(checked) => updateNotificationPreferences("sound", checked)} className="data-[state=checked]:bg-emerald-500" />
-            </div>
-
-            {/* Volume */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <Play className="h-4 w-4 rotate-90" /> {/* Speaker icon representation */}
-                  <Label htmlFor="notification-volume">Volume</Label>
-                </div>
-                <span className="text-muted-foreground">{notificationPreferences.volume}%</span>
-              </div>
-              <input
-                id="notification-volume"
-                type="range"
-                min="0"
-                max="100"
-                step="5"
-                value={notificationPreferences.volume}
-                onChange={(event) => updateNotificationPreferences("volume", Number(event.target.value))}
-                disabled={!notificationPreferences.sound}
-                className="h-2 w-full cursor-pointer accent-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-              />
-            </div>
-
-            {/* Pilihan Suara */}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="notification-sound">Pilihan suara</Label>
-              <div className="flex items-center gap-2">
-                <Select value={notificationPreferences.soundPreset} onValueChange={(value) => updateNotificationPreferences("soundPreset", value as NotificationPreferences["soundPreset"])}>
-                  <SelectTrigger id="notification-sound" className="h-10 flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="marimba">Marimba</SelectItem>
-                    <SelectItem value="ding-dong">Ding Dong</SelectItem>
-                    <SelectItem value="soft-chime">Soft Chime</SelectItem>
-                    <SelectItem value="double-pulse">Double Pulse</SelectItem>
-                    <SelectItem value="sparkle">Sparkle</SelectItem>
-                    <SelectItem value="pop">Modern Pop</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button type="button" variant="outline" className="h-10 gap-2 shrink-0" onClick={handlePreviewSound}>
-                  <Play className="h-3.5 w-3.5" /> Coba
-                </Button>
-              </div>
-            </div>
-
-            {/* Ringtone Custom */}
-            <FileDropArea
-              onFiles={(files) => saveRingtoneFile(files[0])}
-              accept="audio/*"
-              multiple={false}
-              label="Lepaskan file audio untuk dijadikan ringtone"
-              className="flex flex-col gap-3 pt-2 border-t mt-2"
-            >
-              <div>
-                <p className="font-medium text-sm">Ringtone Custom</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-[90%]">
-                  Upload file audio atau rekam suara langsung, maks 30 detik. Tersimpan lokal di perangkat ini saja 
-                  (tidak diunggah ke server) - perlu di-set ulang kalau ganti device/browser.
-                  File audio juga bisa langsung ditarik &amp; dilepas ke bagian ini.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
-                <div>
-                  <p className="font-medium text-sm truncate">{notificationPreferences.customAudioName || "Suara default"}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {notificationPreferences.customAudioName ? "Tersimpan di perangkat ini" : "Gunakan suara pilihan di atas"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={handlePreviewSound} aria-label="Coba ringtone">
-                    <Play className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button type="button" variant="outline" size="icon" className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10" onClick={() => { updateNotificationPreferences("customAudioName", null); updateNotificationPreferences("customAudioDataUrl", null); }} disabled={!notificationPreferences.customAudioDataUrl} aria-label="Hapus ringtone">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <input ref={ringtoneInputRef} type="file" accept="audio/*" className="hidden" onChange={handleRingtoneUpload} />
-                <Button type="button" variant="outline" size="sm" className="gap-2 h-9 text-xs" onClick={() => ringtoneInputRef.current?.click()}>
-                  <Upload className="h-3.5 w-3.5" /> Unggah Audio
-                </Button>
-                <Button type="button" variant="outline" size="sm" className="gap-2 h-9 text-xs" onClick={() => mediaRecorderRef.current?.state === "recording" ? mediaRecorderRef.current.stop() : void handleStartRecording()}>
-                  <Mic className="h-3.5 w-3.5" /> {isRecordingRingtone ? "Selesai Rekam" : "Rekam Suara"}
-                </Button>
-              </div>
-            </FileDropArea>
-
-            {/* Notifikasi Browser */}
-            <div className="flex items-center justify-between pt-2 border-t mt-2">
-              <div>
-                <p className="font-medium text-sm">Notifikasi browser</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Muncul di OS saat tab tidak sedang dibuka/fokus.</p>
-              </div>
-              <Switch checked={notificationPreferences.browser} onCheckedChange={handleBrowserNotificationToggle} className="data-[state=checked]:bg-emerald-500" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 5. INSTALL APLIKASI */}
-      <button type="button" onClick={handleInstallApp} className="w-full text-left rounded-xl border bg-card text-card-foreground shadow-sm hover:border-primary/50 transition-colors disabled:cursor-default">
-        <div className="p-5 flex gap-4">
-          <Download className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-          <div>
-            <h3 className="font-semibold text-sm">{isInstalled ? "Aplikasi Terpasang" : "Install Aplikasi"}</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              {isInstalled ? "DesignDesk sudah terpasang di perangkat ini." : "Pasang DesignDesk ke layar utama perangkat ini."}
-            </p>
-          </div>
-        </div>
-      </button>
-
-      {/* 6. NOTIFIKASI HP */}
-      <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
-        <div className="p-6">
-          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-            <Smartphone className="h-5 w-5" /> Notifikasi HP
-          </h2>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-sm">Aktifkan di perangkat ini</p>
-              <p className="text-xs text-muted-foreground mt-1 max-w-[90%]">
-                Notifikasi OS pada perangkat ini saat DesignDesk terbuka. Push saat aplikasi tertutup memerlukan konfigurasi server.
-              </p>
-            </div>
-            <Switch checked={notificationPreferences.device} onCheckedChange={handleDeviceNotificationToggle} />
-          </div>
+          <NotificationSettings />
         </div>
       </div>
     </div>

@@ -20,7 +20,7 @@ import { redirect, usePathname, useRouter } from "next/navigation";
 import { Fragment, ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { NotificationBell } from "@/components/notification-bell";
-import { ThemeSwitcher } from "@/components/theme-switcher";
+import { AppearanceSwitchers } from "@/components/theme-switcher";
 import { Loader2 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -188,7 +188,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               </Breadcrumb>
               <div className="ml-auto flex items-center gap-2 shrink-0">
                 <NotificationBell />
-                <ThemeSwitcher />
+                <AppearanceSwitchers />
               </div>
             </div>
           </header>

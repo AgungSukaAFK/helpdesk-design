@@ -1,3 +1,19 @@
+// Service Worker khusus Web Push, tanpa caching.
+self.addEventListener("push", (event) => {
+  let payload = { title: "DesignDesk", body: "Ada notifikasi baru." };
+  if (event.data) {
+    try { payload = event.data.json(); }
+    catch { payload = { title: "DesignDesk", body: event.data.text() }; }
+  }
+  const title = payload.title || "DesignDesk";
+  event.waitUntil(self.registration.showNotification(title, {
+    body: payload.body || "",
+    icon: "/lourdes.png",
+    badge: "/lourdes.png",
+    data: { url: payload.url || "/notifikasi" },
+  }));
+});
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const target = event.notification.data?.url || "/notifikasi";

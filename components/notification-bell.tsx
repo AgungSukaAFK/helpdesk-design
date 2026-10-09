@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,112 +8,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { createClient } from "@/lib/supabase/client";
-import { playNotificationAudio } from "@/lib/notification-audio";
-import { readNotificationPreferences } from "@/lib/notification-preferences";
+import { useNotifications } from "@/components/providers/notification-provider";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  link: string | null;
-  is_read: boolean;
-  created_at: string;
-}
-
-let userIdPromise: Promise<string> | null = null;
-
-function resolveUserId(): Promise<string> {
-  if (!userIdPromise) {
-    userIdPromise = createClient()
-      .auth.getUser()
-      .then(({ data }) => data.user?.id ?? "")
-      .catch(() => "");
-  }
-  return userIdPromise;
-}
-
 export function NotificationBell() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { notifications, unreadCount, markAsRead: markRead, markAllRead } = useNotifications();
   const router = useRouter();
-  const prevUnreadCount = useRef(0);
-  const isFirstLoad = useRef(true);
-
-  const playNotificationSound = async () => {
-    try {
-      const userId = await resolveUserId();
-      await playNotificationAudio(readNotificationPreferences(userId));
-    } catch (e) {
-      console.error("Failed to play notification sound", e);
-    }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // Polling every minute
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch("/api/notifications");
-      const json = await res.json();
-      if (json.success) {
-        const newUnread = json.data.filter((n: Notification) => !n.is_read).length;
-        
-        // If unread count increased and it's not the first load, play sound
-        if (!isFirstLoad.current && newUnread > prevUnreadCount.current) {
-          void playNotificationSound();
-        }
-        
-        setNotifications(json.data);
-        setUnreadCount(newUnread);
-        
-        prevUnreadCount.current = newUnread;
-        isFirstLoad.current = false;
-      }
-    } catch (e) {
-      console.error("Failed to fetch notifications", e);
-    }
-  };
 
   const markAsRead = async (id: string, link: string | null) => {
-    try {
-      await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      // Update local state immediately
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-      
-      if (link) {
-        router.push(link);
-      }
-    } catch (e) {
-      console.error("Failed to mark as read", e);
-    }
+    await markRead(id);
+    if (link) router.push(link);
   };
 
-  const markAllAsRead = async (e: React.MouseEvent) => {
+  const markAllAsRead = (e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ read_all: true }),
-      });
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      setUnreadCount(0);
-    } catch (e) {
-      console.error("Failed to mark all as read", e);
-    }
+    void markAllRead();
   };
 
   return (

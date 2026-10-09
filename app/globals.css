@@ -3,7 +3,8 @@
 @plugin 'tailwindcss-animate';
 @plugin '@tailwindcss/typography';
 
-@custom-variant dark (&:is(.dark *));
+/* soft-dark ikut dihitung sebagai dark supaya utility `dark:` tetap jalan */
+@custom-variant dark (&:is(.dark *, .soft-dark *));
 
 @theme {
   --color-background: hsl(var(--background));
@@ -34,18 +35,19 @@
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
 
-  --color-chart-1: hsl(var(--chart-1));
-  --color-chart-2: hsl(var(--chart-2));
-  --color-chart-3: hsl(var(--chart-3));
-  --color-chart-4: hsl(var(--chart-4));
-  --color-chart-5: hsl(var(--chart-5));
-
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 }
 
 @theme inline {
+  /* Nilai chart sudah warna lengkap (oklch), jadi tidak dibungkus hsl() */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -56,15 +58,200 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
+/* ------------------------------------------------------------------ */
+/* Tema: Light, Dark, Soft Light, Soft Dark                            */
+/* ------------------------------------------------------------------ */
 @layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 5.9% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 5.9% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 5.9% 10%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --chart-1: oklch(0.646 0.222 41.116);
+    --chart-2: oklch(0.6 0.118 184.704);
+    --chart-3: oklch(0.398 0.07 227.392);
+    --chart-4: oklch(0.828 0.189 84.429);
+    --chart-5: oklch(0.769 0.188 70.08);
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 240 5.9% 10%;
+    --foreground: 0 0% 98%;
+    --card: 240 5.9% 10%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 5.9% 10%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+  }
+
+  .soft-light {
+    color-scheme: light;
+    --background: 40 14% 91.5%;
+    --foreground: 30 7% 23%;
+    --card: 40 16% 94%;
+    --card-foreground: 30 7% 23%;
+    --popover: 40 16% 94%;
+    --popover-foreground: 30 7% 23%;
+    --primary: 30 7% 25%;
+    --primary-foreground: 40 16% 94%;
+    --secondary: 38 12% 86.5%;
+    --secondary-foreground: 30 7% 23%;
+    --muted: 38 12% 86.5%;
+    --muted-foreground: 30 5% 42%;
+    --accent: 38 12% 85%;
+    --accent-foreground: 30 7% 23%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 38 9% 80.5%;
+    --input: 38 9% 80.5%;
+    --ring: 30 7% 25%;
+    --chart-1: oklch(0.646 0.222 41.116);
+    --chart-2: oklch(0.6 0.118 184.704);
+    --chart-3: oklch(0.398 0.07 227.392);
+    --chart-4: oklch(0.828 0.189 84.429);
+    --chart-5: oklch(0.769 0.188 70.08);
+  }
+
+  .soft-dark {
+    color-scheme: dark;
+    --background: 215 14% 16.5%;
+    --foreground: 210 16% 85%;
+    --card: 215 13% 19%;
+    --card-foreground: 210 16% 85%;
+    --popover: 215 13% 19%;
+    --popover-foreground: 210 16% 85%;
+    --primary: 210 16% 87%;
+    --primary-foreground: 215 14% 15%;
+    --secondary: 215 12% 24.5%;
+    --secondary-foreground: 210 16% 85%;
+    --muted: 215 12% 24.5%;
+    --muted-foreground: 213 9% 64%;
+    --accent: 215 12% 26%;
+    --accent-foreground: 210 16% 87%;
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 215 11% 23.5%;
+    --input: 215 11% 26%;
+    --ring: 213 14% 66%;
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Warna aksen: class .theme-<nama> di <html> (zinc = tanpa class).    */
+/* Hanya mengganti --primary, --primary-foreground, --ring.            */
+/* Soft Dark memakai shade lebih terang + teks gelap agar kontras.     */
+/* ------------------------------------------------------------------ */
+@layer base {
+  .theme-blue { --primary: 217.2 91.2% 59.8%; --primary-foreground: 210 40% 98%; --ring: 217.2 91.2% 59.8%; }
+  .soft-dark.theme-blue { --primary: 213.1 93.9% 67.8%; --primary-foreground: 213.1 60% 12%; --ring: 213.1 93.9% 67.8%; }
+
+  .theme-sky { --primary: 200.4 98% 39.4%; --primary-foreground: 204 100% 97.1%; --ring: 200.4 98% 39.4%; }
+  .soft-dark.theme-sky { --primary: 198.4 93.2% 59.6%; --primary-foreground: 198.4 60% 12%; --ring: 198.4 93.2% 59.6%; }
+
+  .theme-cyan { --primary: 191.6 91.4% 36.5%; --primary-foreground: 183.2 100% 96.3%; --ring: 191.6 91.4% 36.5%; }
+  .soft-dark.theme-cyan { --primary: 187.9 85.7% 53.3%; --primary-foreground: 187.9 60% 12%; --ring: 187.9 85.7% 53.3%; }
+
+  .theme-teal { --primary: 174.7 83.9% 31.6%; --primary-foreground: 166.2 76.5% 96.7%; --ring: 174.7 83.9% 31.6%; }
+  .soft-dark.theme-teal { --primary: 172.5 66% 50.4%; --primary-foreground: 172.5 60% 12%; --ring: 172.5 66% 50.4%; }
+
+  .theme-emerald { --primary: 161.4 93.5% 30.4%; --primary-foreground: 151.8 81% 95.9%; --ring: 161.4 93.5% 30.4%; }
+  .soft-dark.theme-emerald { --primary: 158.1 64.4% 51.6%; --primary-foreground: 158.1 60% 12%; --ring: 158.1 64.4% 51.6%; }
+
+  .theme-green { --primary: 142.1 76.2% 36.3%; --primary-foreground: 144.9 80.4% 97.3%; --ring: 142.1 76.2% 36.3%; }
+  .soft-dark.theme-green { --primary: 141.9 69.2% 58%; --primary-foreground: 141.9 60% 12%; --ring: 141.9 69.2% 58%; }
+
+  .theme-amber { --primary: 37.7 92.1% 50.2%; --primary-foreground: 26 83.3% 14.1%; --ring: 37.7 92.1% 50.2%; }
+  .soft-dark.theme-amber { --primary: 45.9 96.7% 64.5%; --primary-foreground: 45.9 60% 12%; --ring: 45.9 96.7% 64.5%; }
+
+  .theme-orange { --primary: 20.5 90.2% 48.2%; --primary-foreground: 33.3 100% 96.5%; --ring: 20.5 90.2% 48.2%; }
+  .soft-dark.theme-orange { --primary: 27 96% 61%; --primary-foreground: 27 60% 12%; --ring: 27 96% 61%; }
+
+  .theme-red { --primary: 0 72.2% 50.6%; --primary-foreground: 0 85.7% 97.3%; --ring: 0 72.2% 50.6%; }
+  .soft-dark.theme-red { --primary: 0 90.6% 70.8%; --primary-foreground: 0 60% 12%; --ring: 0 90.6% 70.8%; }
+
+  .theme-rose { --primary: 346.8 77.2% 49.8%; --primary-foreground: 355.7 100% 97.3%; --ring: 346.8 77.2% 49.8%; }
+  .soft-dark.theme-rose { --primary: 351.3 94.5% 71.4%; --primary-foreground: 351.3 60% 12%; --ring: 351.3 94.5% 71.4%; }
+
+  .theme-pink { --primary: 333.3 71.4% 50.6%; --primary-foreground: 327.3 73.3% 97.1%; --ring: 333.3 71.4% 50.6%; }
+  .soft-dark.theme-pink { --primary: 328.6 85.5% 70.2%; --primary-foreground: 328.6 60% 12%; --ring: 328.6 85.5% 70.2%; }
+
+  .theme-fuchsia { --primary: 292.2 84.1% 60.6%; --primary-foreground: 289.1 100% 97.8%; --ring: 292.2 84.1% 60.6%; }
+  .soft-dark.theme-fuchsia { --primary: 292 91.4% 72.5%; --primary-foreground: 292 60% 12%; --ring: 292 91.4% 72.5%; }
+
+  .theme-purple { --primary: 271.5 81.3% 55.9%; --primary-foreground: 270 100% 98%; --ring: 271.5 81.3% 55.9%; }
+  .soft-dark.theme-purple { --primary: 270 95.2% 75.3%; --primary-foreground: 270 60% 12%; --ring: 270 95.2% 75.3%; }
+
+  .theme-violet { --primary: 262.1 83.3% 57.8%; --primary-foreground: 250 100% 97.6%; --ring: 262.1 83.3% 57.8%; }
+  .soft-dark.theme-violet { --primary: 255.1 91.7% 76.3%; --primary-foreground: 255.1 60% 12%; --ring: 255.1 91.7% 76.3%; }
+
+  .theme-indigo { --primary: 243.4 75.4% 58.6%; --primary-foreground: 226.5 100% 96.9%; --ring: 243.4 75.4% 58.6%; }
+  .soft-dark.theme-indigo { --primary: 234.5 89.5% 73.9%; --primary-foreground: 234.5 60% 12%; --ring: 234.5 89.5% 73.9%; }
+
+  /* Warna perusahaan: aslinya gelap, versi terang dipakai di dark & soft-dark */
+  .theme-gmi { --primary: 240.9 48.6% 26.7%; --primary-foreground: 240 40% 98%; --ring: 240.9 48.6% 26.7%; }
+  .dark.theme-gmi,
+  .soft-dark.theme-gmi { --primary: 241 50% 66%; --primary-foreground: 241 50% 10%; --ring: 241 50% 66%; }
+
+  .theme-gis { --primary: 144 58.6% 21.8%; --primary-foreground: 144 60% 97%; --ring: 144 58.6% 21.8%; }
+  .dark.theme-gis,
+  .soft-dark.theme-gis { --primary: 144 45% 45%; --primary-foreground: 144 60% 8%; --ring: 144 45% 45%; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Border default, font, ukuran font, radius                           */
+/* ------------------------------------------------------------------ */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-app);
+  }
+
+  /*
+    The default border color has changed to `currentcolor` in Tailwind CSS v4,
+    so we've added these compatibility styles to make sure everything still
+    looks the same as it did with Tailwind CSS v3.
+  */
   *,
   ::after,
   ::before,
@@ -72,93 +259,91 @@
   ::file-selector-button {
     border-color: var(--color-gray-200, currentcolor);
   }
-}
+  /* Tema soft pakai --border tema, bukan gray-200 yang terlalu terang */
+  :is(.soft-light, .soft-dark) :is(*, ::after, ::before, ::backdrop, ::file-selector-button) {
+    border-color: hsl(var(--border));
+  }
+  /* Dark utama: sedikit lebih lembut dari gray-200 (setara zinc-600) */
+  .dark :is(*, ::after, ::before, ::backdrop, ::file-selector-button) {
+    border-color: hsl(240 5.2% 33.9%);
+  }
 
-@layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 222.2 47.4% 11.2%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
-    --primary: 173 80% 30%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 32% 95%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 32% 95%;
-    --muted-foreground: 215.4 16.3% 45%;
-    --accent: 173 60% 94%;
-    --accent-foreground: 173 80% 22%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 214.3 31.8% 90.5%;
-    --input: 214.3 31.8% 90.5%;
-    --ring: 173 80% 36%;
-    --chart-1: 173 80% 36%;
-    --chart-2: 217 91% 60%;
-    --chart-3: 270 70% 55%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 346 87% 53%;
-    --radius: 0.625rem;
+    --font-app: var(--font-geist-sans), system-ui, sans-serif;
   }
-  .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+  html[data-font="inter"] { --font-app: var(--font-inter), system-ui, sans-serif; }
+  html[data-font="jakarta"] { --font-app: var(--font-jakarta), system-ui, sans-serif; }
+  html[data-font="poppins"] { --font-app: var(--font-poppins), system-ui, sans-serif; }
+  html[data-font="nunito"] { --font-app: var(--font-nunito), system-ui, sans-serif; }
+  html[data-font="roboto"] { --font-app: var(--font-roboto), system-ui, sans-serif; }
+  html[data-font="atkinson"] { --font-app: var(--font-atkinson), system-ui, sans-serif; }
+  html[data-font="system"] {
+    --font-app: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  html[data-font-size="sm"] { font-size: 87.5%; }
+  html[data-font-size="lg"] { font-size: 112.5%; }
+  html[data-font-size="xl"] { font-size: 125%; }
+
+  html[data-radius="sm"] { --radius: 0.375rem; }
+  html[data-radius="lg"] { --radius: 0.875rem; }
+
+  /* Dokumen cetak selalu pakai ukuran & font standar, apa pun pilihan user.
+     data-printing dipasang komponen cetak selama ukur+cetak. */
+  html[data-printing] { font-size: 100% !important; }
+  @media print {
+    html {
+      font-size: 100% !important;
+      --font-app: var(--font-geist-sans), system-ui, sans-serif !important;
+    }
   }
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-}
-
+/* ------------------------------------------------------------------ */
+/* Sidebar per tema                                                    */
+/* ------------------------------------------------------------------ */
 @layer utilities {
   :root {
-    --sidebar: hsl(210 25% 97.5%);
-    --sidebar-foreground: hsl(222.2 47.4% 18%);
-    --sidebar-primary: hsl(173 80% 30%);
-    --sidebar-primary-foreground: hsl(0 0% 100%);
-    --sidebar-accent: hsl(173 60% 94%);
-    --sidebar-accent-foreground: hsl(173 80% 22%);
-    --sidebar-border: hsl(214.3 31.8% 90%);
-    --sidebar-ring: hsl(173 80% 36%);
+    --sidebar: hsl(0 0% 98%);
+    --sidebar-foreground: hsl(240 5.3% 26.1%);
+    --sidebar-primary: hsl(240 5.9% 10%);
+    --sidebar-primary-foreground: hsl(0 0% 98%);
+    --sidebar-accent: hsl(240 4.8% 95.9%);
+    --sidebar-accent-foreground: hsl(240 5.9% 10%);
+    --sidebar-border: hsl(220 13% 91%);
+    --sidebar-ring: hsl(217.2 91.2% 59.8%);
   }
 
   .dark {
     --sidebar: hsl(240 5.9% 10%);
-    --sidebar-foreground: hsl(240 4.8% 95.9%);
-    --sidebar-primary: hsl(224.3 76.3% 48%);
-    --sidebar-primary-foreground: hsl(0 0% 100%);
+    --sidebar-foreground: hsl(0 0% 98%);
+    --sidebar-primary: hsl(0 0% 98%);
+    --sidebar-primary-foreground: hsl(240 5.9% 10%);
     --sidebar-accent: hsl(240 3.7% 15.9%);
-    --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+    --sidebar-accent-foreground: hsl(0 0% 98%);
     --sidebar-border: hsl(240 3.7% 15.9%);
+    --sidebar-ring: hsl(240 4.9% 83.9%);
+  }
+
+  .soft-light {
+    --sidebar: hsl(40 13% 89%);
+    --sidebar-foreground: hsl(30 6% 28%);
+    --sidebar-primary: hsl(30 7% 25%);
+    --sidebar-primary-foreground: hsl(40 16% 94%);
+    --sidebar-accent: hsl(38 12% 84%);
+    --sidebar-accent-foreground: hsl(30 7% 23%);
+    --sidebar-border: hsl(38 9% 80.5%);
     --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  }
+
+  .soft-dark {
+    --sidebar: hsl(215 14% 14.5%);
+    --sidebar-foreground: hsl(210 16% 85%);
+    --sidebar-primary: hsl(210 16% 87%);
+    --sidebar-primary-foreground: hsl(215 14% 15%);
+    --sidebar-accent: hsl(215 12% 23%);
+    --sidebar-accent-foreground: hsl(210 16% 87%);
+    --sidebar-border: hsl(215 11% 20.5%);
+    --sidebar-ring: hsl(213 14% 66%);
   }
 }

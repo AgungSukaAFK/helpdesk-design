@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ThemeSwitcher } from "@/components/theme-switcher";
+import { AppearanceSwitchers } from "@/components/theme-switcher";
 import { SiteMobileNav } from "@/components/site-mobile-nav";
 import { Palette } from "lucide-react";
 
@@ -32,7 +32,7 @@ export function SiteHeader() {
           </a>
         </nav>
         <div className="flex items-center gap-2">
-          <ThemeSwitcher />
+          <AppearanceSwitchers />
           <Button variant="ghost" size="sm" asChild>
             <a href="/auth/login">Masuk</a>
           </Button>

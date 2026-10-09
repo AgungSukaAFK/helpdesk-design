@@ -9,7 +9,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Check, Palette, Rocket, Users, ArrowRight } from "lucide-react"; // Menambahkan ArrowRight
 import Image from "next/image";
-import { ThemeSwitcher } from "@/components/theme-switcher";
+import { AppearanceSwitchers } from "@/components/theme-switcher";
 import { SiteMobileNav } from "@/components/site-mobile-nav";
 
 export default function LandingPageV3() {
@@ -49,7 +49,7 @@ export default function LandingPageV3() {
             </a>
           </nav>
           <div className="flex items-center gap-2">
-            <ThemeSwitcher />
+            <AppearanceSwitchers />
             <Button variant="ghost" size="sm" asChild>
               <a href="/auth/login">Masuk</a>
             </Button>
