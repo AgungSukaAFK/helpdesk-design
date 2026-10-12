@@ -656,22 +656,28 @@ export default function AttendancePage() {
         .toLowerCase()
         .replace(/[._]/g, " ")
         .replace(/\s+/g, " ")
+        .trim()
     );
 
+    // Kecocokan persis didahulukan, baru kecocokan sebagian. Tanpa ini format
+    // "Attendance Report" (Emp No., Employee, Work Location Name, Actual In, ...)
+    // terbaca salah: "employee" -> kolom nama, "name" -> Work Location Name.
     const findIdx = (keywords: string[]) => {
-      return headers.findIndex((h) =>
-        keywords.some((k) => h === k || h.includes(k))
-      );
+      for (const k of keywords) {
+        const exact = headers.indexOf(k);
+        if (exact !== -1) return exact;
+      }
+      return headers.findIndex((h) => keywords.some((k) => h.includes(k)));
     };
 
     const colNo = findIdx(["no", "nomor"]);
-    const colEmp = findIdx(["employee no", "employee", "nik", "no karyawan", "nip"]);
-    const colName = findIdx(["name", "nama", "employee name"]);
+    const colEmp = findIdx(["employee no", "emp no", "nik", "no karyawan", "nip"]);
+    const colName = findIdx(["name", "nama", "employee name", "employee"]);
     const colDate = findIdx(["date", "tanggal", "tgl"]);
-    const colShift = findIdx(["shift", "jadwal"]);
-    const colStart = findIdx(["start time", "start", "jam masuk", "masuk"]);
-    const colEnd = findIdx(["end time", "end", "jam keluar", "keluar", "pulang"]);
-    const colStatus = findIdx(["status", "kehadiran"]);
+    const colShift = findIdx(["shift", "shift name", "jadwal"]);
+    const colStart = findIdx(["start time", "actual in", "start", "jam masuk", "masuk"]);
+    const colEnd = findIdx(["end time", "actual out", "end", "jam keluar", "keluar", "pulang"]);
+    const colStatus = findIdx(["others status", "status", "kehadiran"]);
     const colOvt = findIdx(["overtime", "lembur"]);
     const colOvtIdx = findIdx(["overtime index", "ovt index", "index lembur", "index"]);
 
@@ -683,7 +689,7 @@ export default function AttendancePage() {
       if (!row || row.every((c) => !String(c || "").trim())) continue;
 
       const empNo = colEmp !== -1 ? String(row[colEmp] || "").trim() : "";
-      const empName = colName !== -1 ? String(row[colName] || "").trim() : "";
+      const empName = colName !== -1 ? String(row[colName] || "").replace(/\s+/g, " ").trim() : "";
 
       if (!empNo && !empName) continue;
 
