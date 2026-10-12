@@ -413,6 +413,11 @@ export async function GET(request: NextRequest) {
 
     const { data, error, count } = await query;
 
+    // Halaman melebihi jumlah data (PostgREST: "Requested range not satisfiable")
+    if (error?.code === "PGRST103") {
+      return NextResponse.json({ data: [], total: count || 0, stats, page, limit });
+    }
+
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }

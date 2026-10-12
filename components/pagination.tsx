@@ -1,3 +1,6 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
 import {
   Pagination,
   PaginationContent,
@@ -22,6 +25,15 @@ export function PaginationComponent({
   itemsPerPage,
   basePath,
 }: PaginationProps) {
+  const searchParams = useSearchParams();
+
+  // Pertahankan query lain (filter, bulan, limit, search) saat pindah halaman
+  const pageHref = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(page));
+    return `${basePath}?${params.toString()}`;
+  };
+
   // Hitung total halaman berdasarkan total item
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
@@ -50,7 +62,7 @@ export function PaginationComponent({
         {/* Tombol Halaman Sebelumnya */}
         <PaginationItem>
           {currentPage > 1 ? (
-            <PaginationPrevious href={`${basePath}?page=${currentPage - 1}`} />
+            <PaginationPrevious href={pageHref(currentPage - 1)} />
           ) : (
             <PaginationPrevious href="#" aria-disabled="true" tabIndex={-1} />
           )}
@@ -67,7 +79,7 @@ export function PaginationComponent({
         {pagesToRender.map((page) => (
           <PaginationItem key={page}>
             <PaginationLink
-              href={`${basePath}?page=${page}`}
+              href={pageHref(page)}
               isActive={page === currentPage}
             >
               {page}
@@ -85,7 +97,7 @@ export function PaginationComponent({
         {/* Tombol Halaman Berikutnya */}
         <PaginationItem>
           {currentPage < totalPages ? (
-            <PaginationNext href={`${basePath}?page=${currentPage + 1}`} />
+            <PaginationNext href={pageHref(currentPage + 1)} />
           ) : (
             <PaginationNext href="#" aria-disabled="true" tabIndex={-1} />
           )}
