@@ -95,3 +95,8 @@ export function validateCSV(csv: string) {
 
   return { valid: errors.length === 0, errors, rows: uniqueRows };
 }
+
+/** Nama sheet Excel: maks 31 karakter dan tanpa karakter \ / ? * [ ] : */
+export function toSheetName(name: string): string {
+  return name.replace(/[\\/?*[\]:]/g, "-").trim().slice(0, 31) || "Sheet1";
+}

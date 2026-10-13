@@ -31,7 +31,6 @@ import {
   X,
   MessageSquareDot,
   Bell,
-  Palette,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -68,11 +67,6 @@ const data = {
       title: "Program Kerja",
       url: "/program-kerja",
       icon: FolderKanban,
-    },
-    {
-      title: "Tools Creative",
-      url: "/tools-creative",
-      icon: Palette,
     },
     {
       title: "Permintaan Desain",

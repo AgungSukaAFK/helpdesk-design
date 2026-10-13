@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { toSheetName } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -951,7 +952,7 @@ export default function DailyActivityPage() {
       {
         "No.": 3,
         "Activity Date": `${activePeriod}-03`,
-        Name: "Tools Creative",
+        Name: "Paulus Petrus Parlindungan Sianipar, Muhammad Farel Ramadhan",
         "Task Description": "Desain konten media sosial feed dan stories Instagram",
         Status: "🔄 Revisi (Revisi Pengerjaan)",
         Remarks: "Revisi copy teks promosi",
@@ -1007,7 +1008,7 @@ export default function DailyActivityPage() {
       { wch: 35 },
     ];
     const workbook = XLSX.utils.book_new();
-    const sheetName = selectedMonth !== "all" ? formatPeriodMonth(selectedMonth) : "Daily Activity";
+    const sheetName = toSheetName(selectedMonth !== "all" ? formatPeriodMonth(selectedMonth) : "Daily Activity");
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     const filename = selectedDate

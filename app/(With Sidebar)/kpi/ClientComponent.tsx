@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { toSheetName } from "@/lib/utils";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -499,7 +500,7 @@ export default function KpiClientComponent() {
       ws2["!cols"] = [{ wch: 30 }, { wch: 30 }];
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws1, "KPI " + periodLabel);
+      XLSX.utils.book_append_sheet(wb, ws1, toSheetName("KPI " + periodLabel));
       XLSX.utils.book_append_sheet(wb, ws2, "Meta Data");
 
       const fileName = `KPI_${selectedMonth || getCurrentMonthPeriod()}.xlsx`;

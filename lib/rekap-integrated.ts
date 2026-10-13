@@ -434,7 +434,7 @@ export function exportIntegratedExcel(data: YearIntegratedRekap): string {
     ]),
   ];
   const wsSafetyToolboxMeeting = XLSX.utils.aoa_to_sheet(safetyToolboxMeetingAoa);
-  XLSX.utils.book_append_sheet(wb, wsSafetyToolboxMeeting, "Safety Toolbox Meeting HSE Roster");
+  XLSX.utils.book_append_sheet(wb, wsSafetyToolboxMeeting, "Safety Toolbox HSE Roster");
 
   const fileName = `Rekap-Bulanan-Terintegrasi-${year}.xlsx`;
   XLSX.writeFile(wb, fileName);

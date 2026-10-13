@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { toSheetName } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -765,7 +766,7 @@ export default function SafetyToolboxMeetingHsePage() {
       ];
 
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, `Safety Toolbox Meeting HSE ${monthLabel}`);
+      XLSX.utils.book_append_sheet(workbook, worksheet, toSheetName(`Safety Toolbox HSE ${monthLabel}`));
 
       const fileName = `Safety Toolbox Meeting HSE_${monthLabel}_${selectedYear}.xlsx`;
       XLSX.writeFile(workbook, fileName);
