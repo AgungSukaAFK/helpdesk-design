@@ -1,5 +1,5 @@
 -- Halaman Tools Creative dihapus; datanya dipindah ke Daily Activity.
---   content_plan   -> 1 aktivitas per judul (tanggal = tgl mulai)
+--   content_plan   -> 1 aktivitas per judul (tanggal = tgl mulai; baris "(tanpa judul)" dilewati)
 --   target_project -> 1 aktivitas per project (progress realisasi/rencana di remarks)
 -- evaluasi_designer & wla_item bukan aktivitas, tidak dipindah (tabel tetap ada).
 -- Tabel lama TIDAK dihapus. Aman dijalankan ulang: baris yang sudah dipindah dilewati.
@@ -63,6 +63,7 @@ cross join lateral (
   ) as remarks
 ) r
 where (f.user_id is not null or p.id is not null)
+  and c.judul <> '(tanpa judul)'
   and not exists (
     select 1 from public.daily_activities x
     where x.request_id is null
