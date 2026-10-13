@@ -328,9 +328,11 @@ export default function BuatPermintaanDesainPage() {
                   <TableBody>
                     {uploadedFiles.map((file, index) => (
                       <TableRow key={index}>
-                        <TableCell className="flex items-center gap-2 truncate max-w-xs">
-                          <Paperclip className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">{file.name}</span>
+                        <TableCell>
+                          <div className="flex items-start gap-2">
+                            <Paperclip className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                            <span className="min-w-0 wrap-anywhere">{file.name}</span>
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button

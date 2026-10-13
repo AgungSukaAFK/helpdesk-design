@@ -1862,7 +1862,7 @@ notify pgrst, 'reload schema';`;
                                 {getInitials(emp.name)}
                               </div>
                               <div className="min-w-0">
-                                <div className="font-semibold text-foreground truncate">{emp.name}</div>
+                                <div className="font-semibold text-foreground wrap-break-word">{emp.name}</div>
                                 <div className="font-mono text-[11px] text-muted-foreground">{emp.employee_no}</div>
                               </div>
                             </div>

@@ -1689,7 +1689,7 @@ export default function DailyActivityPage() {
 
                     {/* Judul Permintaan = task_description */}
                     <TableCell className="max-w-[280px]">
-                      <div className="font-semibold text-sm text-foreground line-clamp-2" title={activity.task_description}>
+                      <div className="font-semibold text-sm text-foreground" title={activity.task_description}>
                         {activity.task_description}
                       </div>
                       {(activity.jenis_pekerjaan || activity.request_id) && (
@@ -2085,9 +2085,9 @@ export default function DailyActivityPage() {
                     <TableCell className="font-mono">{idx + 1}</TableCell>
                     <TableCell className="font-mono whitespace-nowrap">{r.activity_date}</TableCell>
                     <TableCell className="font-semibold">{r.name}</TableCell>
-                    <TableCell className="max-w-[220px] truncate">{r.task_description}</TableCell>
+                    <TableCell className="min-w-[220px]">{r.task_description}</TableCell>
                     <TableCell>{renderStatusBadge(r.status)}</TableCell>
-                    <TableCell className="max-w-[150px] truncate text-muted-foreground">{r.remarks || "-"}</TableCell>
+                    <TableCell className="min-w-[150px] text-muted-foreground">{r.remarks || "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

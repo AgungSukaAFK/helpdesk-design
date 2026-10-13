@@ -1586,7 +1586,7 @@ export default function PermintaanList() {
 
                   {/* Judul, Project, Kategori & Hasil */}
                   <TableCell className="max-w-[300px]">
-                    <div className="font-semibold text-sm text-foreground line-clamp-1" title={item.judul}>
+                    <div className="font-semibold text-sm text-foreground" title={item.judul}>
                       {item.judul}
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -1869,10 +1869,10 @@ export default function PermintaanList() {
                     <td className="py-1.5 px-2 font-mono whitespace-nowrap">
                       {item.created_at?.slice(0, 10)}
                     </td>
-                    <td className="py-1.5 px-2 max-w-[200px] truncate font-medium text-foreground" title={item.judul}>
+                    <td className="py-1.5 px-2 min-w-[200px] wrap-break-word font-medium text-foreground" title={item.judul}>
                       {item.judul}
                     </td>
-                    <td className="py-1.5 px-2 text-muted-foreground truncate max-w-[120px]">{item.pelapor}</td>
+                    <td className="py-1.5 px-2 text-muted-foreground min-w-[120px] wrap-break-word">{item.pelapor}</td>
                     <td className="py-1.5 px-2 text-muted-foreground">{item.admin_name}</td>
                     <td className="py-1.5 px-2">
                       <Badge variant="outline" className="text-[10px] px-1 py-0">

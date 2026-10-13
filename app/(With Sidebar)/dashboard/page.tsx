@@ -1095,13 +1095,13 @@ export default function DashboardPage() {
                     className="hover:bg-muted/30 transition-colors"
                   >
                     <TableCell
-                      className="font-medium text-xs truncate max-w-xs"
+                      className="font-medium text-xs min-w-[200px] max-w-xs"
                       title={req.project}
                     >
                       {req.project}
                     </TableCell>
                     <TableCell
-                      className="font-medium text-xs truncate max-w-xs"
+                      className="font-medium text-xs min-w-[200px] max-w-xs"
                       title={req.judul}
                     >
                       {req.judul}
@@ -1315,7 +1315,7 @@ export default function DashboardPage() {
                           {index + 1}
                         </TableCell>
                         <TableCell
-                          className="font-medium text-xs truncate max-w-xs"
+                          className="font-medium text-xs min-w-[200px] max-w-xs"
                           title={art.title}
                         >
                           {art.title}

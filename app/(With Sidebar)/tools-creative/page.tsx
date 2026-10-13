@@ -231,7 +231,7 @@ function renderCell(field: Field, value: any): React.ReactNode {
           </Badge>
         );
       }
-      return <span className="line-clamp-2">{value}</span>;
+      return <span className="whitespace-pre-line">{value}</span>;
   }
 }
 
@@ -400,7 +400,7 @@ function CrudTab({ config, canEdit }: { config: TabConfig; canEdit: boolean }) {
               filtered.map((row) => (
                 <TableRow key={row.id}>
                   {tableFields.map((f) => (
-                    <TableCell key={f.key} className="max-w-xs align-top">
+                    <TableCell key={f.key} className="min-w-[160px] max-w-xs align-top">
                       {renderCell(f, row[f.key])}
                     </TableCell>
                   ))}
