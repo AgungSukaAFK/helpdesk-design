@@ -6,6 +6,7 @@ import { fontVariables } from "@/lib/fonts";
 import { appearanceInitScript } from "@/lib/appearance-init";
 import { CustomThemeProvider } from "@/lib/theme-provider";
 import { NotificationProvider } from "@/components/providers/notification-provider";
+import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -18,8 +19,16 @@ export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: "DesignDesk — Helpdesk & Manajemen Desain",
   description: "Aplikasi Helpdesk & Manajemen Desain Terpadu",
+  applicationName: "DesignDesk",
+  appleWebApp: {
+    capable: true,
+    title: "DesignDesk",
+    statusBarStyle: "default",
+  },
+  formatDetection: { telephone: false },
   icons: {
-    apple: "/lourdes.png",
+    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
@@ -45,6 +54,7 @@ export default function RootLayout({
           <NotificationProvider>{children}</NotificationProvider>
         </CustomThemeProvider>
         <Toaster richColors position="bottom-right" />
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

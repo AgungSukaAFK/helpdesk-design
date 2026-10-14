@@ -30,7 +30,7 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 const INITIAL_LIMIT = 50;
-const NOTIF_ICON = "/lourdes.png";
+const NOTIF_ICON = "/icons/icon-192.png";
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   // Dibuat sekali: kalau dibuat ulang tiap render, channel subscribe ulang & suara dobel.
@@ -96,19 +96,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       }
     }
     if (s.browser && "Notification" in window && Notification.permission === "granted" && document.visibilityState !== "visible") {
-      try {
-        const notif = new Notification(n.title, {
-          body: n.message ?? "",
-          icon: NOTIF_ICON,
-          badge: NOTIF_ICON,
-          tag: n.link ?? n.id,
-        });
-        notif.onclick = () => {
-          window.focus();
-          if (n.link) router.push(n.link);
-          notif.close();
-        };
-      } catch {}
+      // Tag = url, sama dengan push dari sw.js, supaya tidak tampil dobel.
+      const url = n.link || "/notifikasi";
+      const options = { body: n.message ?? "", icon: NOTIF_ICON, tag: url, data: { url } };
+      // Android Chrome melarang `new Notification()`; pakai service worker kalau ada.
+      navigator.serviceWorker?.getRegistration()
+        .then((reg) => {
+          if (reg) return reg.showNotification(n.title, options);
+          const notif = new Notification(n.title, options);
+          notif.onclick = () => {
+            window.focus();
+            router.push(url);
+            notif.close();
+          };
+        })
+        .catch(() => {});
     }
     toast.info(n.title, {
       description: n.message ?? undefined,
