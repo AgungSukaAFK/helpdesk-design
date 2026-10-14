@@ -407,7 +407,7 @@ export default function ProfilePage() {
                   <SelectValue placeholder="Pilih Lokasi" />
                 </SelectTrigger>
                 <SelectContent>
-                  {["GIS HO", "GIS BPN", "GIS J5", "GIS KM8", "GMI BPN", "GMI J5", "GMI KM10", "GMI KM8", "GMI Site", "Branch Tanjung Enim"].map(loc => (
+                  {["GIS HO", "GIS BPN", "GIS J5", "GIS KM8", "GMI BPN", "GMI J4", "GMI J5", "GMI KM10", "GMI KM8", "GMI Site", "Branch Tanjung Enim"].map(loc => (
                     <SelectItem key={loc} value={loc}>{loc}</SelectItem>
                   ))}
                 </SelectContent>

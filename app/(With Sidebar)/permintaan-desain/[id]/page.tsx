@@ -500,8 +500,18 @@ export default function DetailPermintaanPage() {
   const riwayat = data.riwayat || [];
   const revisions = riwayat.filter((r) => r.status_to === "REVISION");
 
-  const isOverdue =
-    status !== "DONE" && data.due_date && new Date(data.due_date) < new Date();
+  // Bandingkan per tanggal kalender: deadline hari ini belum dianggap lewat,
+  // baru dianggap lewat mulai H+1 dari tanggal deadline.
+  const deadlineDiffDays = (() => {
+    if (status === "DONE" || !data.due_date) return null;
+    const due = new Date(data.due_date);
+    const today = new Date();
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime();
+    const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    return Math.round((dueDay - todayDay) / 86_400_000);
+  })();
+  const isOverdue = deadlineDiffDays !== null && deadlineDiffDays < 0;
+  const isDueToday = deadlineDiffDays === 0;
 
   return (
     <Content
@@ -985,12 +995,22 @@ export default function DetailPermintaanPage() {
               </h3>
 
               <InfoRow icon={Calendar} label="Deadline">
-                <span className={cn(isOverdue && "text-destructive")}>
+                <span
+                  className={cn(
+                    isOverdue && "text-destructive",
+                    isDueToday && "text-amber-600 dark:text-amber-400"
+                  )}
+                >
                   {fmtDate(data.due_date, true)}
                 </span>
                 {isOverdue && (
                   <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-[10px]">
                     Lewat deadline
+                  </Badge>
+                )}
+                {isDueToday && (
+                  <Badge className="ml-2 h-5 px-1.5 text-[10px] border-transparent bg-amber-500 text-white hover:bg-amber-500/80">
+                    Deadline hari ini
                   </Badge>
                 )}
               </InfoRow>
