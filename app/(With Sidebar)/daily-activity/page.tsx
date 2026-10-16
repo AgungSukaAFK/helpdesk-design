@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Clock,
   Download,
+  Eye,
   FileSpreadsheet,
   FileUp,
   Hourglass,
@@ -132,6 +133,7 @@ const activityStatuses = [
   "⏳ Waiting (Menunggu)",
   "⚡ In Progress (Dalam Proses)",
   "🔄 Revisi (Revisi Pengerjaan)",
+  "👀 Review (Ditinjau Klien)",
   "⏸️ Pending (Tertunda)",
   "✅ Done (Selesai)",
 ] as const;
@@ -306,10 +308,11 @@ function normalizeActivityDate(value: unknown, monthFirst = false): string | nul
 
 function normalizeActivityStatus(value: unknown): string {
   const text = String(value ?? "").trim().toLowerCase();
-  if (text.includes("done") || text.includes("selesai")) return activityStatuses[4];
+  if (text.includes("done") || text.includes("selesai")) return activityStatuses[5];
   if (text.includes("progress") || text.includes("proses")) return activityStatuses[1];
   if (text.includes("revisi") || text.includes("revision")) return activityStatuses[2];
-  if (text.includes("pending") || text.includes("tunda")) return activityStatuses[3];
+  if (text.includes("review") || text.includes("ditinjau")) return activityStatuses[3];
+  if (text.includes("pending") || text.includes("tunda")) return activityStatuses[4];
   return activityStatuses[0];
 }
 
@@ -438,7 +441,7 @@ export default function DailyActivityPage() {
     jenis_pekerjaan: jenisPekerjaanOptions[0],
     jenis_lainnya: "",
     task_description: "",
-    status: activityStatuses[4],
+    status: activityStatuses[5],
     remarks: "",
     jam_mulai: "",
     jam_selesai: "",
@@ -466,7 +469,7 @@ export default function DailyActivityPage() {
           activity_date: d.activity_date,
           name: d.name || "Staff",
           task_description: d.task_description || "-",
-          status: d.status || activityStatuses[4],
+          status: d.status || activityStatuses[5],
           remarks: d.remarks || null,
           created_at: d.created_at,
           departemen: d.departemen || null,
@@ -584,6 +587,9 @@ export default function DailyActivityPage() {
     } else if (raw.includes("Revisi") || raw.includes("Revision")) {
       badgeClass =
         "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 font-semibold";
+    } else if (raw.includes("Review") || raw.includes("Ditinjau")) {
+      badgeClass =
+        "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30 font-semibold";
     } else if (raw.includes("Pending") || raw.includes("Tertunda")) {
       badgeClass =
         "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30 font-semibold";
@@ -614,6 +620,7 @@ export default function DailyActivityPage() {
     let doneCount = 0;
     let inProgressCount = 0;
     let revisionCount = 0;
+    let reviewCount = 0;
     let pendingCount = 0;
     let waitingCount = 0;
 
@@ -622,6 +629,7 @@ export default function DailyActivityPage() {
       if (s.includes("done") || s.includes("selesai")) doneCount++;
       else if (s.includes("progress") || s.includes("proses")) inProgressCount++;
       else if (s.includes("revisi") || s.includes("revision")) revisionCount++;
+      else if (s.includes("review") || s.includes("ditinjau")) reviewCount++;
       else if (s.includes("pending") || s.includes("tunda")) pendingCount++;
       else waitingCount++;
     });
@@ -631,6 +639,7 @@ export default function DailyActivityPage() {
       doneCount,
       inProgressCount,
       revisionCount,
+      reviewCount,
       pendingCount,
       waitingCount,
     };
@@ -704,6 +713,7 @@ export default function DailyActivityPage() {
         if (statusFilter === "done" && !(s.includes("done") || s.includes("selesai"))) return false;
         if (statusFilter === "progress" && !(s.includes("progress") || s.includes("proses"))) return false;
         if (statusFilter === "revisi" && !(s.includes("revisi") || s.includes("revision"))) return false;
+        if (statusFilter === "review" && !(s.includes("review") || s.includes("ditinjau"))) return false;
         if (statusFilter === "pending" && !(s.includes("pending") || s.includes("tunda"))) return false;
         if (statusFilter === "waiting" && !(s.includes("waiting") || s.includes("menunggu"))) return false;
       }
@@ -744,7 +754,7 @@ export default function DailyActivityPage() {
       jenis_pekerjaan: jenisPekerjaanOptions[0],
       jenis_lainnya: "",
       task_description: "",
-      status: activityStatuses[4],
+      status: activityStatuses[5],
       remarks: "",
       jam_mulai: getCurrentTime(),
       jam_selesai: "",
@@ -765,7 +775,7 @@ export default function DailyActivityPage() {
       jenis_pekerjaan: !jenis || isPreset ? jenis : JENIS_LAINNYA,
       jenis_lainnya: !jenis || isPreset ? "" : jenis,
       task_description: activity.task_description,
-      status: activity.status || activityStatuses[4],
+      status: activity.status || activityStatuses[5],
       remarks: activity.remarks || "",
       jam_mulai: formatTime(activity.jam_mulai),
       jam_selesai: formatTime(activity.jam_selesai),
@@ -861,7 +871,7 @@ export default function DailyActivityPage() {
           name: designerName,
           jenis_pekerjaan: jenisPekerjaan,
           task_description: formData.task_description.trim(),
-          status: formData.status || activityStatuses[4],
+          status: formData.status || activityStatuses[5],
           remarks: formData.remarks.trim() || null,
           created_at: new Date().toISOString(),
           lokasi: formData.lokasi.trim() || null,
@@ -1130,7 +1140,7 @@ export default function DailyActivityPage() {
             activity_date: finalActivityDate,
             name: activityName.slice(0, 120),
             task_description: taskDesc.slice(0, 2000),
-            status: activityStatus.slice(0, 80) || activityStatuses[4],
+            status: activityStatus.slice(0, 80) || activityStatuses[5],
             remarks: activityRemarks.slice(0, 1000) || null,
           });
         }
@@ -1444,7 +1454,7 @@ export default function DailyActivityPage() {
       </div>
 
       {/* 2. STAT CARDS — clickable filter buttons (matching Permintaan Desain style) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 mb-5">
         {/* Total */}
         <button
           type="button"
@@ -1507,6 +1517,22 @@ export default function DailyActivityPage() {
             <RotateCcw className="h-3.5 w-3.5 text-amber-600" />
           </div>
           <div className="text-xl font-bold mt-1 text-amber-700 dark:text-amber-400">{stats.revisionCount}</div>
+        </button>
+
+        {/* Review */}
+        <button
+          type="button"
+          onClick={() => { setStatusFilter("review"); setCurrentPage(1); }}
+          className={`p-3 rounded-xl border text-left transition-all ${statusFilter === "review"
+            ? "bg-purple-500/15 border-purple-500/40 ring-1 ring-purple-500/30"
+            : "bg-card hover:bg-muted/40"
+            }`}
+        >
+          <div className="text-[11px] font-medium text-purple-700 dark:text-purple-400 flex items-center justify-between">
+            <span>Review Klien</span>
+            <Eye className="h-3.5 w-3.5 text-purple-600" />
+          </div>
+          <div className="text-xl font-bold mt-1 text-purple-700 dark:text-purple-400">{stats.reviewCount}</div>
         </button>
 
         {/* Pending */}
@@ -1575,6 +1601,7 @@ export default function DailyActivityPage() {
               <SelectItem value="done">✅ Done (Selesai)</SelectItem>
               <SelectItem value="progress">⚡ In Progress (Proses)</SelectItem>
               <SelectItem value="revisi">🔄 Revisi</SelectItem>
+              <SelectItem value="review">👀 Review</SelectItem>
               <SelectItem value="pending">⏸️ Pending</SelectItem>
               <SelectItem value="waiting">⏳ Waiting</SelectItem>
             </SelectContent>

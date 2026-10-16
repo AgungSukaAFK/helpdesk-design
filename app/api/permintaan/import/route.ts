@@ -47,7 +47,7 @@ function mapToDailyActivityStatus(status: string): string {
   if (s === "DONE") return "✅ Done (Selesai)";
   if (s === "PROGRESS") return "⚡ In Progress (Dalam Proses)";
   if (s === "REVISION") return "🔄 Revisi (Revisi Pengerjaan)";
-  if (s === "REVIEW") return "⏸️ Pending (Tertunda)";
+  if (s === "REVIEW") return "👀 Review (Ditinjau Klien)";
   return "⏳ Waiting (Menunggu)";
 }
 

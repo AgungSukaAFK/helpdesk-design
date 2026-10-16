@@ -53,6 +53,7 @@ export interface MonthIntegratedData {
     done: number;
     inProgress: number;
     revisi: number;
+    review: number;
     pending: number;
     waiting: number;
     completionRate: number | null;
@@ -133,6 +134,7 @@ export interface YearIntegratedRekap {
     dailyDone: number;
     dailyInProgress: number;
     dailyRevisi: number;
+    dailyReview: number;
     dailyPending: number;
     dailyWaiting: number;
     dailyRate: number;
@@ -219,6 +221,7 @@ export async function fetchIntegratedRekap(year: number = 2026): Promise<YearInt
           done: 0,
           inProgress: 0,
           revisi: 0,
+          review: 0,
           pending: 0,
           waiting: 0,
           completionRate: null,
@@ -255,6 +258,7 @@ export async function fetchIntegratedRekap(year: number = 2026): Promise<YearInt
       dailyDone: 0,
       dailyInProgress: 0,
       dailyRevisi: 0,
+      dailyReview: 0,
       dailyPending: 0,
       dailyWaiting: 0,
       dailyRate: 100,
@@ -390,13 +394,14 @@ export function exportIntegratedExcel(data: YearIntegratedRekap): string {
 
   // 4. SHEET DETAIL DAILY ACTIVITY
   const dailyAoa: (string | number)[][] = [
-    ["Bulan", "Total Aktivitas", "Done", "In Progress", "Revisi", "Pending", "Waiting", "Completion %"],
+    ["Bulan", "Total Aktivitas", "Done", "In Progress", "Revisi", "Review", "Pending", "Waiting", "Completion %"],
     ...data.months.map((m) => [
       m.monthName,
       m.daily.total,
       m.daily.done,
       m.daily.inProgress,
       m.daily.revisi,
+      m.daily.review,
       m.daily.pending,
       m.daily.waiting,
       m.daily.completionRate !== null ? `${m.daily.completionRate}%` : "-",

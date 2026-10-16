@@ -357,6 +357,7 @@ export async function GET(request: NextRequest) {
       let dailyDone = 0;
       let dailyInProgress = 0;
       let dailyRevisi = 0;
+      let dailyReview = 0;
       let dailyPending = 0;
       let dailyWaiting = 0;
 
@@ -365,6 +366,7 @@ export async function GET(request: NextRequest) {
         if (s.includes("done") || s.includes("selesai")) dailyDone++;
         else if (s.includes("progress") || s.includes("proses")) dailyInProgress++;
         else if (s.includes("revisi")) dailyRevisi++;
+        else if (s.includes("review") || s.includes("ditinjau")) dailyReview++;
         else if (s.includes("pending") || s.includes("tunda")) dailyPending++;
         else dailyWaiting++;
       });
@@ -586,6 +588,7 @@ export async function GET(request: NextRequest) {
           done: dailyDone,
           inProgress: dailyInProgress,
           revisi: dailyRevisi,
+          review: dailyReview,
           pending: dailyPending,
           waiting: dailyWaiting,
           completionRate: dailyCompletionRate,
@@ -643,6 +646,7 @@ export async function GET(request: NextRequest) {
     const dailyDone = activeMonths.reduce((acc, m) => acc + m.daily.done, 0);
     const dailyInProgress = activeMonths.reduce((acc, m) => acc + m.daily.inProgress, 0);
     const dailyRevisi = activeMonths.reduce((acc, m) => acc + m.daily.revisi, 0);
+    const dailyReview = activeMonths.reduce((acc, m) => acc + m.daily.review, 0);
     const dailyPending = activeMonths.reduce((acc, m) => acc + m.daily.pending, 0);
     const dailyWaiting = activeMonths.reduce((acc, m) => acc + m.daily.waiting, 0);
     const dailyRate =
@@ -728,6 +732,7 @@ export async function GET(request: NextRequest) {
         dailyDone,
         dailyInProgress,
         dailyRevisi,
+        dailyReview,
         dailyPending,
         dailyWaiting,
         dailyRate,

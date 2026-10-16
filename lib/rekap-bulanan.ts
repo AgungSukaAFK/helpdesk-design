@@ -17,6 +17,7 @@ export const DAILY_STATUSES = [
   "⏳ Waiting (Menunggu)",
   "⚡ In Progress (Dalam Proses)",
   "🔄 Revisi (Revisi Pengerjaan)",
+  "👀 Review (Ditinjau Klien)",
   "⏸️ Pending (Tertunda)",
   "✅ Done (Selesai)",
 ] as const;
@@ -25,6 +26,7 @@ export const DAILY_SHORT: Record<string, string> = {
   "⏳ Waiting (Menunggu)": "Waiting",
   "⚡ In Progress (Dalam Proses)": "In Progress",
   "🔄 Revisi (Revisi Pengerjaan)": "Revisi",
+  "👀 Review (Ditinjau Klien)": "Review",
   "⏸️ Pending (Tertunda)": "Pending",
   "✅ Done (Selesai)": "Done",
 };
@@ -41,6 +43,7 @@ export const DAILY_COLORS: Record<string, string> = {
   "⏳ Waiting (Menunggu)": "#64748b",
   "⚡ In Progress (Dalam Proses)": "#3b82f6",
   "🔄 Revisi (Revisi Pengerjaan)": "#f97316",
+  "👀 Review (Ditinjau Klien)": "#a855f7",
   "⏸️ Pending (Tertunda)": "#eab308",
   "✅ Done (Selesai)": "#10b981",
 };
