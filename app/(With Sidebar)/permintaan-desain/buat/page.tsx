@@ -43,6 +43,7 @@ export interface PermintaanDesain {
 interface File {
   url: string;
   name: string;
+  path: string;
 }
 
 const dataDepartemen: ComboboxData = [
@@ -119,7 +120,11 @@ export default function BuatPermintaanDesainPage() {
     const results = await Promise.all(uploadPromises);
     const successfulUploads = results
       .filter((r) => !r.error)
-      .map((r) => ({ url: r.data!.path, name: r.data!.name }));
+      .map((r) => ({
+        url: s.storage.from("permintaan").getPublicUrl(r.data!.path).data.publicUrl,
+        name: r.data!.name,
+        path: r.data!.path,
+      }));
     const failedUploads = results.filter((r) => r.error);
 
     if (successfulUploads.length > 0) {
@@ -189,7 +194,7 @@ export default function BuatPermintaanDesainPage() {
         judul,
         project: projectValue,
         due_date: new Date(due_date),
-        files: uploadedFiles, // <-- Menambahkan data lampiran
+        files: uploadedFiles.map(({ name, url }) => ({ name, url })),
         status: "TO DO",
         requester: user.id,
       };
@@ -339,7 +344,7 @@ export default function BuatPermintaanDesainPage() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleRemoveFile(index, file.url)}
+                            onClick={() => handleRemoveFile(index, file.path)}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>

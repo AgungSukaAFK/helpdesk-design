@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { downloadFile } from "@/lib/permintaan-files";
 
 export interface UserProfile {
   id: string;
@@ -247,19 +248,10 @@ export default function DetailPermintaanPage({
     }
   }
 
-  const handleDownloadFile = async (file: { name: string; url: string }) => {
+  const handleDownloadFile = (file: { name: string; url: string }) => {
     try {
-      const response = await fetch(file.url);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = file.name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
+      downloadFile(file);
+    } catch {
       toast.error("Gagal mengunduh file.");
     }
   };

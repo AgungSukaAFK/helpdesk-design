@@ -76,6 +76,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FileDropArea, FileDropzone } from "@/components/file-drop";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { downloadFile } from "@/lib/permintaan-files";
 
 // --- TIPE DATA ---
 
@@ -843,7 +844,7 @@ export default function DetailPermintaanPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => window.open(f.url, "_blank")}
+                        onClick={() => downloadFile(f)}
                         title="Unduh"
                       >
                         <Download className="h-4 w-4" />

@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthorizedContext } from "@/lib/supabase/authorization";
 import { canEditPermintaan } from "@/lib/permintaan-workflow";
+import { normalizeFiles } from "@/lib/permintaan-files";
 
 export const dynamic = "force-dynamic";
 
@@ -231,7 +232,7 @@ export async function GET(request: NextRequest) {
         requester_data: requesterInfo,
         admin_name: adminInfo?.name || (item.admin === FAREL_ID ? "Farel Ramadhan" : item.admin === PAULUS_ID ? "Paulus Sianipar" : "-"),
         requester_name: requesterInfo?.name || "Pelapor",
-        files: Array.isArray(item.files) ? item.files : [],
+        files: normalizeFiles(item.files),
       };
 
       return NextResponse.json({ data: formatted });
