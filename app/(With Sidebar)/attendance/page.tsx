@@ -116,9 +116,12 @@ export default function AttendancePage() {
   const [supabaseConnected, setSupabaseConnected] = useState<boolean | null>(null);
   const [showDbNotice, setShowDbNotice] = useState(false);
 
-  // Month navigation state
-  // Default to August 2026 ("2026-08") where initial data belongs, or current month
-  const [selectedMonth, setSelectedMonth] = useState<string>("2026-08");
+  // Month navigation state — default ke bulan berjalan
+  const currentMonthPeriod = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  })();
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthPeriod);
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState("");
@@ -138,8 +141,8 @@ export default function AttendancePage() {
 
   // Import modal state
   const [importPreviewRows, setImportPreviewRows] = useState<AttendanceRecord[]>([]);
-  const [detectedImportMonth, setDetectedImportMonth] = useState<string>("2026-08");
-  const [targetImportMonth, setTargetImportMonth] = useState<string>("2026-08");
+  const [detectedImportMonth, setDetectedImportMonth] = useState<string>(currentMonthPeriod);
+  const [targetImportMonth, setTargetImportMonth] = useState<string>(currentMonthPeriod);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importMode, setImportMode] = useState<"replace_month" | "append_month" | "replace_all">("replace_month");
   const [isProcessingImport, setIsProcessingImport] = useState(false);
@@ -149,7 +152,7 @@ export default function AttendancePage() {
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [formData, setFormData] = useState<Partial<AttendanceRecord>>({
     no: 1,
-    period_month: "2026-08",
+    period_month: currentMonthPeriod,
     employee_no: "",
     name: "",
     date: "",
@@ -196,10 +199,6 @@ export default function AttendancePage() {
         setSupabaseConnected(true);
         setShowDbNotice(false);
 
-        // Set selectedMonth jika belum ada
-        if (mapped.length > 0 && !mapped.some((m) => m.period_month === selectedMonth)) {
-          setSelectedMonth(mapped[0].period_month);
-        }
       } else if (!error && data && data.length === 0) {
         setRecords([]);
         localStorage.removeItem(LOCAL_STORAGE_KEY);

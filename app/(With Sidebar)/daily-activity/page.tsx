@@ -343,7 +343,7 @@ export default function DailyActivityPage() {
   const defaultsApplied = useRef(false);
 
   // Period navigation state: filter per hari atau per bulan (selectedDate = null)
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonthPeriod());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [today, setToday] = useState<string>("");
 
@@ -417,7 +417,7 @@ export default function DailyActivityPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importPreviewRows, setImportPreviewRows] = useState<ParsedImportRow[]>([]);
-  const [targetImportMonth, setTargetImportMonth] = useState<string>("2026-09");
+  const [targetImportMonth, setTargetImportMonth] = useState<string>(getCurrentMonthPeriod());
   const [importMode, setImportMode] = useState<"replace_month" | "append_month" | "replace_all">("replace_month");
   const [isProcessingImport, setIsProcessingImport] = useState(false);
 

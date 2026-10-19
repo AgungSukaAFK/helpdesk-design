@@ -101,8 +101,11 @@ export default function SafetyToolboxMeetingHsePage() {
   const [isMounted, setIsMounted] = useState(false);
 
   // Month & Year Filter
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [selectedMonth, setSelectedMonth] = useState<string>("06"); // Juni
+  // Default ke bulan berjalan
+  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<string>(() =>
+    String(new Date().getMonth() + 1).padStart(2, "0")
+  );
   const [searchTerm, setSearchTerm] = useState<string>("");
 
   // Period string e.g. "2026-06"
@@ -142,14 +145,21 @@ export default function SafetyToolboxMeetingHsePage() {
 
   // Copy to Another Month Modal
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
-  const [targetCopyMonth, setTargetCopyMonth] = useState<string>("07");
-  const [targetCopyYear, setTargetCopyYear] = useState<number>(2026);
+  const [targetCopyMonth, setTargetCopyMonth] = useState<string>(() =>
+    String((new Date().getMonth() + 1) % 12 + 1).padStart(2, "0")
+  );
+  const [targetCopyYear, setTargetCopyYear] = useState<number>(() => {
+    const now = new Date();
+    return now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+  });
 
   // Import Modal (Per-Bulan)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importPreviewRows, setImportPreviewRows] = useState<SafetyToolboxMeetingHseRosterRecord[]>([]);
-  const [targetImportMonth, setTargetImportMonth] = useState<string>("06");
-  const [targetImportYear, setTargetImportYear] = useState<number>(2026);
+  const [targetImportMonth, setTargetImportMonth] = useState<string>(() =>
+    String(new Date().getMonth() + 1).padStart(2, "0")
+  );
+  const [targetImportYear, setTargetImportYear] = useState<number>(() => new Date().getFullYear());
   const [detectedImportMonth, setDetectedImportMonth] = useState<string | null>(null);
   const [detectedImportYear, setDetectedImportYear] = useState<number | null>(null);
   const [isProcessingImport, setIsProcessingImport] = useState(false);
