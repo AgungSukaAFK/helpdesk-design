@@ -611,7 +611,8 @@ export default function AttendancePage() {
   // Excel parser
   const parseExcelFile = async (file: File) => {
     const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array" });
+    // CSV dibaca sebagai teks apa adanya; tanpa ini "01 Oct 2026" diubah jadi "10/1/26"
+    const workbook = XLSX.read(buffer, { type: "array", raw: file.name.toLowerCase().endsWith(".csv") });
     const firstSheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[firstSheetName];
 
