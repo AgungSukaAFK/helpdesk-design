@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { runViewTransition } from "@/lib/view-transition";
 import { ThemeProvider as NextThemesProvider, type ThemeProviderProps } from "next-themes";
 import {
   ACCENT_STORAGE_KEY, BASE_ACCENT, DEFAULT_ACCENT, DEFAULT_RADIUS, LEGACY_ACCENT_MAP,
@@ -96,12 +97,22 @@ export function CustomThemeProvider({ children, ...props }: ThemeProviderProps) 
     writeStorage(FONT_SIZE_STORAGE_KEY, fontSize);
   }, [fontSize]);
 
+  // Ganti aksen & jenis font dengan cross-fade; ukuran font & radius langsung (slider/klik beruntun).
+  const setAccentWithTransition = useCallback(
+    (next: AccentTheme) => runViewTransition(() => setAccent(next), { mode: "fade" }),
+    [],
+  );
+  const setFontFamilyWithTransition = useCallback(
+    (next: FontFamily) => runViewTransition(() => setFontFamily(next), { mode: "fade" }),
+    [],
+  );
+
   return (
     <CustomThemeContext.Provider
       value={{
-        accent: accent ?? DEFAULT_ACCENT, setAccent,
+        accent: accent ?? DEFAULT_ACCENT, setAccent: setAccentWithTransition,
         radius: radius ?? DEFAULT_RADIUS, setRadius,
-        fontFamily: fontFamily ?? DEFAULT_FONT_FAMILY, setFontFamily,
+        fontFamily: fontFamily ?? DEFAULT_FONT_FAMILY, setFontFamily: setFontFamilyWithTransition,
         fontSize: fontSize ?? DEFAULT_FONT_SIZE, setFontSize,
       }}
     >

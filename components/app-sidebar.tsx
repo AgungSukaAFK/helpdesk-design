@@ -1,201 +1,27 @@
-import { Suspense } from "react";
+"use client";
+
 import * as React from "react";
-import { redirect, usePathname } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { usePathname } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuSkeleton,
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "./nav-user";
-import {
-  GalleryVerticalEnd,
-  Bot,
-  LayoutDashboard,
-  FileBox,
-  BookOpen,
-  Info,
-  Clock,
-  Newspaper,
-  CalendarCheck2,
-  UserCheck,
-  FolderKanban,
-  ShieldCheck,
-  BarChart3,
-  Target,
-  X,
-  MessageSquareDot,
-  Bell,
-} from "lucide-react";
+import { useTopbarProfileData } from "@/components/topbar/topbar";
+import { useNotifications } from "@/components/providers/notification-provider";
+import { buildNavGroups, findActiveUrl } from "@/lib/sidebar/nav-config";
+import { X } from "lucide-react";
 import Image from "next/image";
-
-const data = {
-  teams: [
-    {
-      name: "Lourdes Autoparts",
-      logo: GalleryVerticalEnd,
-      plan: "Versi 1.0.0",
-    },
-  ],
-  navAdmin: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      title: "Attendance",
-      url: "/attendance",
-      icon: UserCheck,
-    },
-    {
-      title: "Daily Activity",
-      url: "/daily-activity",
-      icon: CalendarCheck2,
-    },
-    {
-      title: "Safety Toolbox Meeting HSE",
-      url: "/safety-toolbox-meeting-hse",
-      icon: ShieldCheck,
-    },
-    {
-      title: "Program Kerja",
-      url: "/program-kerja",
-      icon: FolderKanban,
-    },
-    {
-      title: "Permintaan Desain",
-      url: "/permintaan-desain",
-      icon: FileBox,
-    },
-    {
-      title: "KPI",
-      url: "/kpi",
-      icon: Target,
-    },
-    {
-      title: "Rekap Bulanan",
-      url: "/rekap-bulanan",
-      icon: BarChart3,
-    },
-    {
-      title: "Riwayat Pengerjaan",
-      url: "/riwayat-pengerjaan",
-      icon: Clock,
-    },
-    {
-      title: "Review & Rating",
-      url: "/feedback",
-      icon: MessageSquareDot,
-    },
-    {
-      title: "Artikel",
-      url: "/artikel-admin",
-      icon: Newspaper,
-    },
-    {
-      title: "User Management",
-      url: "/user-management",
-      icon: Bot,
-    },
-    {
-      title: "Notifikasi",
-      url: "/notifikasi",
-      icon: Bell,
-    },
-  ],
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      title: "Permintaan Desain",
-      url: "/permintaan-desain",
-      icon: FileBox,
-    },
-    {
-      title: "Riwayat",
-      url: "/riwayat",
-      icon: Clock,
-    },
-    {
-      title: "Review & Rating",
-      url: "/feedback",
-      icon: MessageSquareDot,
-    },
-    {
-      title: "Artikel",
-      url: "/artikel-admin",
-      icon: Newspaper,
-    },
-    {
-      title: "Notifikasi",
-      url: "/notifikasi",
-      icon: Bell,
-    },
-  ],
-  navDesigner: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      title: "Daily Activity",
-      url: "/daily-activity",
-      icon: CalendarCheck2,
-    },
-    {
-      title: "Permintaan Desain",
-      url: "/permintaan-desain",
-      icon: FileBox,
-    },
-    {
-      title: "Riwayat Pengerjaan",
-      url: "/riwayat-pengerjaan",
-      icon: Clock,
-    },
-    {
-      title: "Review & Rating",
-      url: "/feedback",
-      icon: MessageSquareDot,
-    },
-    {
-      title: "Artikel",
-      url: "/artikel-admin",
-      icon: Newspaper,
-    },
-    {
-      title: "Notifikasi",
-      url: "/notifikasi",
-      icon: Bell,
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Dokumentasi",
-      url: "/dokumentasi",
-      icon: BookOpen,
-    },
-    // {
-    //   title: "Feedback",
-    //   url: "/feedback",
-    //   icon: MessageSquareShare,
-    // },
-    {
-      title: "Tentang App",
-      url: "/tentang-app",
-      icon: Info,
-    },
-  ],
-};
 
 function SidebarLogo() {
   const { isMobile, setOpenMobile } = useSidebar();
@@ -219,9 +45,6 @@ function SidebarLogo() {
             L
           </div>
         )}
-        {/* <span className={isMobile ? "text-sm font-semibold truncate inline" : "hidden text-sm font-semibold truncate group-data-[state=expanded]:inline"}>
-          Lourdes Autoparts
-        </span> */}
       </div>
       {isMobile && (
         <Button
@@ -239,57 +62,19 @@ function SidebarLogo() {
   );
 }
 
-function UserAvatarFallback({ name }: { name: string }) {
-  return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-medium text-xs">
-      {name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)}
-    </div>
-  );
-}
-
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const currentPath = usePathname();
-  const supabase = createClient();
+  const { profile, loading } = useTopbarProfileData();
+  const { unreadCount } = useNotifications();
 
-  const [user, setUser] = React.useState<any>(null);
-  const [profile, setProfile] = React.useState<any>(null);
-  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    const getUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) setUser(data.user);
-      if (!data.user) redirect("auth/login");
-      const profileRes = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", data.user.id)
-        .maybeSingle();
-      if (profileRes.data) setProfile(profileRes.data);
-      setAvatarUrl(profileRes.data?.avatar_url || null);
-    };
-    getUser();
-
-    // Sinkron dengan perubahan foto/nama dari halaman profil.
-    const onProfileUpdated = (e: Event) => {
-      const detail = (e as CustomEvent<{ name?: string; avatar_url?: string | null }>).detail || {};
-      if ("avatar_url" in detail) setAvatarUrl(detail.avatar_url || null);
-      if (detail.name) setProfile((current: any) => (current ? { ...current, name: detail.name } : current));
-    };
-    window.addEventListener("profile-updated", onProfileUpdated);
-    return () => window.removeEventListener("profile-updated", onProfileUpdated);
-  }, [supabase]);
-
-  const markActive = (items: readonly { title: string; url: string; icon: typeof LayoutDashboard }[]) =>
-    items.map((item) => ({
-      ...item,
-      isActive: currentPath.includes(item.url),
-    }));
+  const groups = React.useMemo(() => buildNavGroups(profile?.role), [profile?.role]);
+  const activeUrl = findActiveUrl(
+    currentPath,
+    groups.flatMap((g) => g.items.map((i) => i.url)),
+  );
+  const badges: Record<string, number | undefined> = {
+    "/notifikasi": unreadCount || undefined,
+  };
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -297,24 +82,40 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         <SidebarLogo />
       </SidebarHeader>
 
-      <SidebarContent>
-        {profile?.role === "admin" ? (
-          <NavMain label="Menu" items={markActive(data.navAdmin)} />
-        ) : profile?.role === "designer" ? (
-          <NavMain label="Menu" items={markActive(data.navDesigner)} />
+      <SidebarContent className="gap-1">
+        {loading ? (
+          // Menu bergantung role, jadi jangan tampilkan menu user biasa sebelum profil siap.
+          <SidebarGroup>
+            <SidebarMenu>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <SidebarMenuItem key={i}>
+                  <SidebarMenuSkeleton showIcon />
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
         ) : (
-          <NavMain label="Menu" items={markActive(data.navMain)} />
+          groups.map((group) => (
+            <NavMain
+              key={group.label}
+              label={group.label}
+              items={group.items.map((item) => ({
+                ...item,
+                isActive: item.url === activeUrl,
+                badge: badges[item.url],
+              }))}
+            />
+          ))
         )}
-        <NavMain label="About" items={markActive(data.navSecondary)} />
       </SidebarContent>
 
       <SidebarFooter>
-        {user && (
+        {profile && (
           <NavUser
             user={{
-              avatar: avatarUrl || "",
-              email: user.email || "",
-              name: profile?.name || "-",
+              avatar: profile.avatarUrl || "",
+              email: profile.email,
+              name: profile.name || "-",
             }}
           />
         )}

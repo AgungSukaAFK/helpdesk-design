@@ -347,3 +347,39 @@
     --sidebar-ring: hsl(213 14% 66%);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* View transitions (lib/view-transition.ts)                          */
+/* ------------------------------------------------------------------ */
+/* reveal: tampilan baru dibuka lingkaran dari tombol yang diklik (animasi di JS) */
+html[data-vt="reveal"]::view-transition-old(root),
+html[data-vt="reveal"]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html[data-vt="reveal"]::view-transition-old(root) {
+  z-index: 0;
+}
+html[data-vt="reveal"]::view-transition-new(root) {
+  z-index: 1;
+}
+/* fade: aksen & jenis font */
+html[data-vt="fade"]::view-transition-group(root) {
+  animation-duration: 250ms;
+}
+/* Penanda opsi terpilih di popover Tampilan bergeser ke opsi baru */
+::view-transition-group(appearance-mode),
+::view-transition-group(appearance-accent),
+::view-transition-group(appearance-font) {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}

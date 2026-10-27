@@ -1,3 +1,5 @@
+"use client";
+
 import { ChevronsUpDown, LogOut, Moon, SquareUserRound, Sun } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -19,9 +21,9 @@ import {
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { createClient } from "@/lib/supabase/client";
-import { MyAlertDialog } from "./dialog-confirm";
-import { redirect } from "next/navigation";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useTopbarProfileData } from "@/components/topbar/topbar";
+import { originFromEvent, runViewTransition } from "@/lib/view-transition";
 
 export function NavUser({
   user,
@@ -38,6 +40,7 @@ export function NavUser({
   const isDarkTheme = resolvedTheme === "dark" || resolvedTheme === "soft-dark";
 
   const { isMobile, setOpenMobile } = useSidebar();
+  const { logout } = useTopbarProfileData();
 
   const initials =
     (user.name && user.name !== "-" ? user.name : user.email)
@@ -52,19 +55,17 @@ export function NavUser({
     setMounted(true);
   }, []);
 
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    redirect("/auth/login");
-  }
-
   return (
     <>
-      <MyAlertDialog
+      <ConfirmDialog
         open={logoutDialog}
         onOpenChange={setLogoutDialog}
-        onAction={handleLogout}
-      ></MyAlertDialog>
+        title="Keluar dari akun?"
+        description="Anda perlu login lagi untuk membuka DesignDesk."
+        confirmText="Log out"
+        destructive
+        onConfirm={logout}
+      />
 
       <SidebarMenu>
         <SidebarMenuItem>
@@ -120,7 +121,12 @@ export function NavUser({
                 {mounted && (
                   <DropdownMenuItem
                     className="w-full flex items-center gap-2 cursor-pointer"
-                    onClick={() => setTheme(isDarkTheme ? "light" : "dark")}
+                    onClick={(e) =>
+                      runViewTransition(() => setTheme(isDarkTheme ? "light" : "dark"), {
+                        mode: "reveal",
+                        origin: originFromEvent(e),
+                      })
+                    }
                   >
                     {isDarkTheme ? (
                       <>
@@ -137,7 +143,10 @@ export function NavUser({
                 )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setLogoutDialog(true)}>
+              <DropdownMenuItem
+                className="text-destructive focus:bg-destructive/10 focus:text-destructive [&_svg]:text-destructive"
+                onClick={() => setLogoutDialog(true)}
+              >
                 <LogOut />
                 Log out
               </DropdownMenuItem>

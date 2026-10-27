@@ -1,26 +1,19 @@
 "use client";
 
 import { AppSidebar } from "@/components/app-sidebar";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { TopbarActions, TopbarProvider } from "@/components/topbar/topbar";
+import { TopbarBreadcrumb } from "@/components/topbar/topbar-breadcrumb";
+import { TopbarSearch } from "@/components/topbar/topbar-search";
 import { createClient } from "@/lib/supabase/client";
 import { redirect, usePathname, useRouter } from "next/navigation";
-import { Fragment, ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { NotificationBell } from "@/components/notification-bell";
-import { AppearanceSwitchers } from "@/components/theme-switcher";
 import { Loader2 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -81,50 +74,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     };
   }, [pathname, router]);
 
-  function urlToBreadcrumb(pathname: string) {
-    const parts = pathname.split("/").filter(Boolean);
-
-    return parts.map((part, index) => {
-      const isLast = index === parts.length - 1;
-      const href = `/${parts.slice(0, index + 1).join("/")}`;
-
-      let readablePart = decodeURIComponent(
-        part.replace(/-/g, " ").replace(/\b\w/g, (s) => s.toUpperCase())
-      );
-
-      // Pemetaan nama menu yang ramah pembaca
-      if (part === "artikel-admin") {
-        readablePart = "Artikel";
-      } else if (part === "buat") {
-        readablePart = "Buat Artikel";
-      } else if (part === "edit") {
-        readablePart = "Edit";
-      }
-
-      // 👉 kalau part adalah UUID
-      if (/^[0-9a-fA-F-]{36}$/.test(part)) {
-        if (isLast) {
-          readablePart = "Edit Artikel";
-        } else {
-          return null;
-        }
-      }
-
-      return (
-        <Fragment key={index}>
-          <BreadcrumbItem>
-            {isLast ? (
-              <BreadcrumbPage>{readablePart}</BreadcrumbPage>
-            ) : (
-              <BreadcrumbLink href={href}>{readablePart}</BreadcrumbLink>
-            )}
-          </BreadcrumbItem>
-          {!isLast && <BreadcrumbSeparator />}
-        </Fragment>
-      );
-    });
-  }
-
   useEffect(() => {
     async function fetch() {
       const supabase = createClient();
@@ -154,41 +103,43 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     fetch();
   }, []);
 
+  // TopbarProvider di luar pengecekan akses supaya profil tidak diambil ulang tiap pindah halaman.
   if (accessCheckedPath !== pathname) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
-      </div>
+      <TopbarProvider>
+        <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+      </TopbarProvider>
     );
   }
 
   return (
-    <>
+    <TopbarProvider>
       <SidebarProvider>
-        {/* Pastikan AppSidebar menerima prop user dengan tipe yang sesuai */}
         <AppSidebar className="shadow-lg" />
         <SidebarInset className="min-w-0">
-          <header className="flex h-14 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-            <div className="flex items-center gap-2 px-3 sm:px-4 w-full">
-              <SidebarTrigger className="-ml-1" />
+          <header
+            className={[
+              "sticky top-0 z-40 flex h-14 shrink-0 items-center border-b border-border/60 bg-background/90 backdrop-blur-md print:hidden",
+              "transition-[height] ease-linear md:h-16 md:backdrop-blur-xl md:backdrop-saturate-150",
+              "md:group-has-data-[collapsible=icon]/sidebar-wrapper:h-12",
+              // Garis gradien aksen tipis di bawah header
+              "after:pointer-events-none after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-gradient-to-r after:from-transparent after:via-primary/30 after:to-transparent",
+            ].join(" ")}
+          >
+            <div className="flex w-full min-w-0 items-center gap-2 px-3 sm:px-4">
+              <SidebarTrigger className="-ml-1 shrink-0" />
               <Separator
                 orientation="vertical"
-                className="mr-1 sm:mr-2 data-[orientation=vertical]:h-4 hidden sm:block"
+                className="mr-1 hidden data-[orientation=vertical]:h-4 sm:block"
               />
-              <Breadcrumb className="flex-1 min-w-0">
-                <BreadcrumbList className="flex flex-nowrap items-center gap-1 overflow-x-auto text-xs sm:text-sm py-1">
-                  <BreadcrumbItem className="hidden sm:inline-flex">
-                    <BreadcrumbLink href="/dashboard" className="whitespace-nowrap">
-                      Design Desk
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className="hidden sm:inline-flex" />
-                  {urlToBreadcrumb(pathname)}
-                </BreadcrumbList>
-              </Breadcrumb>
-              <div className="ml-auto flex items-center gap-2 shrink-0">
-                <NotificationBell />
-                <AppearanceSwitchers />
+              <TopbarBreadcrumb />
+              <div className="flex shrink-0 items-center lg:w-full lg:max-w-md">
+                <TopbarSearch />
+              </div>
+              <div className="flex shrink-0 items-center justify-end lg:flex-1">
+                <TopbarActions />
               </div>
             </div>
           </header>
@@ -199,6 +150,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
         </SidebarInset>
       </SidebarProvider>
-    </>
+    </TopbarProvider>
   );
 }
