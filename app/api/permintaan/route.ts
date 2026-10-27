@@ -247,6 +247,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate") || "";
     const endDate = searchParams.get("endDate") || "";
     const month = searchParams.get("month") || "";
+    const date = searchParams.get("date") || "";
     const all = searchParams.get("all") === "true"; // For Excel export
 
     const category = searchParams.get("category") || "";
@@ -278,17 +279,26 @@ export async function GET(request: NextRequest) {
       query = query.eq("requester", requester);
     }
 
-    // Apply Month or Date Range
-    if (month && month !== "all") {
+    // Rentang created_at dari filter tanggal (per hari, prioritas) atau bulan
+    let periodRange: [string, string] | null = null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      periodRange = [`${date}T00:00:00.000Z`, `${date}T23:59:59.999Z`];
+    } else if (month && month !== "all") {
       const [yStr, mStr] = month.split("-");
       const y = parseInt(yStr, 10);
       const m = parseInt(mStr, 10);
       if (!isNaN(y) && !isNaN(m)) {
         const lastDay = new Date(y, m, 0).getDate();
-        const start = `${month}-01T00:00:00.000Z`;
-        const end = `${month}-${String(lastDay).padStart(2, "0")}T23:59:59.999Z`;
-        query = query.gte("created_at", start).lte("created_at", end);
+        periodRange = [
+          `${month}-01T00:00:00.000Z`,
+          `${month}-${String(lastDay).padStart(2, "0")}T23:59:59.999Z`,
+        ];
       }
+    }
+
+    // Apply Date / Month or Date Range
+    if (periodRange) {
+      query = query.gte("created_at", periodRange[0]).lte("created_at", periodRange[1]);
     } else {
       if (startDate) {
         query = query.gte("created_at", startDate);
@@ -307,16 +317,8 @@ export async function GET(request: NextRequest) {
       statsQuery = statsQuery.or(`admin.is.null,admin.eq.${user.id}`);
     }
 
-    if (month && month !== "all") {
-      const [yStr, mStr] = month.split("-");
-      const y = parseInt(yStr, 10);
-      const m = parseInt(mStr, 10);
-      if (!isNaN(y) && !isNaN(m)) {
-        const lastDay = new Date(y, m, 0).getDate();
-        const start = `${month}-01T00:00:00.000Z`;
-        const end = `${month}-${String(lastDay).padStart(2, "0")}T23:59:59.999Z`;
-        statsQuery = statsQuery.gte("created_at", start).lte("created_at", end);
-      }
+    if (periodRange) {
+      statsQuery = statsQuery.gte("created_at", periodRange[0]).lte("created_at", periodRange[1]);
     } else {
       if (startDate) statsQuery = statsQuery.gte("created_at", startDate);
       if (endDate) statsQuery = statsQuery.lte("created_at", `${endDate} 23:59:59.999Z`);

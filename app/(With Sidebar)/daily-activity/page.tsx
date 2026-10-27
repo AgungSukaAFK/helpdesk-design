@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { toSheetName } from "@/lib/utils";
+import { formatDateDisplay, getTodayDate, shiftDate, toSheetName } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,14 +141,6 @@ const activityStatuses = [
 const LOCAL_STORAGE_KEY = "daily_activity_records_v2";
 
 // Deterministic formatters for safe SSR & zero hydration mismatch
-const getTodayDate = () => {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
-
 const getCurrentMonthPeriod = () => {
   const now = new Date();
   const y = now.getFullYear();
@@ -159,12 +151,6 @@ const getCurrentMonthPeriod = () => {
 const getCurrentTime = () => {
   const now = new Date();
   return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-};
-
-const shiftDate = (dateStr: string, days: number) => {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const date = new Date(y, m - 1, d + days);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
 
 // "HH:MM:SS" dari Postgres -> "HH:MM"
@@ -195,30 +181,6 @@ function formatPeriodMonth(period: string): string {
     "12": "Desember",
   };
   return `${monthNames[month] || month} ${year}`;
-}
-
-function formatDateDisplay(dateStr: string): string {
-  if (!dateStr) return "-";
-  const parts = dateStr.slice(0, 10).split("-");
-  if (parts.length !== 3) return dateStr;
-  const [y, m, d] = parts;
-  const monthNames = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "Mei",
-    "Jun",
-    "Jul",
-    "Agu",
-    "Sep",
-    "Okt",
-    "Nov",
-    "Des",
-  ];
-  const mIndex = parseInt(m, 10) - 1;
-  const monthName = monthNames[mIndex] || m;
-  return `${d} ${monthName} ${y}`;
 }
 
 function getDisplayPeminta(activity: DailyActivity): { title: string; subtitle: string } {

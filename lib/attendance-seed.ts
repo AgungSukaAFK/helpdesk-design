@@ -14,6 +14,13 @@ export interface AttendanceRecord {
   created_at?: string;
 }
 
+// Singkatan nama bulan (Inggris & Indonesia) -> nomor bulan
+const MONTH_ABBR_MAP: Record<string, string> = {
+  jan: "01", feb: "02", mar: "03", apr: "04", may: "05", mei: "05",
+  jun: "06", jul: "07", aug: "08", agu: "08", sep: "09", okt: "10",
+  oct: "10", nov: "11", nop: "11", des: "12", dec: "12",
+};
+
 export function extractPeriodMonth(dateStr: string): string {
   if (!dateStr) return "";
   const text = String(dateStr).trim();
@@ -31,20 +38,41 @@ export function extractPeriodMonth(dateStr: string): string {
   }
 
   // 3. Text date: "Mon, 31 Aug 2026" or "31 Agustus 2026"
-  const monthMap: Record<string, string> = {
-    jan: "01", feb: "02", mar: "03", apr: "04", may: "05", mei: "05",
-    jun: "06", jul: "07", aug: "08", agu: "08", sep: "09", okt: "10",
-    oct: "10", nov: "11", nop: "11", des: "12", dec: "12",
-  };
-
   const yearMatch = text.match(/\b(20\d{2})\b/);
   const year = yearMatch ? yearMatch[1] : "";
 
-  for (const [k, v] of Object.entries(monthMap)) {
+  for (const [k, v] of Object.entries(MONTH_ABBR_MAP)) {
     const re = new RegExp(`\\b${k}`, "i");
     if (re.test(text)) {
       return year ? `${year}-${v}` : "";
     }
+  }
+
+  return "";
+}
+
+/** Ubah teks tanggal presensi menjadi YYYY-MM-DD ("" jika tidak dikenali) */
+export function extractIsoDate(dateStr: string): string {
+  if (!dateStr) return "";
+  const text = String(dateStr).trim();
+
+  // 1. ISO format: 2026-08-31
+  const isoMatch = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2].padStart(2, "0")}-${isoMatch[3].padStart(2, "0")}`;
+  }
+
+  // 2. DD/MM/YYYY or DD-MM-YYYY format: 31/08/2026
+  const dmyMatch = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (dmyMatch) {
+    return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, "0")}-${dmyMatch[1].padStart(2, "0")}`;
+  }
+
+  // 3. Text date: "Mon, 31 Aug 2026" or "31 Agustus 2026"
+  const textMatch = text.match(/\b(\d{1,2})\s+([a-z]{3,})\.?\s+(20\d{2})\b/i);
+  if (textMatch) {
+    const month = MONTH_ABBR_MAP[textMatch[2].slice(0, 3).toLowerCase()];
+    if (month) return `${textMatch[3]}-${month}-${textMatch[1].padStart(2, "0")}`;
   }
 
   return "";

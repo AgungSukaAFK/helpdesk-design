@@ -7,6 +7,7 @@ import {
   Award,
   BarChart3,
   Calendar,
+  CalendarCheck2,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
@@ -37,7 +38,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { toSheetName } from "@/lib/utils";
+import { formatDateDisplay, getTodayDate, shiftDate, toSheetName } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,6 +81,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AttendanceRecord,
   INITIAL_ATTENDANCE_DATA,
+  extractIsoDate,
   extractPeriodMonth,
   formatPeriodMonth,
 } from "@/lib/attendance-seed";
@@ -122,6 +124,21 @@ export default function AttendancePage() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   })();
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthPeriod);
+  // Filter per hari (YYYY-MM-DD) di dalam bulan terpilih; null = sebulan penuh
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const today = getTodayDate();
+
+  const selectDate = (date: string) => {
+    setSelectedDate(date);
+    setSelectedMonth(date.slice(0, 7));
+    setCurrentPage(1);
+  };
+
+  const periodLabel = selectedDate
+    ? `${selectedDate === today ? "Hari Ini, " : ""}${formatDateDisplay(selectedDate)}`
+    : selectedMonth === "all"
+      ? "Semua Periode"
+      : formatPeriodMonth(selectedMonth);
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState("");
@@ -290,6 +307,7 @@ export default function AttendancePage() {
     const newPeriod = `${newY}-${newM}`;
 
     setSelectedMonth(newPeriod);
+    setSelectedDate(null);
     setCurrentPage(1);
   };
 
@@ -326,11 +344,12 @@ export default function AttendancePage() {
     );
   };
 
-  // Data yang difilter berdasarkan bulan aktif
+  // Data yang difilter berdasarkan tanggal / bulan aktif
   const monthRecords = useMemo(() => {
+    if (selectedDate) return records.filter((r) => extractIsoDate(r.date) === selectedDate);
     if (selectedMonth === "all") return records;
     return records.filter((r) => r.period_month === selectedMonth);
-  }, [records, selectedMonth]);
+  }, [records, selectedMonth, selectedDate]);
 
   // KPI Calculations untuk bulan yang dipilih
   const stats = useMemo(() => {
@@ -524,7 +543,11 @@ export default function AttendancePage() {
       "Ranking": idx + 1,
       "Employee No (NIK)": emp.employee_no,
       "Nama Karyawan": emp.name,
-      "Periode": selectedMonth === "all" ? "Semua Periode" : formatPeriodMonth(selectedMonth),
+      "Periode": selectedDate
+        ? formatDateDisplay(selectedDate)
+        : selectedMonth === "all"
+          ? "Semua Periode"
+          : formatPeriodMonth(selectedMonth),
       "Total Hari Terdata": emp.totalRecords,
       "Hari Libur (OFF)": emp.offCount,
       "Hari Kerja Efektif": emp.workDays,
@@ -542,7 +565,7 @@ export default function AttendancePage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Per Karyawan");
 
-    const fileName = `Rekap_Kehadiran_Karyawan_${selectedMonth === "all" ? "Semua" : selectedMonth}.xlsx`;
+    const fileName = `Rekap_Kehadiran_Karyawan_${selectedDate || (selectedMonth === "all" ? "Semua" : selectedMonth)}.xlsx`;
     XLSX.writeFile(workbook, fileName);
     toast.success(`Berhasil mengunduh rekapitulasi kehadiran (${fileName})`);
   };
@@ -843,6 +866,7 @@ export default function AttendancePage() {
 
       // Pindahkan tampilan aktif ke bulan yang baru diimpor
       setSelectedMonth(targetImportMonth);
+      setSelectedDate(null);
       setCurrentPage(1);
 
       toast.success(
@@ -895,11 +919,18 @@ export default function AttendancePage() {
     XLSX.utils.book_append_sheet(
       workbook,
       worksheet,
-      toSheetName(selectedMonth !== "all" ? formatPeriodMonth(selectedMonth) : "Attendance")
+      toSheetName(
+        selectedDate
+          ? formatDateDisplay(selectedDate)
+          : selectedMonth !== "all"
+            ? formatPeriodMonth(selectedMonth)
+            : "Attendance"
+      )
     );
 
-    const filename =
-      selectedMonth !== "all"
+    const filename = selectedDate
+      ? `Attendance_List_${selectedDate}.xlsx`
+      : selectedMonth !== "all"
         ? `Attendance_List_${selectedMonth}.xlsx`
         : `Attendance_List_Semua_Bulan.xlsx`;
 
@@ -1235,9 +1266,9 @@ notify pgrst, 'reload schema';`;
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleShiftMonth(-1)}
-              disabled={selectedMonth === "all"}
-              title="Bulan Sebelumnya"
+              onClick={() => (selectedDate ? selectDate(shiftDate(selectedDate, -1)) : handleShiftMonth(-1))}
+              disabled={!selectedDate && selectedMonth === "all"}
+              title={selectedDate ? "Hari Sebelumnya" : "Bulan Sebelumnya"}
               className="size-8 rounded-md hover:bg-background"
             >
               <ChevronLeft className="size-4" />
@@ -1246,21 +1277,57 @@ notify pgrst, 'reload schema';`;
             <div className="px-3 py-1 flex items-center gap-2">
               <CalendarDays className="size-4 text-primary" />
               <span className="font-semibold text-sm">
-                {selectedMonth === "all" ? "Semua Bulan" : formatPeriodMonth(selectedMonth)}
+                {selectedDate ? periodLabel : selectedMonth === "all" ? "Semua Bulan" : formatPeriodMonth(selectedMonth)}
               </span>
             </div>
 
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleShiftMonth(1)}
-              disabled={selectedMonth === "all"}
-              title="Bulan Berikutnya"
+              onClick={() => (selectedDate ? selectDate(shiftDate(selectedDate, 1)) : handleShiftMonth(1))}
+              disabled={!selectedDate && selectedMonth === "all"}
+              title={selectedDate ? "Hari Berikutnya" : "Bulan Berikutnya"}
               className="size-8 rounded-md hover:bg-background"
             >
               <ChevronRight className="size-4" />
             </Button>
           </div>
+
+          {/* Filter Harian */}
+          <Button
+            variant={selectedDate && selectedDate === today ? "default" : "outline"}
+            size="sm"
+            className="h-9 text-xs"
+            onClick={() => selectDate(getTodayDate())}
+          >
+            Hari Ini
+          </Button>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground border rounded-lg px-2.5 h-9 bg-background">
+            <CalendarCheck2 className="size-3.5 text-primary" />
+            <input
+              type="date"
+              value={selectedDate || ""}
+              onChange={(e) => {
+                if (e.target.value) selectDate(e.target.value);
+              }}
+              className="bg-transparent text-xs text-foreground outline-none cursor-pointer"
+              title="Pilih Tanggal"
+            />
+          </div>
+          {selectedDate && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 text-xs text-muted-foreground"
+              onClick={() => {
+                setSelectedDate(null);
+                setCurrentPage(1);
+              }}
+              title="Tampilkan semua tanggal di bulan ini"
+            >
+              Sebulan Penuh
+            </Button>
+          )}
 
           {/* Dropdown Pemilih Periode Bulan */}
           <div className="w-full sm:w-[190px]">
@@ -1268,6 +1335,7 @@ notify pgrst, 'reload schema';`;
               value={selectedMonth}
               onValueChange={(val) => {
                 setSelectedMonth(val);
+                setSelectedDate(null);
                 setCurrentPage(1);
               }}
             >
@@ -1294,6 +1362,7 @@ notify pgrst, 'reload schema';`;
               onChange={(e) => {
                 if (e.target.value) {
                   setSelectedMonth(e.target.value);
+                  setSelectedDate(null);
                   setCurrentPage(1);
                 }
               }}
@@ -1306,7 +1375,7 @@ notify pgrst, 'reload schema';`;
         <div className="flex items-center gap-2 self-start md:self-auto text-xs text-muted-foreground">
           <span>Menampilkan presensi:</span>
           <Badge variant="outline" className="font-semibold text-primary border-primary/30">
-            {selectedMonth === "all" ? "Semua Periode" : formatPeriodMonth(selectedMonth)}
+            {periodLabel}
           </Badge>
           <span className="font-mono">({monthRecords.length} baris)</span>
         </div>
@@ -2117,7 +2186,7 @@ notify pgrst, 'reload schema';`;
                       <p className="font-medium">
                         Belum ada data presensi untuk periode{" "}
                         <span className="text-foreground font-semibold">
-                          {selectedMonth === "all" ? "Semua" : formatPeriodMonth(selectedMonth)}
+                          {periodLabel}
                         </span>
                         .
                       </p>
@@ -2134,7 +2203,10 @@ notify pgrst, 'reload schema';`;
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setSelectedMonth("2026-08")}
+                          onClick={() => {
+                            setSelectedMonth("2026-08");
+                            setSelectedDate(null);
+                          }}
                           className="text-xs"
                         >
                           Lihat Bulan Agustus 2026
@@ -2751,7 +2823,7 @@ notify pgrst, 'reload schema';`;
                           {selectedEmpForDetail.employee_no}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          • Periode: {selectedMonth === "all" ? "Semua Periode" : formatPeriodMonth(selectedMonth)}
+                          • Periode: {periodLabel}
                         </span>
                       </div>
                     </div>

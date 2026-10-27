@@ -30,6 +30,7 @@ import {
   FileSpreadsheet,
   RotateCcw,
   Calendar,
+  CalendarCheck2,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -87,7 +88,7 @@ import {
   waitingOn,
   type Role,
 } from "@/lib/permintaan-workflow";
-import { cn } from "@/lib/utils";
+import { cn, formatDateDisplay, getTodayDate, shiftDate } from "@/lib/utils";
 
 interface Permintaan {
   id: string;
@@ -227,9 +228,12 @@ export default function PermintaanList() {
   const [targetImportMonth, setTargetImportMonth] = useState<string>(getCurrentMonthPeriod());
   const [importMode, setImportMode] = useState<"append" | "replace_month">("append");
 
-  // Filter Params - Defaults to current month period
+  // Filter Params - Defaults to current month period.
+  // ?date=YYYY-MM-DD mempersempit tampilan ke satu hari di dalam bulan tersebut.
   const currentMonth = getCurrentMonthPeriod();
-  const selectedMonth = searchParams.get("month") || currentMonth;
+  const dateParam = searchParams.get("date") || "";
+  const selectedDate = /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : "";
+  const selectedMonth = selectedDate ? selectedDate.slice(0, 7) : searchParams.get("month") || currentMonth;
   const currentPage = Number(searchParams.get("page") || "1");
   const searchTerm = searchParams.get("search") || "";
   const statusFilter = searchParams.get("status") || "";
@@ -240,6 +244,16 @@ export default function PermintaanList() {
   const limit = Number(searchParams.get("limit") || 10);
 
   const [searchInput, setSearchInput] = useState(searchTerm);
+
+  // Diisi di client agar label "Hari Ini" ikut zona waktu browser tanpa hydration mismatch
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    setToday(getTodayDate());
+  }, []);
+
+  const periodLabel = selectedDate
+    ? `${selectedDate === today ? "Hari Ini, " : ""}${formatDateDisplay(selectedDate)}`
+    : formatMonthPeriod(selectedMonth);
 
   // State Realtime
   const [isRealtimeConnected, setIsRealtimeConnected] = useState<boolean>(true);
@@ -272,6 +286,7 @@ export default function PermintaanList() {
       params.set("page", String(currentPage));
       params.set("limit", String(limit));
       if (selectedMonth) params.set("month", selectedMonth);
+      if (selectedDate) params.set("date", selectedDate);
       if (searchTerm) params.set("search", searchTerm);
       if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
       if (designerFilter && designerFilter !== "all") params.set("designer", designerFilter);
@@ -299,6 +314,7 @@ export default function PermintaanList() {
     currentPage,
     limit,
     selectedMonth,
+    selectedDate,
     searchTerm,
     statusFilter,
     designerFilter,
@@ -363,8 +379,16 @@ export default function PermintaanList() {
   );
 
   const handleFilter = (key: string, value: string | undefined) => {
+    // Memilih bulan selalu kembali ke tampilan sebulan penuh (hapus filter tanggal)
+    const updates = key === "month" ? { month: value, date: undefined } : { [key]: value };
     startTransition(() => {
-      router.push(pathname + "?" + createQueryString({ [key]: value }));
+      router.push(pathname + "?" + createQueryString(updates));
+    });
+  };
+
+  const selectDate = (date: string) => {
+    startTransition(() => {
+      router.push(pathname + "?" + createQueryString({ month: date.slice(0, 7), date }));
     });
   };
 
@@ -420,6 +444,7 @@ export default function PermintaanList() {
       const params = new URLSearchParams();
       params.set("all", "true");
       if (selectedMonth && selectedMonth !== "all") params.set("month", selectedMonth);
+      if (selectedDate) params.set("date", selectedDate);
       if (searchTerm) params.set("search", searchTerm);
       if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
       if (designerFilter && designerFilter !== "all") params.set("designer", designerFilter);
@@ -478,7 +503,14 @@ export default function PermintaanList() {
       // Sheet 1: Ringkasan Hasil & Kategori Desain (Sesuai Format Excel Pengguna)
       const summaryRows = [
         ["LAPORAN RINGKASAN & PERHITUNGAN PERMINTAAN DESAIN"],
-        ["Periode:", selectedMonth === "all" ? "Semua Periode" : formatMonthPeriod(selectedMonth)],
+        [
+          "Periode:",
+          selectedDate
+            ? formatDateDisplay(selectedDate)
+            : selectedMonth === "all"
+              ? "Semua Periode"
+              : formatMonthPeriod(selectedMonth),
+        ],
         [
           "Tanggal Unduh:",
           new Date().toLocaleDateString("id-ID", {
@@ -512,11 +544,12 @@ export default function PermintaanList() {
       const sheetName = selectedMonth === "all" ? "Semua Tiket" : `Daftar Tiket`;
       XLSX.utils.book_append_sheet(wb, wsData, sheetName);
 
-      const fileNameMonth =
-        selectedMonth === "all"
+      const fileNamePeriod = selectedDate
+        ? selectedDate
+        : selectedMonth === "all"
           ? "Semua_Periode"
           : formatMonthPeriod(selectedMonth).replace(/\s+/g, "_");
-      XLSX.writeFile(wb, `Laporan_Permintaan_Desain_${fileNameMonth}.xlsx`);
+      XLSX.writeFile(wb, `Laporan_Permintaan_Desain_${fileNamePeriod}.xlsx`);
       toast.success(`Excel berhasil diunduh (${rows.length} tiket)`);
     } catch (e: any) {
       toast.error("Gagal export: " + e.message);
@@ -742,7 +775,7 @@ export default function PermintaanList() {
       toast.success(result.message || `Berhasil mengimpor ${result.count || importPreviewRows.length} tiket.`);
       setIsImportModalOpen(false);
 
-      if (selectedMonth !== targetImportMonth && targetImportMonth) {
+      if ((selectedMonth !== targetImportMonth || selectedDate) && targetImportMonth) {
         handleFilter("month", targetImportMonth);
       } else {
         fetchData();
@@ -799,13 +832,14 @@ export default function PermintaanList() {
       (scopeFilter && scopeFilter !== "all") ||
       (categoryFilter && categoryFilter !== "all") ||
       (hasilFilter && hasilFilter !== "all") ||
-      selectedMonth !== currentMonth
+      selectedMonth !== currentMonth ||
+      selectedDate
   );
 
   return (
     <Content
       title="Daftar Permintaan Desain"
-      description={`Menampilkan tiket permintaan desain per bulan riil terintegrasi (${formatMonthPeriod(selectedMonth)}).`}
+      description={`Menampilkan tiket permintaan desain per bulan / per tanggal riil terintegrasi (${periodLabel}).`}
       size="lg"
       cardAction={
         <div className="flex flex-wrap items-center gap-2">
@@ -866,7 +900,7 @@ export default function PermintaanList() {
             disabled={isExporting}
             variant="outline"
             className="flex items-center gap-1.5"
-            title={`Export Excel Periode ${formatMonthPeriod(selectedMonth)}`}
+            title={`Export Excel Periode ${periodLabel}`}
           >
             {isExporting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -897,9 +931,9 @@ export default function PermintaanList() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleShiftMonth(-1)}
-              disabled={selectedMonth === "all"}
-              title="Bulan Sebelumnya"
+              onClick={() => (selectedDate ? selectDate(shiftDate(selectedDate, -1)) : handleShiftMonth(-1))}
+              disabled={!selectedDate && selectedMonth === "all"}
+              title={selectedDate ? "Hari Sebelumnya" : "Bulan Sebelumnya"}
               className="h-8 w-8 rounded-md hover:bg-background"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -908,21 +942,54 @@ export default function PermintaanList() {
             <div className="px-3 py-1 flex items-center gap-2 min-w-[150px] justify-center">
               <CalendarDays className="h-4 w-4 text-primary" />
               <span className="font-semibold text-sm">
-                {formatMonthPeriod(selectedMonth)}
+                {periodLabel}
               </span>
             </div>
 
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleShiftMonth(1)}
-              disabled={selectedMonth === "all"}
-              title="Bulan Berikutnya"
+              onClick={() => (selectedDate ? selectDate(shiftDate(selectedDate, 1)) : handleShiftMonth(1))}
+              disabled={!selectedDate && selectedMonth === "all"}
+              title={selectedDate ? "Hari Berikutnya" : "Bulan Berikutnya"}
               className="h-8 w-8 rounded-md hover:bg-background"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* Filter Harian */}
+          <Button
+            variant={selectedDate && selectedDate === today ? "default" : "outline"}
+            size="sm"
+            className="h-9 text-xs"
+            onClick={() => selectDate(getTodayDate())}
+          >
+            Hari Ini
+          </Button>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground border rounded-lg px-2.5 h-9 bg-background">
+            <CalendarCheck2 className="h-3.5 w-3.5 text-primary" />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => {
+                if (e.target.value) selectDate(e.target.value);
+              }}
+              className="bg-transparent text-xs text-foreground outline-none cursor-pointer"
+              title="Pilih Tanggal"
+            />
+          </div>
+          {selectedDate && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 text-xs text-muted-foreground"
+              onClick={() => handleFilter("date", undefined)}
+              title="Tampilkan semua tanggal di bulan ini"
+            >
+              Sebulan Penuh
+            </Button>
+          )}
 
           {/* Dropdown Pilihan Bulan Cepat */}
           <div className="w-full sm:w-[210px]">
@@ -977,7 +1044,7 @@ export default function PermintaanList() {
         <div className="flex items-center gap-2 self-start md:self-auto text-xs text-muted-foreground">
           <span>Tabel Periode:</span>
           <Badge variant="outline" className="font-semibold text-primary border-primary/30">
-            {formatMonthPeriod(selectedMonth)}
+            {periodLabel}
           </Badge>
           <span className="font-mono">({totalItems} tiket)</span>
         </div>
@@ -1540,7 +1607,7 @@ export default function PermintaanList() {
           <div className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-primary" />
             <span className="font-semibold text-sm text-foreground">
-              Daftar Tiket Permintaan: {formatMonthPeriod(selectedMonth)}
+              Daftar Tiket Permintaan: {periodLabel}
             </span>
           </div>
           <span className="text-xs text-muted-foreground font-medium">
@@ -1567,7 +1634,7 @@ export default function PermintaanList() {
                 <TableCell colSpan={8} className="text-center h-32">
                   <div className="flex justify-center items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    <span>Memuat data tiket {formatMonthPeriod(selectedMonth)}...</span>
+                    <span>Memuat data tiket {periodLabel}...</span>
                   </div>
                 </TableCell>
               </TableRow>
@@ -1708,12 +1775,12 @@ export default function PermintaanList() {
                   <div className="flex flex-col items-center justify-center gap-2">
                     <CalendarDays className="h-8 w-8 text-muted-foreground/50" />
                     <p className="font-medium text-foreground">
-                      Tidak ada permintaan desain pada {formatMonthPeriod(selectedMonth)}
+                      Tidak ada permintaan desain pada {periodLabel}
                     </p>
                     <p className="text-xs text-muted-foreground max-w-sm">
-                      Tidak ada tiket yang cocok dengan filter yang dipilih untuk bulan ini. Anda dapat berpindah ke bulan lain atau mereset filter.
+                      Tidak ada tiket yang cocok dengan filter yang dipilih untuk periode ini. Anda dapat berpindah ke tanggal / bulan lain atau mereset filter.
                     </p>
-                    {selectedMonth !== currentMonth && (
+                    {(selectedMonth !== currentMonth || selectedDate) && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -1943,7 +2010,7 @@ export default function PermintaanList() {
               ))}
             </SelectContent>
           </Select>
-          <span>tiket per halaman (Total {totalItems} tiket di {formatMonthPeriod(selectedMonth)})</span>
+          <span>tiket per halaman (Total {totalItems} tiket di {periodLabel})</span>
         </div>
 
         {totalItems > limit && (
