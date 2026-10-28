@@ -81,6 +81,32 @@ export async function POST(
         systemChat = `[SYSTEM] Hasil dikirim untuk direview${note ? `: "${note}"` : "."}`;
         break;
 
+      case "pending":
+        updates.status = "PENDING";
+        notifyTarget = ticket.requester;
+        notifyTitle = "Pengerjaan Ditunda";
+        notifyMessage = `${actorName} menunda sementara pengerjaan "${ticket.judul}"${note ? `: ${note}` : "."}`;
+        systemChat = `[SYSTEM] ${actorName} menunda pengerjaan${note ? `: "${note}"` : "."}`;
+        break;
+
+      case "lanjutkan": {
+        // Kembali ke status sebelum ditunda (PROGRESS atau REVISION)
+        const { data: lastPending } = await supabase
+          .from("permintaan_riwayat")
+          .select("status_from")
+          .eq("permintaan_id", id)
+          .eq("status_to", "PENDING")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        updates.status = lastPending?.status_from === "REVISION" ? "REVISION" : "PROGRESS";
+        notifyTarget = ticket.requester;
+        notifyTitle = "Pengerjaan Dilanjutkan";
+        notifyMessage = `${actorName} melanjutkan pengerjaan "${ticket.judul}".`;
+        systemChat = `[SYSTEM] ${actorName} melanjutkan pengerjaan.`;
+        break;
+      }
+
       case "revisi":
         if (!note) {
           return NextResponse.json({ error: "Catatan revisi wajib diisi" }, { status: 400 });

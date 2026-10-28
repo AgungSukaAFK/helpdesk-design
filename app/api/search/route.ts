@@ -95,7 +95,7 @@ async function searchUsers(client: SupabaseClient, tokens: string[], q: string) 
 async function pendingForUser(client: SupabaseClient, role: AppRole, userId: string): Promise<PendingResponse> {
   const conditions = [`and(status.eq.REVIEW,requester.eq.${userId})`];
   if (role !== "user") {
-    conditions.push(`and(status.eq."TO DO",admin.is.null)`, `and(status.in.(PROGRESS,REVISION),admin.eq.${userId})`);
+    conditions.push(`and(status.eq."TO DO",admin.is.null)`, `and(status.in.(PROGRESS,REVISION,PENDING),admin.eq.${userId})`);
   }
   const { data, error, count } = await client
     .from("permintaan")

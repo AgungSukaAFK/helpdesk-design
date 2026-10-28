@@ -334,6 +334,7 @@ export async function GET(request: NextRequest) {
       progress: 0,
       review: 0,
       revision: 0,
+      pending: 0,
       done: 0,
       thirtyDays: {
         total: 0,
@@ -365,6 +366,7 @@ export async function GET(request: NextRequest) {
       else if (s === "PROGRESS") stats.progress++;
       else if (s === "REVIEW") stats.review++;
       else if (s === "REVISION") stats.revision++;
+      else if (s === "PENDING") stats.pending++;
       else if (s === "TO DO" || s === "TODO") stats.todo++;
 
       // 30 Days calculation

@@ -42,6 +42,7 @@ import {
   Sparkles,
   Hourglass,
   AlertCircle,
+  Pause,
   FolderKanban,
   Printer,
   Monitor,
@@ -120,6 +121,7 @@ interface MonthStats {
   progress: number;
   review: number;
   revision: number;
+  pending?: number;
   done: number;
   thirtyDays?: {
     total: number;
@@ -1347,7 +1349,7 @@ export default function PermintaanList() {
       )}
 
       {/* 3. RINGKASAN STATUS BULANAN (METRIC KPI CARDS) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 mb-5">
         {/* Total Tiket */}
         <button
           type="button"
@@ -1443,6 +1445,25 @@ export default function PermintaanList() {
           </div>
         </button>
 
+        {/* Pending */}
+        <button
+          type="button"
+          onClick={() => handleFilter("status", "PENDING")}
+          className={`p-3 rounded-xl border text-left transition-all ${
+            statusFilter === "PENDING"
+              ? "bg-slate-500/15 border-slate-500/40 ring-1 ring-slate-500/30"
+              : "bg-card hover:bg-muted/40"
+          }`}
+        >
+          <div className="text-[11px] font-medium text-slate-700 dark:text-slate-300 flex items-center justify-between">
+            <span>Pending</span>
+            <Pause className="h-3.5 w-3.5 text-slate-600" />
+          </div>
+          <div className="text-xl font-bold mt-1 text-slate-700 dark:text-slate-300">
+            {monthStats.pending ?? 0}
+          </div>
+        </button>
+
         {/* Done */}
         <button
           type="button"
@@ -1531,6 +1552,7 @@ export default function PermintaanList() {
                 <SelectItem value="PROGRESS">Progress</SelectItem>
                 <SelectItem value="REVIEW">Review</SelectItem>
                 <SelectItem value="REVISION">Revision</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
                 <SelectItem value="DONE">Done</SelectItem>
               </SelectContent>
             </Select>
@@ -1712,9 +1734,11 @@ export default function PermintaanList() {
                             ? item.requester === currentUser?.id
                               ? "Menunggu respon Anda"
                               : "Menunggu respon peminta"
-                            : item.admin
-                              ? "Dikerjakan desainer"
-                              : "Belum ada desainer"}
+                            : normalizeStatus(item.status) === "PENDING"
+                              ? "Ditunda desainer"
+                              : item.admin
+                                ? "Dikerjakan desainer"
+                                : "Belum ada desainer"}
                         </span>
                       )}
                     </div>

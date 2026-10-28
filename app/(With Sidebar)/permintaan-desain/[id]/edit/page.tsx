@@ -72,6 +72,7 @@ const statusOptions = [
   { label: "PROGRESS", value: "PROGRESS" },
   { label: "REVIEW", value: "REVIEW" },
   { label: "REVISION", value: "REVISION" },
+  { label: "PENDING", value: "PENDING" },
   { label: "DONE", value: "DONE" },
 ];
 

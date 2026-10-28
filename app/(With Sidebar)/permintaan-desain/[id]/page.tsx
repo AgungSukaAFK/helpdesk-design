@@ -36,6 +36,8 @@ import { createClient } from "@/lib/supabase/client";
 import {
   allowedActions,
   canEditPermintaan,
+  hitungWaktuPengerjaan,
+  isPengajuanRevisi,
   normalizeStatus,
   STATUS_LIST,
   STATUS_META,
@@ -68,6 +70,9 @@ import {
   Quote,
   Hourglass,
   AlertTriangle,
+  Pause,
+  Play,
+  Timer,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -159,6 +164,32 @@ const fmtDate = (iso?: string | null, long = false) =>
       })
     : "-";
 
+// Stopwatch: jam bisa lebih dari 24
+const fmtStopwatch = (ms: number) => {
+  const total = Math.floor(ms / 1000);
+  return [Math.floor(total / 3600), Math.floor((total % 3600) / 60), total % 60]
+    .map((n) => String(n).padStart(2, "0"))
+    .join(":");
+};
+
+const fmtDurasi = (ms: number) => {
+  const totalMin = Math.floor(ms / 60_000);
+  if (totalMin < 1) return "< 1 mnt";
+  const d = Math.floor(totalMin / 1440);
+  const h = Math.floor((totalMin % 1440) / 60);
+  const m = totalMin % 60;
+  if (d) return `${d} hari${h ? ` ${h} jam` : ""}`;
+  if (h) return `${h} jam${m ? ` ${m} mnt` : ""}`;
+  return `${m} mnt`;
+};
+
+const PAUSE_REASONS = [
+  "Ada pekerjaan lain yang lebih mendesak",
+  "Menunggu bahan / info dari peminta",
+  "Rapat / keperluan kantor",
+  "Istirahat",
+];
+
 function StatusBadge({ status }: { status: string }) {
   const meta = STATUS_META[normalizeStatus(status)];
   return <Badge className={cn("font-medium", meta.badgeClass)}>{meta.label}</Badge>;
@@ -169,13 +200,16 @@ function riwayatLabel(r: RiwayatItem, revisionNo: number) {
   if (!r.status_from && r.status_to === "TO DO") return "Permintaan dibuat";
   switch (r.status_to) {
     case "PROGRESS":
+      if (r.status_from === "PENDING") return "Pengerjaan dilanjutkan";
       return r.status_from === "TO DO" || !r.status_from
         ? "Mulai dikerjakan"
         : "Kembali dikerjakan";
     case "REVIEW":
       return "Hasil dikirim untuk review";
     case "REVISION":
-      return `Revisi ke-${revisionNo} diajukan`;
+      return isPengajuanRevisi(r) ? `Revisi ke-${revisionNo} diajukan` : "Revisi dilanjutkan";
+    case "PENDING":
+      return "Pengerjaan ditunda";
     case "DONE":
       return "Diterima & selesai";
     case "TO DO":
@@ -205,6 +239,8 @@ export default function DetailPermintaanPage() {
   const [reviewText, setReviewText] = useState("");
   const [isSubmitReviewOpen, setIsSubmitReviewOpen] = useState(false);
   const [reviewNote, setReviewNote] = useState("");
+  const [isPauseOpen, setIsPauseOpen] = useState(false);
+  const [pauseNote, setPauseNote] = useState("");
 
   // Override status oleh admin (konfirmasi)
   const [pendingStatus, setPendingStatus] = useState<string>("");
@@ -343,6 +379,21 @@ export default function DetailPermintaanPage() {
       setReviewNote("");
     }
   };
+
+  const handlePending = async () => {
+    const ok = await runAction(
+      "pending",
+      { note: pauseNote },
+      "Pengerjaan ditunda. Timer berhenti sementara.",
+    );
+    if (ok) {
+      setIsPauseOpen(false);
+      setPauseNote("");
+    }
+  };
+
+  const handleLanjutkan = () =>
+    runAction("lanjutkan", {}, "Pengerjaan dilanjutkan. Timer berjalan kembali.");
 
   const handleRequestRevision = async () => {
     if (!revisionNote.trim()) {
@@ -499,7 +550,9 @@ export default function DetailPermintaanPage() {
   const revisionCount = data.revision_count ?? 0;
 
   const riwayat = data.riwayat || [];
-  const revisions = riwayat.filter((r) => r.status_to === "REVISION");
+  const revisions = riwayat.filter(isPengajuanRevisi);
+  const lastEntry = riwayat[riwayat.length - 1];
+  const pauseEntry = status === "PENDING" && lastEntry?.status_to === "PENDING" ? lastEntry : null;
 
   // Bandingkan per tanggal kalender: deadline hari ini belum dianggap lewat,
   // baru dianggap lewat mulai H+1 dari tanggal deadline.
@@ -695,6 +748,54 @@ export default function DetailPermintaanPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Tunda pengerjaan (desainer) */}
+      <Dialog open={isPauseOpen} onOpenChange={setIsPauseOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pending — Tunda Pengerjaan</DialogTitle>
+            <DialogDescription>
+              Timer waktu aktual berhenti sampai Anda klik &quot;Lanjutkan&quot;.
+              Peminta akan diberi notifikasi.
+            </DialogDescription>
+          </DialogHeader>
+          <Label htmlFor="pause-note">Alasan (opsional)</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {PAUSE_REASONS.map((reason) => (
+              <Button
+                key={reason}
+                type="button"
+                size="sm"
+                variant={pauseNote === reason ? "secondary" : "outline"}
+                className="h-7 text-xs"
+                onClick={() => setPauseNote(reason)}
+              >
+                {reason}
+              </Button>
+            ))}
+          </div>
+          <Textarea
+            id="pause-note"
+            placeholder="Contoh: Ada permintaan urgent dari Direksi, dilanjutkan setelah makan siang."
+            value={pauseNote}
+            onChange={(e) => setPauseNote(e.target.value)}
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsPauseOpen(false)}>
+              Batal
+            </Button>
+            <Button onClick={handlePending} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Pause className="mr-2 h-4 w-4" />
+              )}
+              Pending
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="space-y-6">
         {/* HEADER + STEPPER */}
         <div className="border rounded-lg p-5 bg-card shadow-sm space-y-5">
@@ -718,6 +819,8 @@ export default function DetailPermintaanPage() {
           </div>
 
           <WorkflowStepper status={status} data={data} />
+
+          <WorkTimer status={status} riwayat={riwayat} />
         </div>
 
         {/* LANGKAH SELANJUTNYA */}
@@ -731,8 +834,11 @@ export default function DetailPermintaanPage() {
           fileCount={fileCount}
           isSubmitting={isSubmitting}
           canEdit={canEdit}
+          pauseReason={pauseEntry?.catatan ?? null}
           onAmbil={handleAmbil}
           onKirimReview={() => setIsSubmitReviewOpen(true)}
+          onPending={() => setIsPauseOpen(true)}
+          onLanjutkan={handleLanjutkan}
           onRevisi={() => setIsRevisionOpen(true)}
           onSelesai={() => setIsFinishOpen(true)}
         />
@@ -741,7 +847,10 @@ export default function DetailPermintaanPage() {
           {/* KOLOM KIRI */}
           <div className="lg:col-span-2 space-y-6">
             {/* Catatan revisi terbaru */}
-            {revisions.length > 0 && (status === "REVISION" || status === "REVIEW") && (
+            {revisions.length > 0 &&
+              (status === "REVISION" ||
+                status === "REVIEW" ||
+                pauseEntry?.status_from === "REVISION") && (
               <div className="border border-rose-500/30 rounded-lg p-5 bg-rose-500/5 space-y-3">
                 <h3 className="font-semibold flex items-center gap-2 text-rose-700 dark:text-rose-400">
                   <RotateCcw className="h-4 w-4" /> Catatan Revisi Terbaru (ke-
@@ -1115,10 +1224,14 @@ function WorkflowStepper({
   status: PermintaanStatus;
   data: PermintaanDetail;
 }) {
-  // REVISION berada di tahap "Dikerjakan" (desainer memperbaiki)
+  // REVISION & PENDING berada di tahap "Dikerjakan" (desainer memperbaiki / menunda)
   const currentIdx =
-    status === "REVISION" ? 1 : STEPS.findIndex((st) => st.key === status);
+    status === "REVISION" || status === "PENDING"
+      ? 1
+      : STEPS.findIndex((st) => st.key === status);
   const revisionCount = data.revision_count ?? 0;
+  const riwayat = data.riwayat || [];
+  const pausedAt = status === "PENDING" ? riwayat[riwayat.length - 1]?.created_at : null;
 
   return (
     <ol className="grid grid-cols-4 gap-2">
@@ -1127,6 +1240,7 @@ function WorkflowStepper({
         const active = idx === currentIdx && status !== "DONE";
         const at = data[step.atKey] as string | null | undefined;
         const isRevisionStep = idx === 1 && status === "REVISION";
+        const isPausedStep = idx === 1 && status === "PENDING";
         return (
           <li key={step.key} className="flex flex-col items-center text-center gap-1.5">
             <div className="flex w-full items-center">
@@ -1135,20 +1249,31 @@ function WorkflowStepper({
                 className={cn(
                   "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-semibold",
                   done && "border-primary bg-primary text-primary-foreground",
-                  active && !isRevisionStep && "border-primary text-primary ring-4 ring-primary/15",
+                  active && !isRevisionStep && !isPausedStep && "border-primary text-primary ring-4 ring-primary/15",
                   isRevisionStep && "border-rose-500 text-rose-600 ring-4 ring-rose-500/15",
+                  isPausedStep && "border-slate-500 text-slate-600 dark:text-slate-300 ring-4 ring-slate-500/15",
                   !done && !active && "border-border text-muted-foreground",
                 )}
               >
-                {done ? <Check className="h-4 w-4" /> : isRevisionStep ? <RotateCcw className="h-4 w-4" /> : idx + 1}
+                {done ? (
+                  <Check className="h-4 w-4" />
+                ) : isRevisionStep ? (
+                  <RotateCcw className="h-4 w-4" />
+                ) : isPausedStep ? (
+                  <Pause className="h-4 w-4" />
+                ) : (
+                  idx + 1
+                )}
               </div>
               <div className={cn("h-0.5 flex-1", idx === STEPS.length - 1 ? "invisible" : done ? "bg-primary" : "bg-border")} />
             </div>
             <span className={cn("text-xs font-medium", !done && !active && "text-muted-foreground")}>
-              {isRevisionStep ? `Revisi ke-${revisionCount}` : step.title}
+              {isPausedStep ? "Ditunda" : isRevisionStep ? `Revisi ke-${revisionCount}` : step.title}
             </span>
             <span className="text-[10px] text-muted-foreground leading-tight">
-              {isRevisionStep
+              {isPausedStep
+                ? fmtDateTime(pausedAt)
+                : isRevisionStep
                 ? fmtDateTime(data.revision_at)
                 : done || active
                   ? at
@@ -1173,8 +1298,11 @@ function NextStepPanel({
   fileCount,
   isSubmitting,
   canEdit,
+  pauseReason,
   onAmbil,
   onKirimReview,
+  onPending,
+  onLanjutkan,
   onRevisi,
   onSelesai,
 }: {
@@ -1187,8 +1315,11 @@ function NextStepPanel({
   fileCount: number;
   isSubmitting: boolean;
   canEdit: boolean;
+  pauseReason: string | null;
   onAmbil: () => void;
   onKirimReview: () => void;
+  onPending: () => void;
+  onLanjutkan: () => void;
   onRevisi: () => void;
   onSelesai: () => void;
 }) {
@@ -1218,7 +1349,7 @@ function NextStepPanel({
       tone = "action";
       title = revisi ? "Kerjakan revisi dari peminta" : "Sedang Anda kerjakan";
       description =
-        "Upload file hasil di bagian Lampiran, lalu klik \"Kirim untuk Review\" agar peminta bisa mengecek.";
+        "Upload file hasil di bagian Lampiran, lalu klik \"Kirim untuk Review\" agar peminta bisa mengecek. Ada keperluan lain? Klik \"Pending\" agar timer berhenti sementara.";
     } else {
       title = revisi
         ? `${designerName} sedang mengerjakan revisi`
@@ -1228,6 +1359,16 @@ function NextStepPanel({
           ? "Anda akan diberi notifikasi saat hasil revisi dikirim. Jika ada tambahan, tulis di Diskusi."
           : "Anda akan diberi notifikasi saat hasil dikirim. Jika sudah ada hasil sementara dan perlu perbaikan, Anda bisa langsung mengajukan revisi."
         : "";
+    }
+  } else if (status === "PENDING") {
+    if (isWorker && actions.includes("lanjutkan")) {
+      tone = "action";
+      title = "Pengerjaan sedang ditunda";
+      description =
+        "Timer waktu aktual berhenti selama ditunda. Klik \"Lanjutkan\" saat siap mengerjakan kembali.";
+    } else {
+      title = `${designerName} menunda sementara pengerjaan`;
+      description = isOwner ? "Anda akan diberi notifikasi saat pengerjaan dilanjutkan." : "";
     }
   } else if (status === "REVIEW") {
     if (isOwner) {
@@ -1275,6 +1416,11 @@ function NextStepPanel({
           </p>
           <h3 className="font-semibold">{title}</h3>
           {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
+          {status === "PENDING" && pauseReason && (
+            <p className="mt-1.5 text-sm">
+              <span className="text-muted-foreground">Alasan:</span> {pauseReason}
+            </p>
+          )}
         </div>
       </div>
 
@@ -1285,9 +1431,29 @@ function NextStepPanel({
             Ambil Permintaan
           </Button>
         )}
+        {actions.includes("lanjutkan") && isWorker && (
+          <Button onClick={onLanjutkan} disabled={isSubmitting}>
+            {isSubmitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="mr-2 h-4 w-4" />
+            )}
+            Lanjutkan
+          </Button>
+        )}
         {actions.includes("kirim_review") && isWorker && (
           <Button onClick={onKirimReview} disabled={isSubmitting}>
             <Send className="mr-2 h-4 w-4" /> Kirim untuk Review
+          </Button>
+        )}
+        {actions.includes("pending") && isWorker && (
+          <Button
+            variant="outline"
+            onClick={onPending}
+            disabled={isSubmitting}
+            title="Tunda sementara, timer waktu aktual berhenti"
+          >
+            <Pause className="mr-2 h-4 w-4" /> Pending
           </Button>
         )}
         {status === "TO DO" && isOwner && canEdit && (
@@ -1342,7 +1508,7 @@ function AuditTimeline({
 
   let revisionNo = 0;
   const rows = entries.map((r) => {
-    if (r.status_to === "REVISION") revisionNo++;
+    if (isPengajuanRevisi(r)) revisionNo++;
     return { r, label: riwayatLabel(r, revisionNo) };
   });
 
@@ -1376,6 +1542,103 @@ function AuditTimeline({
           );
         })}
       </ol>
+    </div>
+  );
+}
+
+function WorkTimer({
+  status,
+  riwayat,
+}: {
+  status: PermintaanStatus;
+  riwayat: RiwayatItem[];
+}) {
+  const [now, setNow] = useState(() => Date.now());
+
+  // Detik ikut berjalan selama belum selesai (termasuk saat ditunda/review,
+  // agar rincian waktu yang tidak dihitung juga ter-update).
+  useEffect(() => {
+    if (status === "DONE") return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [status]);
+
+  const waktu = hitungWaktuPengerjaan(riwayat, now);
+
+  const state =
+    status === "DONE"
+      ? { label: "Selesai", className: "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10" }
+      : waktu.berjalan
+        ? { label: "Berjalan", className: "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10" }
+        : status === "PENDING"
+          ? { label: "Dijeda · ditunda", className: "text-slate-700 dark:text-slate-300 bg-slate-500/15" }
+          : status === "REVIEW"
+            ? { label: "Dijeda · menunggu peminta", className: "text-purple-700 dark:text-purple-400 bg-purple-500/10" }
+            : { label: "Belum dimulai", className: "text-muted-foreground bg-muted" };
+
+  const excluded = [
+    { label: "Ditunda", ms: waktu.pendingMs, dotClass: STATUS_META.PENDING.dotClass },
+    { label: "Menunggu peminta", ms: waktu.reviewMs, dotClass: STATUS_META.REVIEW.dotClass },
+    { label: "Antre sebelum diambil", ms: waktu.antreMs, dotClass: STATUS_META["TO DO"].dotClass },
+  ].filter((x) => x.ms >= 60_000);
+
+  return (
+    <div className="border-t pt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          <Timer className="h-3.5 w-3.5" /> Waktu aktual pengerjaan
+        </p>
+        <div className="flex items-center gap-3 mt-1">
+          <span
+            className={cn(
+              "font-mono text-3xl font-semibold tabular-nums tracking-tight",
+              !waktu.berjalan && "text-muted-foreground",
+            )}
+          >
+            {fmtStopwatch(waktu.aktifMs)}
+          </span>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
+              state.className,
+            )}
+          >
+            {waktu.berjalan ? (
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+            ) : status === "PENDING" || status === "REVIEW" ? (
+              <Pause className="h-3 w-3" />
+            ) : null}
+            {state.label}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Hanya dihitung saat {STATUS_META.PROGRESS.label.toLowerCase()} atau{" "}
+          {STATUS_META.REVISION.label.toLowerCase()}.
+          {!waktu.lengkap && riwayat.length > 0 && (
+            <span className="text-amber-700 dark:text-amber-400">
+              {" "}Riwayat status lama tidak lengkap, angka ini perkiraan.
+            </span>
+          )}
+        </p>
+      </div>
+
+      {excluded.length > 0 && (
+        <div className="text-xs sm:text-right space-y-1">
+          <p className="text-muted-foreground">Tidak dihitung:</p>
+          <ul className="flex flex-wrap gap-x-3 gap-y-1 sm:justify-end">
+            {excluded.map((x) => (
+              <li key={x.label} className="flex items-center gap-1.5">
+                <span className={cn("h-2 w-2 rounded-full", x.dotClass)} />
+                <span className="text-muted-foreground">{x.label}</span>
+                <span className="font-medium tabular-nums">{fmtDurasi(x.ms)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

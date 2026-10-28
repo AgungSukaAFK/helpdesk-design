@@ -44,6 +44,7 @@ const statusOptions: ComboboxData = [
   { label: "PROGRESS", value: "PROGRESS" },
   { label: "REVISION", value: "REVISION" },
   { label: "REVIEW", value: "REVIEW" },
+  { label: "PENDING", value: "PENDING" },
   { label: "DONE", value: "DONE" },
 ];
 

@@ -379,6 +379,7 @@ export function PermintaanAdminClientContent() {
                   <SelectItem value="PROGRESS">Progress</SelectItem>
                   <SelectItem value="REVISION">Revision</SelectItem>
                   <SelectItem value="REVIEW">Review</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
                   <SelectItem value="DONE">Done</SelectItem>
                 </SelectContent>
               </Select>
