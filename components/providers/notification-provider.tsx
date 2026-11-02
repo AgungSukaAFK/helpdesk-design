@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import { loadNotifSettings } from "@/lib/notifications/settings";
 import { playCustomSound, playSound, unlockAudio } from "@/lib/notifications/sound";
 
@@ -60,7 +61,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   // Ikuti status login (provider dipasang di root layout, termasuk halaman auth).
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    getCurrentUser().then(({ data }) => setUserId(data.user?.id ?? null)).catch(() => {});
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserId(session?.user?.id ?? null);
     });

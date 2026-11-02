@@ -10,85 +10,57 @@ import {
 import { TopbarActions, TopbarProvider } from "@/components/topbar/topbar";
 import { TopbarBreadcrumb } from "@/components/topbar/topbar-breadcrumb";
 import { TopbarSearch } from "@/components/topbar/topbar-search";
-import { createClient } from "@/lib/supabase/client";
+import { getCurrentProfile, getCurrentUser, peekCurrentProfile } from "@/lib/supabase/current-user";
 import { redirect, usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
+function isDesignerAllowedRoute(pathname: string) {
+  const isRequestWorkRoute = pathname === "/permintaan-desain" || (
+    /^\/permintaan-desain\/[^/]+(?:\/edit)?$/.test(pathname) &&
+    pathname !== "/permintaan-desain/buat"
+  );
+  return (
+    pathname === "/dashboard" ||
+    pathname === "/daily-activity" ||
+    pathname === "/riwayat-pengerjaan" ||
+    pathname === "/artikel-admin" ||
+    pathname === "/notifikasi" ||
+    pathname === "/profile" ||
+    pathname === "/feedback" ||
+    pathname === "/dokumentasi" ||
+    pathname === "/tentang-app" ||
+    pathname.startsWith("/artikel-admin/") ||
+    isRequestWorkRoute
+  );
+}
+
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [accessCheckedPath, setAccessCheckedPath] = useState<string | null>(null);
+  // undefined = role belum diketahui. Setelah diketahui, pindah halaman dicek tanpa request ulang.
+  const [role, setRole] = useState<string | null | undefined>(
+    () => {
+      const cached = peekCurrentProfile();
+      return cached === undefined ? undefined : (cached?.role ?? null);
+    },
+  );
 
   useEffect(() => {
     let active = true;
-    async function verifyDesignerRoute() {
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          router.replace("/auth/login");
-          return;
-        }
-
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("role")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (profile?.role === "designer") {
-          const isRequestWorkRoute = pathname === "/permintaan-desain" || (
-            /^\/permintaan-desain\/[^/]+(?:\/edit)?$/.test(pathname) &&
-            pathname !== "/permintaan-desain/buat"
-          );
-          const isAllowedRoute =
-            pathname === "/dashboard" ||
-            pathname === "/daily-activity" ||
-            pathname === "/riwayat-pengerjaan" ||
-            pathname === "/artikel-admin" ||
-            pathname === "/notifikasi" ||
-            pathname === "/profile" ||
-            pathname === "/feedback" ||
-            pathname === "/dokumentasi" ||
-            pathname === "/tentang-app" ||
-            pathname.startsWith("/artikel-admin/") ||
-            isRequestWorkRoute;
-
-          if (!isAllowedRoute) {
-            router.replace("/dashboard");
-            return;
-          }
-        }
-
-        if (active) setAccessCheckedPath(pathname);
-      } catch {
-        if (active) setAccessCheckedPath(pathname);
+    getCurrentProfile().then(async (profile) => {
+      if (!active) return;
+      if (!profile) {
+        // Session hilang -> login. Profil gagal dimuat -> tetap izinkan (perilaku lama).
+        const { data: { user } } = await getCurrentUser().catch(() => ({ data: { user: null } }));
+        if (!active) return;
+        if (!user) router.replace("/auth/login");
+        else setRole(null);
+        return;
       }
-    }
-
-    verifyDesignerRoute();
-    return () => {
-      active = false;
-    };
-  }, [pathname, router]);
-
-  useEffect(() => {
-    async function fetch() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        redirect("/auth/login");
-      }
-      const profileRes = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-      if (!profileRes.data.name) {
+      setRole(profile.role ?? null);
+      if (!profile.name) {
         toast.warning("Anda belum melengkapi informasi akun.", {
           action: {
             label: "Lengkapi Profil",
@@ -98,13 +70,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           },
         });
       }
-    }
+    });
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
-    fetch();
-  }, []);
+  const designerBlocked = role === "designer" && !isDesignerAllowedRoute(pathname);
+
+  useEffect(() => {
+    if (designerBlocked) router.replace("/dashboard");
+  }, [designerBlocked, router]);
 
   // TopbarProvider di luar pengecekan akses supaya profil tidak diambil ulang tiap pindah halaman.
-  if (accessCheckedPath !== pathname) {
+  if (role === undefined || designerBlocked) {
     return (
       <TopbarProvider>
         <div className="flex min-h-screen items-center justify-center text-muted-foreground">

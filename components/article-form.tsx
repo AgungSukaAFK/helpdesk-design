@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { FileDropArea } from "@/components/file-drop";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
 import {
   Article,
   ArticleStatus,
@@ -82,16 +83,12 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
   // Admin manages all articles; designers manage articles they authored.
   useEffect(() => {
     async function checkRole() {
-      const { data } = await s.auth.getUser();
+      const { data } = await getCurrentUser();
       if (!data?.user) {
         router.replace("/auth/login");
         return;
       }
-      const { data: profile } = await s
-        .from("user_profiles")
-        .select("role")
-        .eq("id", data.user.id)
-        .maybeSingle();
+      const profile = await getCurrentProfile();
       if (profile?.role !== "admin" && profile?.role !== "designer") {
         toast.error("Anda tidak memiliki akses untuk mengelola artikel.");
         router.replace("/artikel-admin");
@@ -151,7 +148,7 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
 
     setUploadingCover(true);
     const toastId = toast.loading("Mengunggah cover…");
-    const { data: { user } } = await s.auth.getUser();
+    const { data: { user } } = await getCurrentUser();
     if (!user) {
       setUploadingCover(false);
       toast.error("Sesi berakhir, silakan login ulang.", { id: toastId });
@@ -201,7 +198,7 @@ export function ArticleForm({ articleId }: ArticleFormProps) {
     try {
       const {
         data: { user },
-      } = await s.auth.getUser();
+      } = await getCurrentUser();
       if (!user) throw new Error("Sesi berakhir, silakan login ulang.");
 
       const payload: Record<string, unknown> = {

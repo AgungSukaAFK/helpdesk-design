@@ -23,6 +23,7 @@ import {
   TableFooter,
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
 import {
   Loader2,
   Plus,
@@ -265,14 +266,10 @@ export default function PermintaanList() {
     async function initUser() {
       const {
         data: { user },
-      } = await s.auth.getUser();
+      } = await getCurrentUser();
       if (user) {
         setCurrentUser(user);
-        const { data: profile } = await s
-          .from("user_profiles")
-          .select("role")
-          .eq("id", user.id)
-          .maybeSingle();
+        const profile = await getCurrentProfile();
         setUserRole(profile?.role || "user");
       }
     }
@@ -280,6 +277,9 @@ export default function PermintaanList() {
   }, [s]);
 
   // 2. Query Data via API (Semua Role Mendapatkan Data Real Tanpa Terblokir)
+  // currentUser hanya dibutuhkan untuk filter "mine"; tanpa ini data di-fetch dua kali saat user selesai dimuat.
+  const requesterId = scopeFilter === "mine" ? currentUser?.id : undefined;
+
   const fetchData = useCallback(async () => {
     setLoading(true);
 
@@ -292,7 +292,7 @@ export default function PermintaanList() {
       if (searchTerm) params.set("search", searchTerm);
       if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
       if (designerFilter && designerFilter !== "all") params.set("designer", designerFilter);
-      if (scopeFilter === "mine" && currentUser?.id) params.set("requester", currentUser.id);
+      if (requesterId) params.set("requester", requesterId);
       if (categoryFilter && categoryFilter !== "all") params.set("category", categoryFilter);
       if (hasilFilter && hasilFilter !== "all") params.set("hasil", hasilFilter);
 
@@ -323,12 +323,18 @@ export default function PermintaanList() {
     scopeFilter,
     categoryFilter,
     hasilFilter,
-    currentUser,
+    requesterId,
   ]);
 
   // Initial & Dependency Fetch
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // Channel realtime cukup subscribe sekali; event selalu memakai fetchData terbaru.
+  const fetchDataRef = useRef(fetchData);
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
   }, [fetchData]);
 
   // 3. Realtime Subscription (Live sync)
@@ -343,7 +349,7 @@ export default function PermintaanList() {
           table: "permintaan",
         },
         (payload) => {
-          fetchData();
+          fetchDataRef.current();
           if (payload.eventType === "INSERT") {
             toast.info("Permintaan desain baru berhasil ditambahkan!", { duration: 3000 });
           } else if (payload.eventType === "UPDATE") {
@@ -364,7 +370,7 @@ export default function PermintaanList() {
     return () => {
       s.removeChannel(channel);
     };
-  }, [s, fetchData]);
+  }, [s]);
 
   // 4. Handle URL Update
   const createQueryString = useCallback(
@@ -450,7 +456,7 @@ export default function PermintaanList() {
       if (searchTerm) params.set("search", searchTerm);
       if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
       if (designerFilter && designerFilter !== "all") params.set("designer", designerFilter);
-      if (scopeFilter === "mine" && currentUser?.id) params.set("requester", currentUser.id);
+      if (requesterId) params.set("requester", requesterId);
       if (categoryFilter && categoryFilter !== "all") params.set("category", categoryFilter);
       if (hasilFilter && hasilFilter !== "all") params.set("hasil", hasilFilter);
 

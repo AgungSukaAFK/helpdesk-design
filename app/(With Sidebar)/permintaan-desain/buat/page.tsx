@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import { FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { Paperclip, Trash2 } from "lucide-react";
@@ -185,7 +186,7 @@ export default function BuatPermintaanDesainPage() {
       setLoading(true);
       const {
         data: { user },
-      } = await s.auth.getUser();
+      } = await getCurrentUser();
       if (!user) throw new Error("Anda harus login untuk membuat permintaan.");
 
       const dataToInsert = {

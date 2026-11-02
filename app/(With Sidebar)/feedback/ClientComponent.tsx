@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Content } from "@/components/content";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
 import { PaginationComponent } from "@/components/pagination";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -100,15 +101,11 @@ export function FeedbackClientContent() {
       try {
         const {
           data: { user },
-        } = await s.auth.getUser();
+        } = await getCurrentUser();
         if (!user) return;
 
         // Cek role
-        const { data: profile } = await s
-          .from("user_profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single();
+        const profile = await getCurrentProfile();
         const role = profile?.role || "user";
         setUserRole(role);
 

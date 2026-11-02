@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import {
   Loader2,
   Search,
@@ -85,7 +86,7 @@ export function RiwayatAdminClientContent() {
 
       const {
         data: { user },
-      } = await s.auth.getUser();
+      } = await getCurrentUser();
       if (!user) {
         toast.error("Anda harus login untuk melihat riwayat.");
         setLoading(false);

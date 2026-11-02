@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import { FormEvent, useState } from "react";
 import { toast } from "sonner";
 
@@ -120,7 +121,7 @@ export default function BuatPermintaanDesainPage() {
     setAlertMessage("");
     try {
       setLoading(true);
-      const { data: user } = await s.auth.getUser();
+      const { data: user } = await getCurrentUser();
       if (!user.user) {
         toast.error("Anda harus login untuk membuat permintaan desain.");
         return;

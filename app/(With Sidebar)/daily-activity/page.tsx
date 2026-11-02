@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { formatDateDisplay, getTodayDate, shiftDate, toSheetName } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -311,7 +312,7 @@ export default function DailyActivityPage() {
 
   useEffect(() => {
     async function loadRole() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getCurrentUser();
       if (!user) return;
       const [{ data: profile }, { data: lokasiRows }, { data: designerRows }] = await Promise.all([
         supabase
@@ -781,7 +782,7 @@ export default function DailyActivityPage() {
     try {
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } = await getCurrentUser();
 
       if (editingActivity) {
         // Update
@@ -1142,7 +1143,7 @@ export default function DailyActivityPage() {
     try {
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } = await getCurrentUser();
 
       const preparedRows: DailyActivity[] = importPreviewRows.map((r, idx) => {
         let finalDate = r.activity_date;

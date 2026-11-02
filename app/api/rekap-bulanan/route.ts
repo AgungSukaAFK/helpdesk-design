@@ -89,44 +89,54 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const year = Number(searchParams.get("year") || "2026");
 
-    // 1. Fetch Permintaan Desain (Real data from Supabase)
-    const { data: dbPermintaan } = await supabase
-      .from("permintaan")
-      .select("id, created_at, updated_at, due_date, status, judul, project, departemen")
-      .gte("created_at", `${year}-01-01T00:00:00.000Z`)
-      .lt("created_at", `${year + 1}-01-01T00:00:00.000Z`)
-      .order("created_at", { ascending: true });
+    // Keempat sumber data independen, jadi diambil paralel.
+    const [
+      { data: dbPermintaan },
+      { data: dbDaily },
+      { data: dbAttendance },
+      dbSafetyToolboxMeeting,
+    ] = await Promise.all([
+      // 1. Fetch Permintaan Desain (Real data from Supabase)
+      supabase
+        .from("permintaan")
+        .select("id, created_at, updated_at, due_date, status, judul, project, departemen")
+        .gte("created_at", `${year}-01-01T00:00:00.000Z`)
+        .lt("created_at", `${year + 1}-01-01T00:00:00.000Z`)
+        .order("created_at", { ascending: true }),
 
-    // 2. Fetch Daily Activity (Real data from Supabase)
-    const { data: dbDaily } = await supabase
-      .from("daily_activities")
-      .select("id, activity_date, status, task_description, name")
-      .gte("activity_date", `${year}-01-01`)
-      .lte("activity_date", `${year}-12-31`)
-      .order("activity_date", { ascending: true });
+      // 2. Fetch Daily Activity (Real data from Supabase)
+      supabase
+        .from("daily_activities")
+        .select("id, activity_date, status, task_description, name")
+        .gte("activity_date", `${year}-01-01`)
+        .lte("activity_date", `${year}-12-31`)
+        .order("activity_date", { ascending: true }),
 
-    // 3. Fetch Attendance (Real data from Supabase)
-    const { data: dbAttendance } = await supabase
-      .from("attendance")
-      .select("*")
-      .gte("period_month", `${year}-01`)
-      .lte("period_month", `${year}-12`)
-      .order("period_month", { ascending: true });
-
-    // 4. Fetch Safety Toolbox Meeting HSE (Supabase or seed)
-    let dbSafetyToolboxMeeting: SafetyToolboxMeetingHseRosterRecord[] = [];
-    try {
-      const { data: safetyToolboxMeetingData, error: safetyToolboxMeetingError } = await supabase
-        .from("safety_toolbox_meeting_hse_roster")
+      // 3. Fetch Attendance (Real data from Supabase)
+      supabase
+        .from("attendance")
         .select("*")
         .gte("period_month", `${year}-01`)
-        .lte("period_month", `${year}-12`);
-      if (!safetyToolboxMeetingError && safetyToolboxMeetingData && safetyToolboxMeetingData.length > 0) {
-        dbSafetyToolboxMeeting = safetyToolboxMeetingData as SafetyToolboxMeetingHseRosterRecord[];
-      }
-    } catch {
-      // Tabel belum dibuat di Supabase -> HSE dianggap 0 (tidak ada data fabricated)
-    }
+        .lte("period_month", `${year}-12`)
+        .order("period_month", { ascending: true }),
+
+      // 4. Fetch Safety Toolbox Meeting HSE (Supabase or seed)
+      (async (): Promise<SafetyToolboxMeetingHseRosterRecord[]> => {
+        try {
+          const { data: safetyToolboxMeetingData, error: safetyToolboxMeetingError } = await supabase
+            .from("safety_toolbox_meeting_hse_roster")
+            .select("*")
+            .gte("period_month", `${year}-01`)
+            .lte("period_month", `${year}-12`);
+          if (!safetyToolboxMeetingError && safetyToolboxMeetingData && safetyToolboxMeetingData.length > 0) {
+            return safetyToolboxMeetingData as SafetyToolboxMeetingHseRosterRecord[];
+          }
+        } catch {
+          // Tabel belum dibuat di Supabase -> HSE dianggap 0 (tidak ada data fabricated)
+        }
+        return [];
+      })(),
+    ]);
 
     const permintaanList = dbPermintaan || [];
     const dailyList = dbDaily || [];

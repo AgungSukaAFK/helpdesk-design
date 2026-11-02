@@ -5,6 +5,7 @@
 import { Content } from "@/components/content";
 import { FormEvent, use, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -70,14 +71,9 @@ export default function DetailPermintaanPage({
     async function fetchUserData() {
       const {
         data: { user },
-      } = await s.auth.getUser();
+      } = await getCurrentUser();
       if (user) {
-        const { data } = await s
-          .from("user_profiles")
-          .select("*")
-          .eq("id", user.id)
-          .maybeSingle();
-        setUserCred(data);
+        setUserCred(await getCurrentProfile());
       }
     }
     fetchUserData();
@@ -146,7 +142,7 @@ export default function DetailPermintaanPage({
     setLoading(true);
 
     try {
-      const { data: user } = await s.auth.getUser();
+      const { data: user } = await getCurrentUser();
       if (!user.user) {
         toast.error("Anda harus login untuk mengambil permintaan desain.");
         return;
@@ -166,11 +162,7 @@ export default function DetailPermintaanPage({
         throw error;
       }
 
-      const { data: adminData } = await s
-        .from("user_profiles")
-        .select("*")
-        .eq("id", user.user.id)
-        .maybeSingle();
+      const adminData = await getCurrentProfile();
       if (adminData) setAdmin(adminData);
 
       setPermin({ ...permin, admin: user.user.id, status: "PROGRESS" });

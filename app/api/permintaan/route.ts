@@ -176,12 +176,31 @@ export async function GET(request: NextRequest) {
       let adminInfo: any = null;
       let requesterInfo: any = null;
 
+      // Profil admin, profil requester & riwayat status independen, jadi diambil paralel.
+      const [{ data: a }, { data: r }, { data: riwayatRows }] = await Promise.all([
+        item.admin
+          ? supabase
+              .from("user_profiles")
+              .select("id, name, email, role")
+              .eq("id", item.admin)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        item.requester
+          ? supabase
+              .from("user_profiles")
+              .select("id, name, email, role")
+              .eq("id", item.requester)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        // Riwayat status (audit timeline). Tabel dari migration 0021; abaikan jika belum ada.
+        supabase
+          .from("permintaan_riwayat")
+          .select("id, created_at, status_from, status_to, changed_by, catatan")
+          .eq("permintaan_id", id)
+          .order("created_at", { ascending: true }),
+      ]);
+
       if (item.admin) {
-        const { data: a } = await supabase
-          .from("user_profiles")
-          .select("id, name, email, role")
-          .eq("id", item.admin)
-          .maybeSingle();
         if (a) adminInfo = a;
         else if (item.admin === FAREL_ID) {
           adminInfo = { id: FAREL_ID, name: "Farel Ramadhan", role: "admin" };
@@ -190,21 +209,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      if (item.requester) {
-        const { data: r } = await supabase
-          .from("user_profiles")
-          .select("id, name, email, role")
-          .eq("id", item.requester)
-          .maybeSingle();
-        if (r) requesterInfo = r;
-      }
-
-      // Riwayat status (audit timeline). Tabel dari migration 0021; abaikan jika belum ada.
-      const { data: riwayatRows } = await supabase
-        .from("permintaan_riwayat")
-        .select("id, created_at, status_from, status_to, changed_by, catatan")
-        .eq("permintaan_id", id)
-        .order("created_at", { ascending: true });
+      if (r) requesterInfo = r;
       const actorIds = Array.from(
         new Set((riwayatRows || []).map((r) => r.changed_by).filter(Boolean))
       ) as string[];
@@ -327,7 +332,21 @@ export async function GET(request: NextRequest) {
     if (requester && requester !== "all") statsQuery = statsQuery.eq("requester", requester);
     if (search) statsQuery = statsQuery.or(`judul.ilike.%${search}%,project.ilike.%${search}%,departemen.ilike.%${search}%`);
 
-    const { data: statsData } = await statsQuery;
+    // Order
+    query = query.order("created_at", { ascending: false });
+
+    // Jika filter spesifik category atau hasil aktif, ambil seluruhnya lalu filter dan paginasi
+    const requiresMemoryFilter = Boolean((category && category !== "all") || (hasil && hasil !== "all"));
+
+    if (!all && !requiresMemoryFilter) {
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+    }
+
+    // Statistik & data halaman tidak saling bergantung, jadi diambil paralel.
+    const [{ data: statsData }, { data, error, count }] = await Promise.all([statsQuery, query]);
+
     const stats = {
       total: statsData?.length || 0,
       todo: 0,
@@ -403,20 +422,6 @@ export async function GET(request: NextRequest) {
       stats.hasil.tercapaiPct = Math.round((stats.hasil.tercapai / totalCalculated) * 100);
       stats.hasil.tidakTercapaiPct = 100 - stats.hasil.tercapaiPct;
     }
-
-    // Order
-    query = query.order("created_at", { ascending: false });
-
-    // Jika filter spesifik category atau hasil aktif, ambil seluruhnya lalu filter dan paginasi
-    const requiresMemoryFilter = Boolean((category && category !== "all") || (hasil && hasil !== "all"));
-
-    if (!all && !requiresMemoryFilter) {
-      const from = (page - 1) * limit;
-      const to = from + limit - 1;
-      query = query.range(from, to);
-    }
-
-    const { data, error, count } = await query;
 
     // Halaman melebihi jumlah data (PostgREST: "Requested range not satisfiable")
     if (error?.code === "PGRST103") {

@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import { Loader2, Search, Star } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
@@ -73,7 +74,7 @@ export function RiwayatClientContent() {
 
       const {
         data: { user },
-      } = await s.auth.getUser();
+      } = await getCurrentUser();
       if (!user) {
         toast.error("Anda harus login untuk melihat riwayat.");
         setLoading(false);

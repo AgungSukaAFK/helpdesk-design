@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
 import { toast } from "sonner";
 import {
   Area,
@@ -178,253 +179,262 @@ export default function DashboardPage() {
         // 1. Get User & Role
         const {
           data: { user },
-        } = await s.auth.getUser();
+        } = await getCurrentUser();
         if (!user) return;
 
-        const { data: userProfile } = await s
-          .from("user_profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single();
+        const userProfile = await getCurrentProfile();
 
         const userRole = userProfile?.role || "user";
         setRole(userRole);
 
-        try {
-          const rekapResponse = await fetch(
-            `/api/rekap-bulanan?year=${new Date().getFullYear()}`
-          );
-          if (!rekapResponse.ok) {
-            throw new Error(`HTTP ${rekapResponse.status}`);
+        // Grafik bulanan tidak bergantung pada data lain, jadi diambil paralel.
+        const rekapTask = (async () => {
+          try {
+            const rekapResponse = await fetch(
+              `/api/rekap-bulanan?year=${new Date().getFullYear()}`
+            );
+            if (!rekapResponse.ok) {
+              throw new Error(`HTTP ${rekapResponse.status}`);
+            }
+            const rekapJson = await rekapResponse.json();
+            setIntegratedMonths(rekapJson.data?.months || []);
+          } catch (error: any) {
+            setIntegratedMonths([]);
+            toast.error("Gagal memuat grafik bulanan: " + error.message);
           }
-          const rekapJson = await rekapResponse.json();
-          setIntegratedMonths(rekapJson.data?.months || []);
-        } catch (error: any) {
-          setIntegratedMonths([]);
-          toast.error("Gagal memuat grafik bulanan: " + error.message);
-        }
+        })();
 
-        // 2. Fetch Stats berdasarkan Role
-        let statsData: DashboardStats = {
-          baru: 0,
-          sedangDikerjakan: 0,
-          rataRataRating: 0,
-        };
-
-        const now = new Date();
-
-        // Base Query Helper
-        const getCount = async (
-          status: string,
-          filter?: (query: any) => any
-        ) => {
-          let query = s
-            .from("permintaan")
-            .select("*", { count: "exact", head: true })
-            .eq("status", status);
-          if (userRole === "user") {
-            query = query.eq("requester", user.id);
-          }
-          if (filter) {
-            query = filter(query);
-          }
-          const { count, error } = await query;
-          if (error) throw error;
-          return count || 0;
-        };
-
-        // Parallel Requests for Stats
-        if (userRole === "admin") {
-          const [
-            baru,
-            progress,
-            review,
-            doneToday,
-            doneWeek,
-            doneMonth,
-            ratingRes,
-          ] = await Promise.all([
-            getCount("TO DO"),
-            getCount("PROGRESS"),
-            getCount("REVIEW"),
-            getCount("DONE", (q) =>
-              q.gte("created_at", startOfDay(now).toISOString())
-            ),
-            getCount("DONE", (q) =>
-              q.gte("created_at", startOfWeek(now).toISOString())
-            ),
-            getCount("DONE", (q) =>
-              q
-                .gte("created_at", startOfMonth(now).toISOString())
-                .lte("created_at", endOfMonth(now).toISOString())
-            ),
-            s.rpc("get_dashboard_stats"),
-          ]);
-
-          statsData = {
-            baru: baru,
-            sedangDikerjakan: progress,
-            reviewUser: review,
-            selesaiHariIni: doneToday,
-            selesaiMingguIni: doneWeek,
-            selesaiBulanIni: doneMonth,
-            rataRataRating: ratingRes.data?.rataRataRating || 0,
+        const statsTask = (async () => {
+          // 2. Fetch Stats berdasarkan Role
+          let statsData: DashboardStats = {
+            baru: 0,
+            sedangDikerjakan: 0,
+            rataRataRating: 0,
           };
-        } else {
-          // Non-Admin (User)
-          const [baru, progress, revisi, selesai, ratingRes] =
-            await Promise.all([
+
+          const now = new Date();
+
+          // Base Query Helper
+          const getCount = async (
+            status: string,
+            filter?: (query: any) => any
+          ) => {
+            let query = s
+              .from("permintaan")
+              .select("*", { count: "exact", head: true })
+              .eq("status", status);
+            if (userRole === "user") {
+              query = query.eq("requester", user.id);
+            }
+            if (filter) {
+              query = filter(query);
+            }
+            const { count, error } = await query;
+            if (error) throw error;
+            return count || 0;
+          };
+
+          // Parallel Requests for Stats
+          if (userRole === "admin") {
+            const [
+              baru,
+              progress,
+              review,
+              doneToday,
+              doneWeek,
+              doneMonth,
+              ratingRes,
+            ] = await Promise.all([
               getCount("TO DO"),
               getCount("PROGRESS"),
-              getCount("REVISION"),
-              getCount("DONE"),
+              getCount("REVIEW"),
+              getCount("DONE", (q) =>
+                q.gte("created_at", startOfDay(now).toISOString())
+              ),
+              getCount("DONE", (q) =>
+                q.gte("created_at", startOfWeek(now).toISOString())
+              ),
+              getCount("DONE", (q) =>
+                q
+                  .gte("created_at", startOfMonth(now).toISOString())
+                  .lte("created_at", endOfMonth(now).toISOString())
+              ),
               s.rpc("get_dashboard_stats"),
             ]);
 
-          statsData = {
-            baru,
-            sedangDikerjakan: progress,
-            revisi,
-            selesai,
-            rataRataRating: ratingRes.data?.rataRataRating || 0,
-          };
-        }
+            statsData = {
+              baru: baru,
+              sedangDikerjakan: progress,
+              reviewUser: review,
+              selesaiHariIni: doneToday,
+              selesaiMingguIni: doneWeek,
+              selesaiBulanIni: doneMonth,
+              rataRataRating: ratingRes.data?.rataRataRating || 0,
+            };
+          } else {
+            // Non-Admin (User)
+            const [baru, progress, revisi, selesai, ratingRes] =
+              await Promise.all([
+                getCount("TO DO"),
+                getCount("PROGRESS"),
+                getCount("REVISION"),
+                getCount("DONE"),
+                s.rpc("get_dashboard_stats"),
+              ]);
 
-        setStats(statsData);
+            statsData = {
+              baru,
+              sedangDikerjakan: progress,
+              revisi,
+              selesai,
+              rataRataRating: ratingRes.data?.rataRataRating || 0,
+            };
+          }
 
-        // 3. Fetch Statistik Artikel (Admin)
-        if (userRole === "admin") {
-          const [totalArt, publishedArt, draftArt, viewsRes, populerRes] =
-            await Promise.all([
-              s
-                .from("articles")
-                .select("*", { count: "exact", head: true }),
-              s
-                .from("articles")
-                .select("*", { count: "exact", head: true })
-                .eq("status", "published"),
-              s
-                .from("articles")
-                .select("*", { count: "exact", head: true })
-                .eq("status", "draft"),
-              s.from("articles").select("views"),
-              s
-                .from("articles")
-                .select("id, title, slug, views, status")
-                .order("views", { ascending: false })
-                .limit(5),
-            ]);
+          setStats(statsData);
+        })();
 
-          const totalViews = (viewsRes.data || []).reduce(
-            (sum, row: { views: number }) => sum + (row.views || 0),
-            0
+        const articleTask = (async () => {
+          // 3. Fetch Statistik Artikel (Admin)
+          if (userRole === "admin") {
+            const [totalArt, publishedArt, draftArt, viewsRes, populerRes] =
+              await Promise.all([
+                s
+                  .from("articles")
+                  .select("*", { count: "exact", head: true }),
+                s
+                  .from("articles")
+                  .select("*", { count: "exact", head: true })
+                  .eq("status", "published"),
+                s
+                  .from("articles")
+                  .select("*", { count: "exact", head: true })
+                  .eq("status", "draft"),
+                s.from("articles").select("views"),
+                s
+                  .from("articles")
+                  .select("id, title, slug, views, status")
+                  .order("views", { ascending: false })
+                  .limit(5),
+              ]);
+
+            const totalViews = (viewsRes.data || []).reduce(
+              (sum, row: { views: number }) => sum + (row.views || 0),
+              0
+            );
+
+            setArticleStats({
+              total: totalArt.count || 0,
+              published: publishedArt.count || 0,
+              draft: draftArt.count || 0,
+              totalViews,
+            });
+            setArtikelPopuler((populerRes.data as ArtikelPopuler[]) || []);
+          }
+        })();
+
+        const trendTask = (async () => {
+          // 4. Fetch All Permintaan for Dynamic Chart & Turnaround Calculation
+          let queryTrendAndDept = s
+            .from("permintaan")
+            .select("id, status, departemen, project, created_at, due_date")
+            .order("created_at", { ascending: false })
+            .limit(1000);
+
+          if (userRole === "user") {
+            queryTrendAndDept = queryTrendAndDept.eq("requester", user.id);
+          }
+
+          const { data: allReqData } = await queryTrendAndDept;
+          const reqItems = (allReqData || []) as RawPermintaanItem[];
+
+          // Average turnaround calculation from real database records
+          const completedReqs = reqItems.filter(
+            (r) => r.created_at && r.due_date
           );
+          if (completedReqs.length > 0) {
+            let totalDiff = 0;
+            let validCount = 0;
+            completedReqs.forEach((r) => {
+              const start = new Date(r.created_at!).getTime();
+              const end = new Date(r.due_date!).getTime();
+              const diff = end - start;
+              if (diff > 0) {
+                totalDiff += diff;
+                validCount++;
+              }
+            });
 
-          setArticleStats({
-            total: totalArt.count || 0,
-            published: publishedArt.count || 0,
-            draft: draftArt.count || 0,
-            totalViews,
-          });
-          setArtikelPopuler((populerRes.data as ArtikelPopuler[]) || []);
-        }
-
-        // 4. Fetch All Permintaan for Dynamic Chart & Turnaround Calculation
-        let queryTrendAndDept = s
-          .from("permintaan")
-          .select("id, status, departemen, project, created_at, due_date")
-          .order("created_at", { ascending: false })
-          .limit(1000);
-
-        if (userRole === "user") {
-          queryTrendAndDept = queryTrendAndDept.eq("requester", user.id);
-        }
-
-        const { data: allReqData } = await queryTrendAndDept;
-        const reqItems = (allReqData || []) as RawPermintaanItem[];
-
-        // Average turnaround calculation from real database records
-        const completedReqs = reqItems.filter(
-          (r) => r.created_at && r.due_date
-        );
-        if (completedReqs.length > 0) {
-          let totalDiff = 0;
-          let validCount = 0;
-          completedReqs.forEach((r) => {
-            const start = new Date(r.created_at!).getTime();
-            const end = new Date(r.due_date!).getTime();
-            const diff = end - start;
-            if (diff > 0) {
-              totalDiff += diff;
-              validCount++;
+            if (validCount > 0) {
+              const avgDiff = totalDiff / validCount;
+              const days = Math.floor(avgDiff / (1000 * 60 * 60 * 24));
+              const hours = Math.floor(
+                (avgDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+              );
+              setAvgTurnaround(
+                days > 0 ? `${days} Hari, ${hours} Jam` : `${hours} Jam`
+              );
+              setAvgResolution(
+                days > 0 ? `${days * 2} Hari` : `${Math.max(hours * 2, 1)} Jam`
+              );
+            } else {
+              setAvgTurnaround("0 Jam");
+              setAvgResolution("0 Jam");
             }
-          });
-
-          if (validCount > 0) {
-            const avgDiff = totalDiff / validCount;
-            const days = Math.floor(avgDiff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor(
-              (avgDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-            );
-            setAvgTurnaround(
-              days > 0 ? `${days} Hari, ${hours} Jam` : `${hours} Jam`
-            );
-            setAvgResolution(
-              days > 0 ? `${days * 2} Hari` : `${Math.max(hours * 2, 1)} Jam`
-            );
           } else {
             setAvgTurnaround("0 Jam");
             setAvgResolution("0 Jam");
           }
-        } else {
-          setAvgTurnaround("0 Jam");
-          setAvgResolution("0 Jam");
-        }
+        })();
 
-        // 5. Fetch Permintaan Terbaru (5 items)
-        let queryTerbaru = s
-          .from("permintaan")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(5);
+        const terbaruTask = (async () => {
+          // 5. Fetch Permintaan Terbaru (5 items)
+          let queryTerbaru = s
+            .from("permintaan")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(5);
 
-        if (userRole === "user") {
-          queryTerbaru = queryTerbaru.eq("requester", user.id);
-        }
+          if (userRole === "user") {
+            queryTerbaru = queryTerbaru.eq("requester", user.id);
+          }
 
-        const { data: terbaruData, error: terbaruError } = await queryTerbaru;
-        if (terbaruError) throw terbaruError;
+          const { data: terbaruData, error: terbaruError } = await queryTerbaru;
+          if (terbaruError) throw terbaruError;
 
-        if (terbaruData && terbaruData.length > 0) {
-          const userIds = Array.from(
-            new Set(
-              [
-                ...terbaruData.map((req) => req.requester),
-                ...terbaruData.map((req) => req.admin),
-              ].filter(Boolean)
-            )
-          );
+          if (terbaruData && terbaruData.length > 0) {
+            const userIds = Array.from(
+              new Set(
+                [
+                  ...terbaruData.map((req) => req.requester),
+                  ...terbaruData.map((req) => req.admin),
+                ].filter(Boolean)
+              )
+            );
 
-          const { data: usersData, error: usersError } = await s
-            .from("user_profiles")
-            .select("id, name")
-            .in("id", userIds);
-          if (usersError) throw usersError;
+            const { data: usersData, error: usersError } = await s
+              .from("user_profiles")
+              .select("id, name")
+              .in("id", userIds);
+            if (usersError) throw usersError;
 
-          const idToNameMap: Record<string, string> = {};
-          usersData?.forEach((u) => {
-            if (u.id && u.name) idToNameMap[u.id] = u.name;
-          });
+            const idToNameMap: Record<string, string> = {};
+            usersData?.forEach((u) => {
+              if (u.id && u.name) idToNameMap[u.id] = u.name;
+            });
 
-          const finalTerbaru = terbaruData.map((req) => ({
-            ...req,
-            requester: idToNameMap[req.requester] || "User Tidak Dikenal",
-            admin: idToNameMap[req.admin] || "-",
-          }));
-          setPermintaanTerbaru(finalTerbaru);
-        } else {
-          setPermintaanTerbaru([]);
-        }
+            const finalTerbaru = terbaruData.map((req) => ({
+              ...req,
+              requester: idToNameMap[req.requester] || "User Tidak Dikenal",
+              admin: idToNameMap[req.admin] || "-",
+            }));
+            setPermintaanTerbaru(finalTerbaru);
+          } else {
+            setPermintaanTerbaru([]);
+          }
+        })();
+
+        await Promise.all([rekapTask, statsTask, articleTask, trendTask, terbaruTask]);
       } catch (error: any) {
         toast.error("Gagal memuat data: " + error.message);
       } finally {

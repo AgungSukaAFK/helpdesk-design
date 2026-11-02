@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
 import {
   allowedActions,
   canEditPermintaan,
@@ -260,14 +261,10 @@ export default function DetailPermintaanPage() {
     try {
       const {
         data: { user },
-      } = await s.auth.getUser();
+      } = await getCurrentUser();
 
       if (user) {
-        const { data: myProfile } = await s
-          .from("user_profiles")
-          .select("*")
-          .eq("id", user.id)
-          .maybeSingle();
+        const myProfile = await getCurrentProfile();
         setCurrentUser(myProfile || null);
       }
 

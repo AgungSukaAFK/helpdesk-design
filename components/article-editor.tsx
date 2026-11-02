@@ -9,6 +9,7 @@ import { useCallback, useRef, useState } from "react";
 import type { EditorView } from "@tiptap/pm/view";
 import { filesFromClipboard } from "@/components/file-drop";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import { ARTICLES_BUCKET, articleImageUrl } from "@/lib/articles";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -75,7 +76,7 @@ async function uploadContentImage(file: File): Promise<string | null> {
   }
 
   const s = createClient();
-  const { data: { user } } = await s.auth.getUser();
+  const { data: { user } } = await getCurrentUser();
   if (!user) {
     toast.error("Sesi berakhir, silakan login ulang.");
     return null;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
 import {
   Article,
   ArticleStatus,
@@ -138,14 +139,10 @@ export function ArtikelAdminClientContent() {
   useEffect(() => {
     async function checkRole() {
       try {
-        const { data: { user } } = await s.auth.getUser();
+        const { data: { user } } = await getCurrentUser();
         if (user) {
           setUserId(user.id);
-          const { data: profile } = await s
-            .from("user_profiles")
-            .select("role")
-            .eq("id", user.id)
-            .maybeSingle();
+          const profile = await getCurrentProfile();
           if (profile?.role) {
             setUserRole(profile.role);
           }

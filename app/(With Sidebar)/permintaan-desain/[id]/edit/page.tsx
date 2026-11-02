@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
 import { canEditPermintaan, type Role } from "@/lib/permintaan-workflow";
 import { ArrowLeft, Loader2, Save, ShieldAlert } from "lucide-react";
 import Link from "next/link";
@@ -117,15 +118,11 @@ export default function EditPermintaanDesainPage() {
       try {
         const {
           data: { user },
-        } = await s.auth.getUser();
+        } = await getCurrentUser();
 
         let role: Role = "user";
         if (user) {
-          const { data: profile } = await s
-            .from("user_profiles")
-            .select("role")
-            .eq("id", user.id)
-            .maybeSingle();
+          const profile = await getCurrentProfile();
 
           if (profile?.role === "admin" || profile?.role === "designer") role = profile.role;
           setIsAdmin(role === "admin");

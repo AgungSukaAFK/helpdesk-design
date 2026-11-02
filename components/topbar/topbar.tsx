@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { useRouter } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
 import { resolveNavRole, type NavRole } from "@/lib/sidebar/nav-config";
 import { TopbarInbox } from "./topbar-inbox";
 import { TopbarAppearance } from "./topbar-appearance";
@@ -40,16 +41,12 @@ export function TopbarProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data } = await supabase.auth.getUser();
+      const { data } = await getCurrentUser();
       if (!data.user) {
         router.replace("/auth/login");
         return;
       }
-      const { data: row } = await supabase
-        .from("user_profiles")
-        .select("name, role, avatar_url")
-        .eq("id", data.user.id)
-        .maybeSingle();
+      const row = await getCurrentProfile();
       if (!active) return;
       setProfile({
         id: data.user.id,

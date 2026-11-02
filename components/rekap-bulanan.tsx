@@ -32,6 +32,7 @@ import {
   Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
 import {
   fetchIntegratedRekap,
   exportIntegratedExcel,
@@ -79,13 +80,9 @@ export function RekapBulananPage() {
   useEffect(() => {
     async function checkRole() {
       try {
-        const { data } = await supabase.auth.getUser();
+        const { data } = await getCurrentUser();
         if (data?.user) {
-          const { data: profile } = await supabase
-            .from("user_profiles")
-            .select("role")
-            .eq("id", data.user.id)
-            .single();
+          const profile = await getCurrentProfile();
           if (profile?.role) {
             setUserRole(profile.role);
           }
