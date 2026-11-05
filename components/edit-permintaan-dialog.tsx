@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { gantiTanggalDeadline } from "@/lib/permintaan-workflow";
 
 export interface EditPermintaanItem {
   id: string;
@@ -178,7 +179,7 @@ export function EditPermintaanDialog({
           departemen: departemen,
           admin: admin === "unassigned" ? null : admin,
           status: status,
-          due_date: dueDate ? new Date(dueDate).toISOString() : null,
+          due_date: dueDate ? gantiTanggalDeadline(dueDate, item.due_date) : null,
           deskripsi: deskripsi.trim(),
         }),
       });

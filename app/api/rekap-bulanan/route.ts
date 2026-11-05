@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       // 1. Fetch Permintaan Desain (Real data from Supabase)
       supabase
         .from("permintaan")
-        .select("id, created_at, updated_at, due_date, status, judul, project, departemen")
+        .select("id, created_at, updated_at, done_at, due_date, status, judul, project, departemen")
         .gte("created_at", `${year}-01-01T00:00:00.000Z`)
         .lt("created_at", `${year + 1}-01-01T00:00:00.000Z`)
         .order("created_at", { ascending: true }),
@@ -206,7 +206,9 @@ export async function GET(request: NextRequest) {
         const isDone = st === "DONE";
 
         const created = new Date(t.created_at);
-        const updated = t.updated_at ? new Date(t.updated_at) : null;
+        // updated_at ikut berubah setiap tiket diedit, jadi utamakan waktu selesai yang tercatat
+        const selesaiAt = t.done_at || t.updated_at;
+        const updated = selesaiAt ? new Date(selesaiAt) : null;
         const due = t.due_date ? new Date(t.due_date) : null;
 
         // Cek ketepatan waktu (On Time)
@@ -468,7 +470,8 @@ export async function GET(request: NextRequest) {
 
           const st = (t.status || "TO DO").toUpperCase();
           if (st === "DONE") {
-            const updatedWib = t.updated_at ? new Date(new Date(t.updated_at).getTime() + 7 * 3600000) : createdWib;
+            const selesaiAt = t.done_at || t.updated_at;
+            const updatedWib = selesaiAt ? new Date(new Date(selesaiAt).getTime() + 7 * 3600000) : createdWib;
             const dSelesai = updatedWib.getUTCDate();
             if (!dailyPermintaanMap.has(dSelesai)) dailyPermintaanMap.set(dSelesai, { masuk: 0, selesai: 0, onTime: 0 });
             dailyPermintaanMap.get(dSelesai)!.selesai += 1;
@@ -476,7 +479,7 @@ export async function GET(request: NextRequest) {
             let isDoneOnTime = true;
             if (t.due_date) {
               const dueEndTimestamp = new Date(t.due_date).getTime() + 24 * 3600 * 1000;
-              isDoneOnTime = (t.updated_at ? new Date(t.updated_at).getTime() : new Date(t.created_at).getTime()) <= dueEndTimestamp;
+              isDoneOnTime = (selesaiAt ? new Date(selesaiAt).getTime() : new Date(t.created_at).getTime()) <= dueEndTimestamp;
             }
             if (isDoneOnTime) {
               dailyPermintaanMap.get(dSelesai)!.onTime += 1;

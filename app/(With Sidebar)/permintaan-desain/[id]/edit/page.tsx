@@ -16,7 +16,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
-import { canEditPermintaan, type Role } from "@/lib/permintaan-workflow";
+import { canEditPermintaan, gantiTanggalDeadline, type Role } from "@/lib/permintaan-workflow";
 import { ArrowLeft, Loader2, Save, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -208,7 +208,7 @@ export default function EditPermintaanDesainPage() {
           deskripsi,
           project: projectValue,
           departemen: selectedDepartemen,
-          due_date: new Date(dueDate).toISOString(),
+          due_date: gantiTanggalDeadline(dueDate, data?.due_date),
           // Status & PIC hanya dikirim oleh admin; peran lain lewat tombol alur kerja di halaman detail
           ...(isAdmin && { status, admin: admin === "none" ? null : admin }),
         }),

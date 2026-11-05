@@ -104,6 +104,7 @@ export function checkIsTicketTercapai(ticket: {
   created_at: string;
   due_date: string;
   updated_at?: string;
+  done_at?: string | null;
   deskripsi?: string;
 }): boolean {
   const status = (ticket.status || "").toUpperCase();
@@ -117,9 +118,10 @@ export function checkIsTicketTercapai(ticket: {
 
   const dueStr = (ticket.due_date || "").slice(0, 10);
   const createdStr = (ticket.created_at || "").slice(0, 10);
-  const updatedStr = (ticket.updated_at || "").slice(0, 10);
+  // updated_at ikut berubah setiap tiket diedit, jadi bukan waktu selesai yang sebenarnya
+  const updatedStr = (ticket.done_at || ticket.updated_at || "").slice(0, 10);
 
-  // 1. Jika updated_at <= dueStr, pasti tepat waktu / tercapai
+  // 1. Jika waktu selesai <= dueStr, pasti tepat waktu / tercapai
   if (updatedStr && updatedStr <= dueStr) {
     return true;
   }
@@ -316,7 +318,7 @@ export async function GET(request: NextRequest) {
     // Calculate Monthly Stats (without pagination)
     let statsQuery = supabase
       .from("permintaan")
-      .select("id, status, project, created_at, due_date, updated_at, deskripsi");
+      .select("id, status, project, created_at, due_date, updated_at, done_at, deskripsi");
 
     if (role === "designer") {
       statsQuery = statsQuery.or(`admin.is.null,admin.eq.${user.id}`);

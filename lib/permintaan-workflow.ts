@@ -135,6 +135,87 @@ export function canEditPermintaan(t: Ticket, a: Actor): boolean {
 export const isPengajuanRevisi = (r: { status_from: string | null; status_to: string }) =>
   r.status_to === "REVISION" && r.status_from !== "PENDING";
 
+// ===== Edit Lanjutan (admin departemen IT) =====
+
+/** Hanya admin departemen IT yang boleh mengubah timeline & field yang biasanya terkunci. */
+export function isAdminIT(profile?: { role?: string | null; departemen?: string | null } | null) {
+  return profile?.role === "admin" && (profile.departemen || "").trim().toUpperCase() === "IT";
+}
+
+export interface EntriTimeline {
+  created_at: string;
+  status_to: string;
+  changed_by?: string | null;
+  catatan?: string | null;
+}
+
+/**
+ * Urutan timeline selalu mengikuti waktu, karena durasi tiap tahap dihitung dari
+ * selisih antar entri. Mengembalikan pesan kesalahan, atau null jika valid.
+ */
+export function validasiTimeline(
+  entries: { created_at: string | null; status_to: string }[],
+  now = Date.now(),
+): string | null {
+  if (entries.length === 0) return "Timeline minimal berisi satu entri.";
+
+  let sebelumnya = -Infinity;
+  for (let i = 0; i < entries.length; i++) {
+    const no = i + 1;
+    const waktu = Date.parse(entries[i].created_at ?? "");
+    if (Number.isNaN(waktu)) return `Waktu entri ke-${no} belum diisi atau tidak valid.`;
+    if (!(STATUS_LIST as string[]).includes(entries[i].status_to)) {
+      return `Status entri ke-${no} tidak valid.`;
+    }
+    if (waktu <= sebelumnya) return `Waktu entri ke-${no} harus setelah entri sebelumnya.`;
+    if (waktu > now + 60_000) return `Waktu entri ke-${no} tidak boleh di masa depan.`;
+    sebelumnya = waktu;
+  }
+  return null;
+}
+
+/**
+ * Bentuk riwayat final dari timeline yang sudah valid, beserta kolom tiket yang
+ * diturunkan darinya. Aturannya sama dengan trigger permintaan_track_status:
+ * status tiket = entri terakhir, dan done_at hanya berlaku jika tiket berakhir DONE.
+ */
+export function susunTimeline(entries: EntriTimeline[]) {
+  const riwayat = entries.map((e, i) => ({
+    created_at: e.created_at,
+    status_from: i > 0 ? entries[i - 1].status_to : null,
+    status_to: e.status_to,
+    changed_by: e.changed_by || null,
+    catatan: e.catatan?.trim() || null,
+  }));
+
+  const terakhir = riwayat[riwayat.length - 1];
+  const pengajuanRevisi = riwayat.filter(isPengajuanRevisi);
+  const review = riwayat.filter((r) => r.status_to === "REVIEW");
+  const mulaiKerja = riwayat.find((r) =>
+    ["PROGRESS", "REVIEW", "REVISION"].includes(r.status_to),
+  );
+
+  return {
+    riwayat,
+    kolom: {
+      created_at: riwayat[0].created_at,
+      status: terakhir.status_to,
+      progress_at: mulaiKerja?.created_at ?? null,
+      review_at: review[review.length - 1]?.created_at ?? null,
+      revision_at: pengajuanRevisi[pengajuanRevisi.length - 1]?.created_at ?? null,
+      revision_count: pengajuanRevisi.length,
+      done_at: terakhir.status_to === "DONE" ? terakhir.created_at : null,
+    },
+  };
+}
+
+/** Ganti tanggal deadline tanpa menghilangkan jamnya (form biasa hanya punya input tanggal). */
+export function gantiTanggalDeadline(tanggal: string, deadlineLama?: string | null) {
+  const lama = deadlineLama ? new Date(deadlineLama) : null;
+  const jam = lama && !Number.isNaN(lama.getTime()) ? lama.toISOString().slice(10) : "T00:00:00.000Z";
+  return new Date(`${tanggal}${jam}`).toISOString();
+}
+
 // ===== Waktu aktual pengerjaan =====
 // Dihitung dari riwayat status: hanya waktu saat desainer sedang mengerjakan
 // (PROGRESS / REVISION). Waktu ditunda (PENDING), menunggu peminta (REVIEW),

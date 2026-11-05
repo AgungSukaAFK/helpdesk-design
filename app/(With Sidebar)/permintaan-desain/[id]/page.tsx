@@ -32,12 +32,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EditLanjutanDialog } from "@/components/edit-lanjutan-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
 import {
   allowedActions,
   canEditPermintaan,
   hitungWaktuPengerjaan,
+  isAdminIT,
   isPengajuanRevisi,
   normalizeStatus,
   STATUS_LIST,
@@ -73,6 +75,7 @@ import {
   AlertTriangle,
   Pause,
   Play,
+  SlidersHorizontal,
   Timer,
 } from "lucide-react";
 import Link from "next/link";
@@ -96,6 +99,7 @@ interface UserProfile {
   name: string;
   email?: string;
   role: string;
+  departemen?: string | null;
 }
 
 interface KomentarItem {
@@ -164,6 +168,15 @@ const fmtDate = (iso?: string | null, long = false) =>
         year: "numeric",
       })
     : "-";
+
+// Deadline lama hanya berisi tanggal (tersimpan 00:00 UTC), jadi jamnya tidak ditampilkan
+const fmtDeadline = (iso?: string | null) => {
+  if (!iso) return "-";
+  const tanggal = fmtDate(iso, true);
+  if (new Date(iso).toISOString().slice(11, 16) === "00:00") return tanggal;
+  const jam = new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+  return `${tanggal}, ${jam}`;
+};
 
 // Stopwatch: jam bisa lebih dari 24
 const fmtStopwatch = (ms: number) => {
@@ -245,6 +258,8 @@ export default function DetailPermintaanPage() {
 
   // Override status oleh admin (konfirmasi)
   const [pendingStatus, setPendingStatus] = useState<string>("");
+
+  const [isEditLanjutanOpen, setIsEditLanjutanOpen] = useState(false);
 
   // State Diskusi
   const [komentar, setKomentar] = useState<KomentarItem[]>([]);
@@ -585,6 +600,11 @@ export default function DetailPermintaanPage() {
               </Link>
             </Button>
           )}
+          {isAdminIT(currentUser) && (
+            <Button variant="outline" onClick={() => setIsEditLanjutanOpen(true)}>
+              <SlidersHorizontal className="mr-2 h-4 w-4" /> Edit Lanjutan
+            </Button>
+          )}
           <Button variant="outline" asChild>
             <Link href="/permintaan-desain">
               <ArrowLeft className="mr-2 h-4 w-4" /> Kembali
@@ -593,6 +613,19 @@ export default function DetailPermintaanPage() {
         </div>
       }
     >
+      {isAdminIT(currentUser) && (
+        <EditLanjutanDialog
+          open={isEditLanjutanOpen}
+          onOpenChange={setIsEditLanjutanOpen}
+          data={data}
+          currentUserId={currentUser?.id || ""}
+          onSuccess={() => {
+            fetchAllData();
+            fetchKomentar(id);
+          }}
+        />
+      )}
+
       {/* Konfirmasi override status (admin) */}
       <AlertDialog
         open={!!pendingStatus}
@@ -1108,7 +1141,7 @@ export default function DetailPermintaanPage() {
                     isDueToday && "text-amber-600 dark:text-amber-400"
                   )}
                 >
-                  {fmtDate(data.due_date, true)}
+                  {fmtDeadline(data.due_date)}
                 </span>
                 {isOverdue && (
                   <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-[10px]">
