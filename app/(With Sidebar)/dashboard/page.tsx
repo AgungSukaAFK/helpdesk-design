@@ -10,6 +10,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
   ReferenceDot,
   ResponsiveContainer,
@@ -550,9 +551,9 @@ export default function DashboardPage() {
       months.reduce((total, month) => total + getValue(month), 0);
 
     return [
-      { name: "Daily Activity", total: sum((month) => month.daily.total) },
-      { name: "Attendance", total: sum((month) => month.attendance.totalRecords) },
-      { name: "Safety Toolbox Meeting", total: sum((month) => month.safetyToolboxMeeting.totalStandby) },
+      { name: "Daily Activity", total: sum((month) => month.daily.total), color: "#2dd4bf" },
+      { name: "Attendance", total: sum((month) => month.attendance.totalRecords), color: "#3b82f6" },
+      { name: "Safety Toolbox Meeting", total: sum((month) => month.safetyToolboxMeeting.totalStandby), color: "#a855f7" },
     ];
   }, [integratedMonths, selectedMonth]);
 
@@ -802,7 +803,7 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        {/* Rounded Teal Bar Chart */}
+        {/* Rounded Bar Chart (warna per modul, sama dengan chart tren) */}
         <div className="h-[270px] w-full pt-1">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
@@ -832,7 +833,10 @@ export default function DashboardPage() {
                         <p className="font-semibold text-popover-foreground">
                           {label}
                         </p>
-                        <p className="text-[#0e4854] dark:text-[#2dd4bf] font-bold mt-0.5">
+                        <p
+                          className="font-bold mt-0.5"
+                          style={{ color: payload[0]?.payload?.color }}
+                        >
                           {payload[0]?.value} data
                         </p>
                       </div>
@@ -843,10 +847,13 @@ export default function DashboardPage() {
               />
               <Bar
                 dataKey="total"
-                fill="#0e4854"
                 radius={[6, 6, 0, 0]}
                 maxBarSize={48}
-              />
+              >
+                {moduleStats.map((module) => (
+                  <Cell key={module.name} fill={module.color} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
