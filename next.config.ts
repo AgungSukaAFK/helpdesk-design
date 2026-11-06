@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Generator PPT memakai modul Node dan tidak perlu dibundel.
+  serverExternalPackages: ["pptxgenjs"],
   images: {
     remotePatterns: [
       {

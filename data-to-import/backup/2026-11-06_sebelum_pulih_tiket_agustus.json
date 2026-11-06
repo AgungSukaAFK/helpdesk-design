@@ -1,0 +1,320 @@
+{
+ "dibuat": "2026-11-06T09:51:15.604Z",
+ "catatan": "Nilai sebelum pemulihan waktu tiket impor Agustus",
+ "tiket": [
+  {
+   "id": "4f6350a0-9a2c-587d-abc4-147b03ccda1d",
+   "kode": "IT31082026006",
+   "created_at": "2026-08-31T14:59:00.000Z",
+   "progress_at": "2026-08-31T15:37:00.000Z",
+   "done_at": "2026-08-31T15:37:00.000Z",
+   "due_date": "2026-08-31T15:37:00.000Z",
+   "updated_at": "2026-08-31T15:37:00.000Z",
+   "review_at": null
+  },
+  {
+   "id": "450bfdbf-4af7-5955-851e-9510547a6bab",
+   "kode": "IT31082026004",
+   "created_at": "2026-08-31T11:39:00.000Z",
+   "progress_at": "2026-08-31T15:04:00.000Z",
+   "done_at": "2026-08-31T15:04:00.000Z",
+   "due_date": "2026-08-31T15:04:00.000Z",
+   "updated_at": "2026-08-31T15:04:00.000Z",
+   "review_at": null
+  },
+  {
+   "id": "4b48b561-4105-5b79-93aa-f16315df58bb",
+   "kode": "IT19082026003",
+   "created_at": "2026-08-19T15:48:00.000Z",
+   "progress_at": "2026-08-19T16:43:00.000Z",
+   "done_at": "2026-08-19T16:43:00.000Z",
+   "due_date": "2026-08-19T16:43:00.000Z",
+   "updated_at": "2026-08-19T16:43:00.000Z",
+   "review_at": null
+  },
+  {
+   "id": "4aebd663-71d3-5207-81fd-cc4e3cae335d",
+   "kode": "IT18082026001",
+   "created_at": "2026-08-18T09:56:00.000Z",
+   "progress_at": "2026-08-18T14:30:00.000Z",
+   "done_at": "2026-08-18T14:30:00.000Z",
+   "due_date": "2026-08-18T14:30:00.000Z",
+   "updated_at": "2026-08-18T14:30:00.000Z",
+   "review_at": null
+  },
+  {
+   "id": "48675b10-c1a1-595e-9382-3b886adffd08",
+   "kode": "IT19082026001",
+   "created_at": "2026-08-19T09:49:00.000Z",
+   "progress_at": "2026-08-19T11:23:00.000Z",
+   "done_at": "2026-08-19T11:23:00.000Z",
+   "due_date": "2026-08-19T11:23:00.000Z",
+   "updated_at": "2026-08-19T11:23:00.000Z",
+   "review_at": null
+  },
+  {
+   "id": "4b2ea463-4a73-5165-bf22-fbb5720c8165",
+   "kode": "IT14082026003",
+   "created_at": "2026-08-14T16:31:00.000Z",
+   "progress_at": "2026-08-18T10:12:00.000Z",
+   "done_at": "2026-08-18T10:12:00.000Z",
+   "due_date": "2026-08-18T10:12:00.000Z",
+   "updated_at": "2026-08-18T10:12:00.000Z",
+   "review_at": null
+  },
+  {
+   "id": "47478bd8-1886-53b0-a0bf-405a5d8a25b8",
+   "kode": "IT13082026005",
+   "created_at": "2026-08-13T13:43:00.000Z",
+   "progress_at": "2026-08-13T15:17:00.000Z",
+   "done_at": "2026-08-13T15:17:00.000Z",
+   "due_date": "2026-08-13T15:17:00.000Z",
+   "updated_at": "2026-08-13T15:17:00.000Z",
+   "review_at": null
+  },
+  {
+   "id": "40315e14-c3ae-580d-b90f-98738af959be",
+   "kode": "IT13082026003",
+   "created_at": "2026-08-13T09:14:00.000Z",
+   "progress_at": "2026-08-13T17:28:00.000Z",
+   "done_at": "2026-08-13T17:28:00.000Z",
+   "due_date": "2026-08-13T17:28:00.000Z",
+   "updated_at": "2026-08-13T17:28:00.000Z",
+   "review_at": null
+  },
+  {
+   "id": "4aed4cf0-a66e-577d-95ef-bd1908077894",
+   "kode": "IT12082026004",
+   "created_at": "2026-08-12T16:11:00.000Z",
+   "progress_at": "2026-08-12T16:45:00.000Z",
+   "done_at": "2026-08-12T16:45:00.000Z",
+   "due_date": "2026-08-12T16:45:00.000Z",
+   "updated_at": "2026-08-12T16:45:00.000Z",
+   "review_at": null
+  },
+  {
+   "id": "45d0b10f-162b-5210-9de5-d6117a7fe2f5",
+   "kode": "IT12082026003",
+   "created_at": "2026-08-12T15:04:00.000Z",
+   "progress_at": "2026-08-12T16:16:00.000Z",
+   "done_at": "2026-08-12T16:16:00.000Z",
+   "due_date": "2026-08-12T16:16:00.000Z",
+   "updated_at": "2026-08-12T16:16:00.000Z",
+   "review_at": null
+  },
+  {
+   "id": "44d82ea9-472f-5117-a2d9-1c00527fb6cf",
+   "kode": "IT11082026002",
+   "created_at": "2026-08-11T16:13:00.000Z",
+   "progress_at": "2026-08-11T17:15:00.000Z",
+   "done_at": "2026-08-11T17:15:00.000Z",
+   "due_date": "2026-08-11T17:15:00.000Z",
+   "updated_at": "2026-08-11T17:15:00.000Z",
+   "review_at": null
+  },
+  {
+   "id": "46e963af-bca6-590b-89a7-b0c3805aa7b4",
+   "kode": "IT11082026001",
+   "created_at": "2026-08-11T11:19:00.000Z",
+   "progress_at": "2026-08-11T12:06:00.000Z",
+   "done_at": "2026-08-11T12:06:00.000Z",
+   "due_date": "2026-08-11T12:06:00.000Z",
+   "updated_at": "2026-08-11T12:06:00.000Z",
+   "review_at": null
+  },
+  {
+   "id": "47f379e3-9941-5055-816e-84f0ed636dc4",
+   "kode": "IT03082026002",
+   "created_at": "2026-08-03T14:38:00.000Z",
+   "progress_at": "2026-08-03T15:10:00.000Z",
+   "done_at": "2026-08-03T15:10:00.000Z",
+   "due_date": "2026-08-03T15:10:00.000Z",
+   "updated_at": "2026-08-03T15:10:00.000Z",
+   "review_at": null
+  }
+ ],
+ "riwayat": [
+  {
+   "id": "bb461540-0536-412e-ba08-08abd23577a3",
+   "permintaan_id": "47f379e3-9941-5055-816e-84f0ed636dc4",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-03T14:38:00.000Z"
+  },
+  {
+   "id": "1c7ddc83-a5a5-4b77-aba9-3b9ca2a9202f",
+   "permintaan_id": "47f379e3-9941-5055-816e-84f0ed636dc4",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-03T15:10:00.000Z"
+  },
+  {
+   "id": "1c45315e-5776-4fba-9f59-7d6c6ef14851",
+   "permintaan_id": "46e963af-bca6-590b-89a7-b0c3805aa7b4",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-11T11:19:00.000Z"
+  },
+  {
+   "id": "e10eeeb8-2465-4e2e-a2ed-0db5a0a73634",
+   "permintaan_id": "46e963af-bca6-590b-89a7-b0c3805aa7b4",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-11T12:06:00.000Z"
+  },
+  {
+   "id": "1fe7745f-3538-449a-9cc2-95ccaa54c72c",
+   "permintaan_id": "44d82ea9-472f-5117-a2d9-1c00527fb6cf",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-11T16:13:00.000Z"
+  },
+  {
+   "id": "ee7fd162-933a-4039-9545-c24a1be317f5",
+   "permintaan_id": "44d82ea9-472f-5117-a2d9-1c00527fb6cf",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-11T17:15:00.000Z"
+  },
+  {
+   "id": "8f9a7a47-1e9b-47ac-817a-d59628e8fe37",
+   "permintaan_id": "45d0b10f-162b-5210-9de5-d6117a7fe2f5",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-12T15:04:00.000Z"
+  },
+  {
+   "id": "697c1887-bbd4-4d5f-b069-5b8cc9f5fc30",
+   "permintaan_id": "4aed4cf0-a66e-577d-95ef-bd1908077894",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-12T16:11:00.000Z"
+  },
+  {
+   "id": "bdf74e00-6942-436b-91bc-6ad8d21d3449",
+   "permintaan_id": "45d0b10f-162b-5210-9de5-d6117a7fe2f5",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-12T16:16:00.000Z"
+  },
+  {
+   "id": "53dedd8f-256b-40cc-b3ae-a692f0b7b770",
+   "permintaan_id": "4aed4cf0-a66e-577d-95ef-bd1908077894",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-12T16:45:00.000Z"
+  },
+  {
+   "id": "32809d56-dc70-4c4d-8e35-b6d7dcae11a8",
+   "permintaan_id": "40315e14-c3ae-580d-b90f-98738af959be",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-13T09:14:00.000Z"
+  },
+  {
+   "id": "5ceb5aee-98e9-4a5e-b926-c8d53dfe8261",
+   "permintaan_id": "47478bd8-1886-53b0-a0bf-405a5d8a25b8",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-13T13:43:00.000Z"
+  },
+  {
+   "id": "fc111a7a-e49a-448b-ba46-5f5e9cf2215a",
+   "permintaan_id": "47478bd8-1886-53b0-a0bf-405a5d8a25b8",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-13T15:17:00.000Z"
+  },
+  {
+   "id": "b48aab19-22b3-44ba-90a3-0d175c2bbae1",
+   "permintaan_id": "40315e14-c3ae-580d-b90f-98738af959be",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-13T17:28:00.000Z"
+  },
+  {
+   "id": "b1743d26-5a8a-440d-9f90-65239c9867b3",
+   "permintaan_id": "4b2ea463-4a73-5165-bf22-fbb5720c8165",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-14T16:31:00.000Z"
+  },
+  {
+   "id": "0f4f860c-6771-4464-af50-69efa3de1c7b",
+   "permintaan_id": "4aebd663-71d3-5207-81fd-cc4e3cae335d",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-18T09:56:00.000Z"
+  },
+  {
+   "id": "f3cd9ba5-e91d-454d-91c2-a1fb96626d79",
+   "permintaan_id": "4b2ea463-4a73-5165-bf22-fbb5720c8165",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-18T10:12:00.000Z"
+  },
+  {
+   "id": "23fefe6e-6f83-4ea4-a331-cf095892ac18",
+   "permintaan_id": "4aebd663-71d3-5207-81fd-cc4e3cae335d",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-18T14:30:00.000Z"
+  },
+  {
+   "id": "d51c158b-a494-4814-8674-c529bf41ed78",
+   "permintaan_id": "48675b10-c1a1-595e-9382-3b886adffd08",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-19T09:49:00.000Z"
+  },
+  {
+   "id": "43a31b60-2936-453c-b1a3-0d07725abadf",
+   "permintaan_id": "48675b10-c1a1-595e-9382-3b886adffd08",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-19T11:23:00.000Z"
+  },
+  {
+   "id": "9d48e41a-4e08-46ab-ba90-c25892b6c9bd",
+   "permintaan_id": "4b48b561-4105-5b79-93aa-f16315df58bb",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-19T15:48:00.000Z"
+  },
+  {
+   "id": "b2e7e01a-4010-47ad-8568-8abf38a599b1",
+   "permintaan_id": "4b48b561-4105-5b79-93aa-f16315df58bb",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-19T16:43:00.000Z"
+  },
+  {
+   "id": "6091b7e5-f338-4448-b87a-a83cbd70343d",
+   "permintaan_id": "450bfdbf-4af7-5955-851e-9510547a6bab",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-31T11:39:00.000Z"
+  },
+  {
+   "id": "0a349637-f649-4764-a038-3bea352dd06d",
+   "permintaan_id": "4f6350a0-9a2c-587d-abc4-147b03ccda1d",
+   "status_from": null,
+   "status_to": "TO DO",
+   "created_at": "2026-08-31T14:59:00.000Z"
+  },
+  {
+   "id": "c05dec92-e4b2-4be8-9d25-f1b371ed12c8",
+   "permintaan_id": "450bfdbf-4af7-5955-851e-9510547a6bab",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-31T15:04:00.000Z"
+  },
+  {
+   "id": "bc71f3e4-68a4-4259-858d-e643e53787d9",
+   "permintaan_id": "4f6350a0-9a2c-587d-abc4-147b03ccda1d",
+   "status_from": null,
+   "status_to": "DONE",
+   "created_at": "2026-08-31T15:37:00.000Z"
+  }
+ ]
+}

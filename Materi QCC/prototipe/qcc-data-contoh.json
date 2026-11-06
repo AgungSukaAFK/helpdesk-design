@@ -1,0 +1,676 @@
+{
+ "utama": {
+  "mulai": "2026-09-01",
+  "selesai": "2026-10-12",
+  "label": "1 Sep 2026 – 12 Okt 2026",
+  "tiket": {
+   "n": 38,
+   "nWaktu": 34,
+   "tanpaWaktu": 4,
+   "le60": 24,
+   "le60Pct": 70.6,
+   "lebih60": 10,
+   "medianTunggu": 25,
+   "rataTunggu": 169,
+   "medianKerja": 56,
+   "totalTungguJam": 95.7,
+   "totalKerjaJam": 143.5,
+   "terlama": {
+    "kode": "IT15092026004",
+    "tgl": "15 Sep 2026",
+    "menit": 1286,
+    "jenis": "Flyer"
+   },
+   "pareto": [
+    {
+     "nama": "Flyer",
+     "n": 7,
+     "nilai": 2564,
+     "jam": 42.7,
+     "kumulatif": 44.6
+    },
+    {
+     "nama": "Sertifikat & label",
+     "n": 6,
+     "nilai": 1362,
+     "jam": 22.7,
+     "kumulatif": 68.3
+    },
+    {
+     "nama": "Media K3",
+     "n": 10,
+     "nilai": 1315,
+     "jam": 21.9,
+     "kumulatif": 91.2
+    },
+    {
+     "nama": "Poster",
+     "n": 6,
+     "nilai": 453,
+     "jam": 7.6,
+     "kumulatif": 99.1
+    },
+    {
+     "nama": "Edit foto",
+     "n": 4,
+     "nilai": 19,
+     "jam": 0.3,
+     "kumulatif": 99.5
+    },
+    {
+     "nama": "Lain-lain",
+     "n": 1,
+     "nilai": 31,
+     "jam": 0.5,
+     "kumulatif": 100
+    }
+   ],
+   "paretoDivisi": [
+    {
+     "nama": "HR/GA",
+     "n": 17,
+     "nilai": 3949,
+     "jam": 65.8,
+     "kumulatif": 68.8
+    },
+    {
+     "nama": "K3",
+     "n": 13,
+     "nilai": 1371,
+     "jam": 22.9,
+     "kumulatif": 92.6
+    },
+    {
+     "nama": "SCM",
+     "n": 1,
+     "nilai": 397,
+     "jam": 6.6,
+     "kumulatif": 99.5
+    },
+    {
+     "nama": "Service",
+     "n": 2,
+     "nilai": 22,
+     "jam": 0.4,
+     "kumulatif": 99.9
+    },
+    {
+     "nama": "Finance",
+     "n": 1,
+     "nilai": 5,
+     "jam": 0.1,
+     "kumulatif": 100
+    }
+   ],
+   "histogram": [
+    {
+     "label": "0–15 mnt",
+     "n": 15
+    },
+    {
+     "label": "15–60 mnt",
+     "n": 9
+    },
+    {
+     "label": "1–4 jam",
+     "n": 2
+    },
+    {
+     "label": "4–8 jam",
+     "n": 5
+    },
+    {
+     "label": "8–24 jam",
+     "n": 3
+    },
+    {
+     "label": "> 24 jam",
+     "n": 0
+    }
+   ],
+   "kendali": {
+    "cl": 169,
+    "ucl": 953,
+    "lcl": 0,
+    "titik": [
+     3,
+     1,
+     5,
+     0,
+     5,
+     3,
+     25,
+     1052,
+     7,
+     45,
+     27,
+     150,
+     31,
+     287,
+     1286,
+     0,
+     0,
+     397,
+     303,
+     1,
+     1151,
+     5,
+     28,
+     89,
+     22,
+     411,
+     8,
+     30,
+     0,
+     31,
+     6,
+     309,
+     1,
+     25
+    ],
+    "diLuar": 3
+   },
+   "scatter": {
+    "x": [
+     17,
+     103,
+     27,
+     163,
+     91,
+     29,
+     62,
+     1520,
+     38,
+     15,
+     49,
+     212,
+     40,
+     76,
+     73,
+     54,
+     58,
+     26,
+     43,
+     99,
+     54,
+     2,
+     64,
+     60,
+     29,
+     100,
+     76,
+     22,
+     43,
+     81,
+     14,
+     965,
+     4253,
+     54
+    ],
+    "y": [
+     3,
+     1,
+     5,
+     0,
+     5,
+     3,
+     25,
+     1052,
+     7,
+     45,
+     27,
+     150,
+     31,
+     287,
+     1286,
+     0,
+     0,
+     397,
+     303,
+     1,
+     1151,
+     5,
+     28,
+     89,
+     22,
+     411,
+     8,
+     30,
+     0,
+     31,
+     6,
+     309,
+     1,
+     25
+    ],
+    "r": 0.09
+   }
+  },
+  "suara": {
+   "nDinilai": 7,
+   "rataRating": 5,
+   "nTiketDb": 7,
+   "tiketRevisi": 1
+  },
+  "aktivitas": {
+   "n": 216,
+   "tanpaJenis": 95,
+   "nBerjam": 113,
+   "dariTiket": 7,
+   "jamTercatat": 200.1,
+   "pareto": [
+    {
+     "nama": "Design",
+     "n": 71,
+     "nilai": 6353,
+     "jam": 105.9,
+     "kumulatif": 52.9
+    },
+    {
+     "nama": "Photografi",
+     "n": 8,
+     "nilai": 1625,
+     "jam": 27.1,
+     "kumulatif": 66.5
+    },
+    {
+     "nama": "Editing",
+     "n": 4,
+     "nilai": 1413,
+     "jam": 23.6,
+     "kumulatif": 78.2
+    },
+    {
+     "nama": "Meeting/Koordinasi",
+     "n": 5,
+     "nilai": 522,
+     "jam": 8.7,
+     "kumulatif": 82.6
+    },
+    {
+     "nama": "Export",
+     "n": 2,
+     "nilai": 423,
+     "jam": 7.1,
+     "kumulatif": 86.1
+    },
+    {
+     "nama": "Input Data",
+     "n": 1,
+     "nilai": 347,
+     "jam": 5.8,
+     "kumulatif": 89
+    },
+    {
+     "nama": "Lain-lain",
+     "n": 22,
+     "nilai": 1321,
+     "jam": 22,
+     "kumulatif": 100
+    }
+   ]
+  },
+  "kehadiran": {
+   "hariKerja": 53,
+   "hadir": 53,
+   "absen": 0,
+   "ratePct": 100,
+   "libur": 19
+  },
+  "safety": {
+   "sesi": 10,
+   "hadir": 10,
+   "ratePct": 100
+  },
+  "konten": {
+   "n": 8,
+   "status": {
+    "Designed": 7,
+    "Edited": 1
+   }
+  },
+  "target": [
+   {
+    "nama": "Project PPA",
+    "rencana": 1073,
+    "realisasi": 570,
+    "capaian": 53.1
+   },
+   {
+    "nama": "Catalogue Part AC",
+    "rencana": 161,
+    "realisasi": 106,
+    "capaian": 65.8
+   },
+   {
+    "nama": "Deadstock GMI",
+    "rencana": 305,
+    "realisasi": 250,
+    "capaian": 82
+   },
+   {
+    "nama": "Deadstock GIS",
+    "rencana": 235,
+    "realisasi": 210,
+    "capaian": 89.4
+   }
+  ],
+  "evaluasi": {
+   "n": 9,
+   "aspek": [
+    {
+     "label": "Kreativitas",
+     "nilai": 4.67
+    },
+    {
+     "label": "Brief",
+     "nilai": 4.67
+    },
+    {
+     "label": "Deadline",
+     "nilai": 4.33
+    },
+    {
+     "label": "Kualitas",
+     "nilai": 4.33
+    },
+    {
+     "label": "Komunikasi",
+     "nilai": 4.67
+    },
+    {
+     "label": "Revisi",
+     "nilai": 4.89
+    }
+   ]
+  }
+ },
+ "banding": {
+  "mulai": "2026-08-01",
+  "selesai": "2026-08-31",
+  "label": "1 Agu 2026 – 31 Agu 2026",
+  "tiket": {
+   "n": 13,
+   "nWaktu": 13,
+   "tanpaWaktu": 0,
+   "le60": 9,
+   "le60Pct": 69.2,
+   "lebih60": 4,
+   "medianTunggu": 26,
+   "rataTunggu": 468,
+   "medianKerja": 47,
+   "totalTungguJam": 101.4,
+   "totalKerjaJam": 13.4,
+   "terlama": {
+    "kode": "IT14082026003",
+    "tgl": "14 Agu 2026",
+    "menit": 5361,
+    "jenis": "Flyer"
+   },
+   "pareto": [
+    {
+     "nama": "Flyer",
+     "n": 5,
+     "nilai": 5813,
+     "jam": 96.9,
+     "kumulatif": 95.6
+    },
+    {
+     "nama": "Poster",
+     "n": 1,
+     "nilai": 148,
+     "jam": 2.5,
+     "kumulatif": 98
+    },
+    {
+     "nama": "Edit foto",
+     "n": 3,
+     "nilai": 82,
+     "jam": 1.4,
+     "kumulatif": 99.4
+    },
+    {
+     "nama": "Media K3",
+     "n": 3,
+     "nilai": 38,
+     "jam": 0.6,
+     "kumulatif": 100
+    }
+   ],
+   "paretoDivisi": [
+    {
+     "nama": "HR/GA",
+     "n": 9,
+     "nilai": 5895,
+     "jam": 98.3,
+     "kumulatif": 96.9
+    },
+    {
+     "nama": "K3",
+     "n": 1,
+     "nilai": 148,
+     "jam": 2.5,
+     "kumulatif": 99.4
+    },
+    {
+     "nama": "Finance",
+     "n": 3,
+     "nilai": 38,
+     "jam": 0.6,
+     "kumulatif": 100
+    }
+   ],
+   "histogram": [
+    {
+     "label": "0–15 mnt",
+     "n": 4
+    },
+    {
+     "label": "15–60 mnt",
+     "n": 5
+    },
+    {
+     "label": "1–4 jam",
+     "n": 2
+    },
+    {
+     "label": "4–8 jam",
+     "n": 1
+    },
+    {
+     "label": "8–24 jam",
+     "n": 0
+    },
+    {
+     "label": "> 24 jam",
+     "n": 1
+    }
+   ],
+   "kendali": {
+    "cl": 468,
+    "ucl": 3083,
+    "lcl": 0,
+    "titik": [
+     26,
+     0,
+     5,
+     64,
+     5,
+     363,
+     28,
+     5361,
+     16,
+     17,
+     46,
+     148,
+     2
+    ],
+    "diLuar": 1
+   },
+   "scatter": {
+    "x": [
+     6,
+     47,
+     57,
+     8,
+     29,
+     131,
+     66,
+     20,
+     258,
+     77,
+     9,
+     57,
+     36
+    ],
+    "y": [
+     26,
+     0,
+     5,
+     64,
+     5,
+     363,
+     28,
+     5361,
+     16,
+     17,
+     46,
+     148,
+     2
+    ],
+    "r": -0.17
+   }
+  },
+  "suara": {
+   "nDinilai": 0,
+   "rataRating": null,
+   "nTiketDb": 13,
+   "tiketRevisi": 0
+  },
+  "aktivitas": {
+   "n": 198,
+   "tanpaJenis": 144,
+   "nBerjam": 54,
+   "dariTiket": 13,
+   "jamTercatat": 136,
+   "pareto": [
+    {
+     "nama": "Design",
+     "n": 42,
+     "nilai": 6049,
+     "jam": 100.8,
+     "kumulatif": 74.1
+    },
+    {
+     "nama": "Photografi",
+     "n": 6,
+     "nilai": 1690,
+     "jam": 28.2,
+     "kumulatif": 94.9
+    },
+    {
+     "nama": "Meeting/Koordinasi",
+     "n": 2,
+     "nilai": 155,
+     "jam": 2.6,
+     "kumulatif": 96.8
+    },
+    {
+     "nama": "Export",
+     "n": 2,
+     "nilai": 105,
+     "jam": 1.8,
+     "kumulatif": 98
+    },
+    {
+     "nama": "Sortir List",
+     "n": 1,
+     "nilai": 100,
+     "jam": 1.7,
+     "kumulatif": 99.3
+    },
+    {
+     "nama": "Export Foto",
+     "n": 1,
+     "nilai": 60,
+     "jam": 1,
+     "kumulatif": 100
+    }
+   ]
+  },
+  "kehadiran": {
+   "hariKerja": 38,
+   "hadir": 37,
+   "absen": 1,
+   "ratePct": 97.4,
+   "libur": 24
+  },
+  "safety": {
+   "sesi": 16,
+   "hadir": 15,
+   "ratePct": 93.8
+  },
+  "konten": {
+   "n": 6,
+   "status": {
+    "Designed": 6
+   }
+  },
+  "target": [
+   {
+    "nama": "Project PPA",
+    "rencana": 1073,
+    "realisasi": 570,
+    "capaian": 53.1
+   },
+   {
+    "nama": "Catalogue Part AC",
+    "rencana": 161,
+    "realisasi": 106,
+    "capaian": 65.8
+   },
+   {
+    "nama": "Deadstock GMI",
+    "rencana": 305,
+    "realisasi": 250,
+    "capaian": 82
+   },
+   {
+    "nama": "Deadstock GIS",
+    "rencana": 235,
+    "realisasi": 210,
+    "capaian": 89.4
+   }
+  ],
+  "evaluasi": {
+   "n": 0,
+   "aspek": [
+    {
+     "label": "Kreativitas",
+     "nilai": null
+    },
+    {
+     "label": "Brief",
+     "nilai": null
+    },
+    {
+     "label": "Deadline",
+     "nilai": null
+    },
+    {
+     "label": "Kualitas",
+     "nilai": null
+    },
+    {
+     "label": "Komunikasi",
+     "nilai": null
+    },
+    {
+     "label": "Revisi",
+     "nilai": null
+    }
+   ]
+  }
+ },
+ "wlaItem": 97
+}

@@ -7,6 +7,7 @@ import {
   BookOpen,
   Bot,
   CalendarCheck2,
+  ClipboardCheck,
   Clock,
   FileBox,
   FolderKanban,
@@ -75,6 +76,7 @@ export function buildNavGroups(role?: string | null): NavGroup[] {
       items: [
         { title: "KPI", url: "/kpi", icon: Target, visible: isAdmin },
         { title: "Rekap Bulanan", url: "/rekap-bulanan", icon: BarChart3, visible: isAdmin },
+        { title: "QCC", url: "/qcc", icon: ClipboardCheck, visible: isStaff },
       ],
     },
     {

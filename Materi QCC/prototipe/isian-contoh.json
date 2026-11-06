@@ -1,0 +1,25 @@
+{
+  "catatan": "Isian ilustrasi untuk melihat desain. Bukan hasil tim.",
+  "target": { "persen": 85 },
+  "fishbone": [
+    { "faktor": "Manusia", "sebab": ["Hanya 2 desainer aktif", "Tiket masuk saat sedang mengerjakan"], "atas": true },
+    { "faktor": "Metode", "sebab": ["Tidak ada aturan antrean", "Menunggu ACC tanda tangan"], "atas": true, "akar": 0 },
+    { "faktor": "Material", "sebab": ["Detail brief dikirim lewat WA", "Materi belum lengkap saat tiket dibuat"], "atas": true, "akar": 0 },
+    { "faktor": "Alat", "sebab": ["Notifikasi tiket tidak terpantau"], "atas": false },
+    { "faktor": "Lingkungan", "sebab": ["Tiket masuk akhir pekan atau libur"], "atas": false }
+  ],
+  "solusi": [
+    { "akar": "Detail brief lewat WA", "ide": "Form brief wajib per jenis desain", "s": [5, 3, 5, 4] },
+    { "akar": "Tidak ada aturan antrean", "ide": "Aturan ambil tiket tiap 1 jam", "s": [5, 5, 4, 4] },
+    { "akar": "Notifikasi tidak terpantau", "ide": "Push notifikasi tiket baru", "s": [4, 3, 4, 4] }
+  ],
+  "w2h": [
+    ["What", "Terapkan aturan ambil tiket tiap 1 jam"],
+    ["Why", "Tiket lama menunggu karena tidak ada aturan antrean"],
+    ["Who", "Desainer yang bertugas hari itu"],
+    ["Where", "Menu Permintaan Desain"],
+    ["When", "Mulai periode berikutnya"],
+    ["How", "Cek antrean di awal setiap jam kerja"],
+    ["How much", "Tanpa biaya tambahan"]
+  ]
+}

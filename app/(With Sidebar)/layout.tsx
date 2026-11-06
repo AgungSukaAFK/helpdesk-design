@@ -29,6 +29,7 @@ function isDesignerAllowedRoute(pathname: string) {
     pathname === "/notifikasi" ||
     pathname === "/profile" ||
     pathname === "/feedback" ||
+    pathname === "/qcc" ||
     pathname === "/dokumentasi" ||
     pathname === "/tentang-app" ||
     pathname.startsWith("/artikel-admin/") ||
