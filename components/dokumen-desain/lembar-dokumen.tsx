@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import { cn } from "@/lib/utils";
+import { kolomEfektif, normalisasiGambar, type GambarHasil } from "@/lib/dokumen-desain";
 
 // Lembar Dokumen Form Desain (A4 landscape) dengan title block seperti
 // "referensi dokumen.jpeg": hasil desain di area atas, kolom No. Document,
@@ -24,7 +25,9 @@ export interface DataLembar {
   deskripsi: string;
   /** yyyy-mm-dd */
   tanggal_dokumen?: string | null;
-  hasil_files: { name: string; url: string }[];
+  hasil_files: GambarHasil[];
+  /** Jumlah kolom grid hasil; null = otomatis. */
+  hasil_kolom?: number | null;
   ttd: TtdLembar[];
 }
 
@@ -42,12 +45,6 @@ const tglPanjang = (ymd?: string | null) => {
     month: "long",
     year: "numeric",
   });
-};
-
-/** Kolom x baris grid hasil desain sesuai jumlah gambar. */
-const gridHasil = (n: number) => {
-  const kolom = n <= 3 ? Math.max(n, 1) : n === 4 ? 2 : 3;
-  return { kolom, baris: Math.ceil(Math.max(n, 1) / kolom) };
 };
 
 /** Isi kotak tanda tangan sesuai status. */
@@ -97,7 +94,7 @@ export function LembarDokumen({ data, className }: { data: DataLembar; className
       <div className="flex min-h-0 flex-1">
         {/* Kolom kiri: hasil desain + title block */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <HasilDesain files={data.hasil_files} />
+          <HasilDesain files={data.hasil_files} kolom={data.hasil_kolom} />
 
           <table className="w-full table-fixed border-collapse text-[11px] leading-tight">
             <colgroup>
@@ -191,7 +188,15 @@ export function LembarDokumen({ data, className }: { data: DataLembar; className
   );
 }
 
-function HasilDesain({ files }: { files: { name: string; url: string }[] }) {
+const JUSTIFY = { kiri: "justify-start", tengah: "justify-center", kanan: "justify-end" } as const;
+const POSISI_X = { kiri: "left", tengah: "center", kanan: "right" } as const;
+
+/**
+ * Grid gambar hasil. Tiap gambar menempati lebar x tinggi sel grid, dan isi
+ * kotaknya diskalakan (object-contain) sesuai persen skala. Baris dibagi rata
+ * mengisi ruang di atas title block; grid-auto-flow dense menambal celah.
+ */
+export function HasilDesain({ files, kolom }: { files: GambarHasil[]; kolom?: number | null }) {
   if (files.length === 0) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-neutral-400">
@@ -199,19 +204,51 @@ function HasilDesain({ files }: { files: { name: string; url: string }[] }) {
       </div>
     );
   }
-  const { kolom, baris } = gridHasil(files.length);
+  const list = files.map(normalisasiGambar);
+  const jumlahKolom = kolomEfektif(kolom, list);
   return (
     <div
       className="grid min-h-0 flex-1 gap-3 p-3"
       style={{
-        gridTemplateColumns: `repeat(${kolom}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${baris}, minmax(0, 1fr))`,
+        gridTemplateColumns: `repeat(${jumlahKolom}, minmax(0, 1fr))`,
+        gridAutoRows: "minmax(0, 1fr)",
+        gridAutoFlow: "row dense",
       }}
     >
-      {files.map((f, i) => (
-        <div key={`${i}-${f.url}`} className="flex min-h-0 min-w-0 items-center justify-center">
-          <img src={f.url} alt={f.name} className="h-full w-full object-contain" />
-        </div>
+      {list.map((f, i) => (
+        <figure
+          key={`${i}-${f.url}`}
+          className="m-0 flex min-h-0 min-w-0 flex-col"
+          style={{
+            gridColumn: `span ${Math.min(f.lebar, jumlahKolom)}`,
+            gridRow: `span ${f.tinggi}`,
+          }}
+        >
+          {/* Ada caption: gambar menempel ke bawah supaya caption tepat di bawahnya */}
+          <div
+            className={cn("flex min-h-0 flex-1", JUSTIFY[f.rata], f.caption ? "items-end" : "items-center")}
+          >
+            <img
+              src={f.url}
+              alt={f.caption || f.name}
+              className="object-contain"
+              style={{
+                width: `${f.skala}%`,
+                height: `${f.skala}%`,
+                objectPosition: `${POSISI_X[f.rata]} ${f.caption ? "bottom" : "center"}`,
+              }}
+            />
+          </div>
+          {f.caption && (
+            <figcaption className={cn("shrink-0 pt-1 text-[11px] font-semibold", {
+              "text-left": f.rata === "kiri",
+              "text-center": f.rata === "tengah",
+              "text-right": f.rata === "kanan",
+            })}>
+              {f.caption}
+            </figcaption>
+          )}
+        </figure>
       ))}
     </div>
   );

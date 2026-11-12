@@ -4,7 +4,10 @@ import {
   isFileGambar,
   validasiPenandaTangan,
   MAKS_HASIL,
+  MAKS_KOLOM,
+  normalisasiGambar,
   TTD_MAX_BYTES,
+  type GambarHasil,
   type InputPenandaTangan,
   type PeranTtd,
   type RoleApp,
@@ -90,7 +93,8 @@ export async function hapusFileTtd(client: SupabaseClient, paths: (string | null
 
 export interface IsiDokumen {
   permintaan_id: string;
-  hasil_files: { name: string; url: string }[];
+  hasil_files: GambarHasil[];
+  hasil_kolom: number | null;
   tanggal_dokumen: string;
   no_dokumen: string;
   no_dokumen_sub: string | null;
@@ -110,7 +114,7 @@ export async function validasiIsiDokumen(
   client: SupabaseClient,
   body: any,
   /** Saat revisi: hasil lama tetap sah walau sudah dihapus dari lampiran permintaan. */
-  dokumenLama?: { permintaan_id: string; hasil_files: { name: string; url: string }[] },
+  dokumenLama?: { permintaan_id: string; hasil_files: GambarHasil[] },
 ): Promise<{ error: string } | { isi: IsiDokumen; permintaan: { id: string; judul: string; admin: string | null; requester: string } }> {
   const permintaanId = teks(body?.permintaan_id, 64);
   if (!permintaanId) return { error: "Permintaan desain wajib dipilih." };
@@ -123,9 +127,13 @@ export async function validasiIsiDokumen(
   if (error) return { error: error.message };
   if (!permintaan) return { error: "Permintaan desain tidak ditemukan." };
 
-  const urls: string[] = Array.isArray(body?.hasil_files)
-    ? Array.from(new Set(body.hasil_files.map((f: any) => teks(f?.url, 2000)).filter(Boolean)))
-    : [];
+  // Pengaturan tata letak per gambar ikut dikirim; url unik, urutan = urutan tampil
+  const masukan = new Map<string, any>();
+  for (const f of Array.isArray(body?.hasil_files) ? body.hasil_files : []) {
+    const url = teks(f?.url, 2000);
+    if (url && !masukan.has(url)) masukan.set(url, f);
+  }
+  const urls = Array.from(masukan.keys());
   if (urls.length === 0) return { error: "Pilih minimal satu hasil desain dari lampiran permintaan tersebut." };
   if (urls.length > MAKS_HASIL) return { error: `Maksimal ${MAKS_HASIL} hasil desain per dokumen.` };
 
@@ -134,12 +142,23 @@ export async function validasiIsiDokumen(
   if (dokumenLama && dokumenLama.permintaan_id === permintaan.id) {
     for (const f of dokumenLama.hasil_files ?? []) if (!tersedia.some((t) => t.url === f.url)) tersedia.push(f);
   }
-  const hasilFiles: { name: string; url: string }[] = [];
+  const hasilFiles: GambarHasil[] = [];
   for (const url of urls) {
     const f = tersedia.find((t) => t.url === url);
     if (!f) return { error: "Hasil desain harus dipilih dari lampiran permintaan tersebut." };
     if (!isFileGambar(f)) return { error: `"${f.name}" bukan file gambar.` };
-    hasilFiles.push({ name: f.name, url: f.url });
+    const atur = masukan.get(url);
+    hasilFiles.push(
+      normalisasiGambar({
+        name: f.name,
+        url: f.url,
+        lebar: atur?.lebar,
+        tinggi: atur?.tinggi,
+        skala: atur?.skala,
+        rata: atur?.rata,
+        caption: typeof atur?.caption === "string" ? atur.caption : null,
+      }),
+    );
   }
 
   const tanggal = teks(body?.tanggal_dokumen, 10);
@@ -150,6 +169,10 @@ export async function validasiIsiDokumen(
   const isi: IsiDokumen = {
     permintaan_id: permintaan.id,
     hasil_files: hasilFiles,
+    hasil_kolom:
+      body?.hasil_kolom == null || body.hasil_kolom === "auto"
+        ? null
+        : Math.min(MAKS_KOLOM, Math.max(1, Math.round(Number(body.hasil_kolom)) || 1)),
     tanggal_dokumen: tanggal,
     no_dokumen: teks(body?.no_dokumen, 100),
     no_dokumen_sub: teks(body?.no_dokumen_sub, 100) || null,

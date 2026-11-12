@@ -25,10 +25,12 @@ import {
   NO_DOKUMEN_CONTOH,
   NO_DOKUMEN_SUB_CONTOH,
   validasiPenandaTangan,
+  type GambarHasil,
   type InputPenandaTangan,
   type PeranTtd,
 } from "@/lib/dokumen-desain";
 import { LembarDokumen } from "./lembar-dokumen";
+import { TataLetakHasil } from "./tata-letak-hasil";
 
 interface OpsiPermintaan {
   id: string;
@@ -50,7 +52,8 @@ interface OpsiUser {
 
 export interface NilaiAwalDokumen {
   permintaan_id: string;
-  hasil_files: { name: string; url: string }[];
+  hasil_files: GambarHasil[];
+  hasil_kolom: number | null;
   tanggal_dokumen: string;
   no_dokumen: string;
   no_dokumen_sub: string | null;
@@ -237,8 +240,10 @@ export function DokumenForm({
   const [users, setUsers] = useState<OpsiUser[]>([]);
 
   const [permintaanId, setPermintaanId] = useState(nilaiAwal?.permintaan_id ?? "");
-  // Urutan pilih = urutan tampil di lembar dokumen
-  const [hasilUrls, setHasilUrls] = useState<string[]>(nilaiAwal?.hasil_files.map((f) => f.url) ?? []);
+  // Urutan pilih = urutan tampil di lembar dokumen; tiap item membawa pengaturan tata letaknya
+  const [hasil, setHasil] = useState<GambarHasil[]>(nilaiAwal?.hasil_files ?? []);
+  const [kolom, setKolom] = useState<number | null>(nilaiAwal?.hasil_kolom ?? null);
+  const hasilUrls = hasil.map((h) => h.url);
   const [tanggal, setTanggal] = useState(nilaiAwal?.tanggal_dokumen ?? hariIni());
   const [noDokumen, setNoDokumen] = useState(nilaiAwal?.no_dokumen ?? "");
   const [noSub, setNoSub] = useState(nilaiAwal?.no_dokumen_sub ?? "");
@@ -293,21 +298,19 @@ export function DokumenForm({
     return list;
   }, [permintaan, permintaanId, nilaiAwal]);
 
-  const hasilTerpilih = hasilUrls
-    .map((url) => gambar.find((g) => g.url === url))
-    .filter((g): g is { name: string; url: string } => !!g);
+  const hasilTerpilih = hasil.filter((h) => gambar.some((g) => g.url === h.url));
 
-  const toggleHasil = (url: string) => {
-    if (hasilUrls.includes(url)) return setHasilUrls(hasilUrls.filter((u) => u !== url));
-    if (hasilUrls.length >= MAKS_HASIL) return toast.error(`Maksimal ${MAKS_HASIL} hasil desain per dokumen.`);
-    setHasilUrls([...hasilUrls, url]);
+  const toggleHasil = (g: { name: string; url: string }) => {
+    if (hasilUrls.includes(g.url)) return setHasil(hasil.filter((h) => h.url !== g.url));
+    if (hasil.length >= MAKS_HASIL) return toast.error(`Maksimal ${MAKS_HASIL} hasil desain per dokumen.`);
+    setHasil([...hasil, { name: g.name, url: g.url }]);
   };
 
   const staf = users.filter((u) => u.role === "admin" || u.role === "designer");
 
   function pilihPermintaan(p: OpsiPermintaan, me?: string) {
     setPermintaanId(p.id);
-    setHasilUrls(p.gambar.length === 1 ? [p.gambar[0].url] : []);
+    setHasil(p.gambar.length === 1 ? [{ name: p.gambar[0].name, url: p.gambar[0].url }] : []);
     setProject((v) => v || p.project || "");
     setDeskripsi((v) => v || p.judul || "");
     if (p.admin) setDesignerId(p.admin);
@@ -344,6 +347,7 @@ export function DokumenForm({
         body: JSON.stringify({
           permintaan_id: permintaanId,
           hasil_files: hasilTerpilih,
+          hasil_kolom: kolom,
           tanggal_dokumen: tanggal,
           no_dokumen: noDokumen,
           no_dokumen_sub: noSub,
@@ -381,6 +385,7 @@ export function DokumenForm({
     deskripsi: deskripsi || "-",
     tanggal_dokumen: tanggal,
     hasil_files: hasilTerpilih,
+    hasil_kolom: kolom,
     ttd: penandaTangan().map((p, i) => ({
       id: `${p.peran}-${i}`,
       peran: p.peran,
@@ -450,7 +455,7 @@ export function DokumenForm({
                     key={g.url}
                     type="button"
                     aria-pressed={no > 0}
-                    onClick={() => toggleHasil(g.url)}
+                    onClick={() => toggleHasil(g)}
                     className={cn(
                       "group relative overflow-hidden rounded-lg border-2 text-left transition",
                       no > 0 ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-muted-foreground/30",
@@ -470,6 +475,15 @@ export function DokumenForm({
               </div>
             )}
           </div>
+        )}
+
+        {hasilTerpilih.length > 0 && (
+          <TataLetakHasil
+            files={hasilTerpilih}
+            onFiles={setHasil}
+            kolom={kolom}
+            onKolom={setKolom}
+          />
         )}
       </section>
 

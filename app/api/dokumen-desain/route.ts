@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     let query = client
       .from("dokumen_desain")
       .select(
-        "id, created_at, updated_at, permintaan_id, no_dokumen, no_dokumen_sub, project_design, tipe_design, deskripsi, status, revisi, created_by, disetujui_at, tanggal_dokumen, hasil_files, permintaan:permintaan_id ( judul, requester, departemen ), ttd:dokumen_desain_ttd ( user_id, peran, status )",
+        "id, created_at, updated_at, permintaan_id, no_dokumen, no_dokumen_sub, project_design, tipe_design, deskripsi, status, revisi, created_by, disetujui_at, tanggal_dokumen, hasil_files, hasil_kolom, permintaan:permintaan_id ( judul, requester, departemen ), ttd:dokumen_desain_ttd ( user_id, peran, status )",
       )
       .order("created_at", { ascending: false })
       .limit(500);

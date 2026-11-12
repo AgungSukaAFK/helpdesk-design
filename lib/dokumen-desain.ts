@@ -128,3 +128,50 @@ export function validasiPenandaTangan(list: InputPenandaTangan[]): string | null
 // ===== Gambar tanda tangan =====
 
 export const TTD_MAX_BYTES = 1024 * 1024;
+
+// ===== Tata letak gambar hasil di lembar =====
+
+export type RataGambar = "kiri" | "tengah" | "kanan";
+export const MAKS_KOLOM = 4;
+export const MAKS_TINGGI = 3;
+export const SKALA_MIN = 10;
+
+export interface GambarHasil {
+  name: string;
+  url: string;
+  /** Lebar dalam jumlah kolom grid (1–4). */
+  lebar?: number;
+  /** Tinggi dalam jumlah baris grid (1–3). */
+  tinggi?: number;
+  /** Ukuran gambar di dalam kotaknya, persen (10–100). */
+  skala?: number;
+  rata?: RataGambar;
+  caption?: string | null;
+}
+
+const bulat = (v: unknown, min: number, max: number, def: number) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : def;
+};
+
+/** Rapikan pengaturan satu gambar; nilai tak valid kembali ke default. */
+export function normalisasiGambar(g: Partial<GambarHasil> & { name: string; url: string }): Required<GambarHasil> {
+  return {
+    name: g.name,
+    url: g.url,
+    lebar: bulat(g.lebar, 1, MAKS_KOLOM, 1),
+    tinggi: bulat(g.tinggi, 1, MAKS_TINGGI, 1),
+    skala: bulat(g.skala, SKALA_MIN, 100, 100),
+    rata: g.rata === "kiri" || g.rata === "kanan" ? g.rata : "tengah",
+    caption: typeof g.caption === "string" ? g.caption.trim().slice(0, 100) || null : null,
+  };
+}
+
+/** Jumlah kolom grid: pilihan manual, atau otomatis dari jumlah gambar (minimal selebar gambar terlebar). */
+export function kolomEfektif(kolom: number | null | undefined, files: { lebar?: number }[]) {
+  if (kolom && kolom >= 1 && kolom <= MAKS_KOLOM) return kolom;
+  const n = Math.max(files.length, 1);
+  const auto = n <= 3 ? n : n === 4 ? 2 : 3;
+  const terlebar = Math.max(1, ...files.map((f) => f.lebar ?? 1));
+  return Math.min(MAKS_KOLOM, Math.max(auto, terlebar));
+}

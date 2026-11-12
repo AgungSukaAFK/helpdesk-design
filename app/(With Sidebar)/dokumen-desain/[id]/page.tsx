@@ -48,6 +48,7 @@ import {
   DOKUMEN_STATUS_META,
   PERAN_LABEL,
   normalizeDokumenStatus,
+  type GambarHasil,
   type PeranTtd,
 } from "@/lib/dokumen-desain";
 import { cn } from "@/lib/utils";
@@ -63,7 +64,8 @@ interface DokumenDetail {
   created_at: string;
   updated_at: string;
   permintaan_id: string;
-  hasil_files: { name: string; url: string }[];
+  hasil_files: GambarHasil[];
+  hasil_kolom: number | null;
   tanggal_dokumen: string;
   no_dokumen: string;
   no_dokumen_sub: string | null;
@@ -358,7 +360,7 @@ export default function DetailDokumenDesainPage({ params }: { params: Promise<{ 
                   {data.hasil_files.map((f) => (
                     <li key={f.url}>
                       <a href={f.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all font-medium hover:underline">
-                        {f.name} <ExternalLink className="h-3 w-3 shrink-0" />
+                        {f.caption ? `${f.caption} (${f.name})` : f.name} <ExternalLink className="h-3 w-3 shrink-0" />
                       </a>
                     </li>
                   ))}
