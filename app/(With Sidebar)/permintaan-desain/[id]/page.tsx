@@ -86,6 +86,7 @@ import { cn } from "@/lib/utils";
 import { FileDropArea, FileDropzone } from "@/components/file-drop";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { downloadFile } from "@/lib/permintaan-files";
+import { DokumenTerkait } from "@/components/dokumen-desain/dokumen-terkait";
 
 // --- TIPE DATA ---
 
@@ -1023,6 +1024,12 @@ export default function DetailPermintaanPage() {
                 />
               )}
             </FileDropArea>
+
+            {/* Dokumen Form Desain (pengesahan hasil) */}
+            <DokumenTerkait
+              permintaanId={data.id}
+              bolehBuat={role === "admin" || (role === "designer" && isPic)}
+            />
 
             {/* Diskusi */}
             <div className="border rounded-lg bg-card shadow-sm flex flex-col h-[500px]">

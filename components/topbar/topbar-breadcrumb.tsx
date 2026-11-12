@@ -20,6 +20,7 @@ const CREATE_LABELS: Record<string, string> = {
   "/permintaan-desain": "Buat Permintaan",
   "/permintaan-desain-admin": "Buat Permintaan",
   "/artikel-admin": "Tulis Artikel",
+  "/dokumen-desain": "Buat Dokumen",
 };
 const DETAIL_LABELS: Record<string, string> = {
   "/artikel-admin": "Edit Artikel",

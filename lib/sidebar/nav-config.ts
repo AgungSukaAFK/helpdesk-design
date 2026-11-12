@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   Clock,
   FileBox,
+  FilePen,
   FolderKanban,
   Info,
   LayoutDashboard,
@@ -60,6 +61,7 @@ export function buildNavGroups(role?: string | null): NavGroup[] {
         { title: "Riwayat Pengerjaan", url: "/riwayat-pengerjaan", icon: Clock, visible: isStaff },
         { title: "Riwayat", url: "/riwayat", icon: Clock, visible: !isStaff },
         { title: "Review & Rating", url: "/feedback", icon: MessageSquareDot, visible: true },
+        { title: "Dokumen Form Desain", url: "/dokumen-desain", icon: FilePen, visible: true },
       ],
     },
     {

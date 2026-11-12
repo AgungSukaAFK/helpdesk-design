@@ -10,6 +10,7 @@ export const MENU_KEYWORDS: Record<string, string[]> = {
   "/riwayat-pengerjaan": ["history", "selesai", "arsip", "hasil kerja"],
   "/riwayat": ["history", "tiket saya", "arsip", "selesai"],
   "/feedback": ["rating", "ulasan", "penilaian", "kepuasan", "review"],
+  "/dokumen-desain": ["ttd", "tanda tangan", "approval", "pengesahan", "form desain", "acknowledge"],
   "/attendance": ["absensi", "absen", "kehadiran", "presensi"],
   "/daily-activity": ["aktivitas harian", "laporan harian", "kegiatan", "jobdesk", "log"],
   "/safety-toolbox-meeting-hse": ["stm", "k3", "hse", "safety", "toolbox", "jadwal"],

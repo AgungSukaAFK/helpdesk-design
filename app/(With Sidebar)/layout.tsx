@@ -33,6 +33,8 @@ function isDesignerAllowedRoute(pathname: string) {
     pathname === "/dokumentasi" ||
     pathname === "/tentang-app" ||
     pathname.startsWith("/artikel-admin/") ||
+    pathname === "/dokumen-desain" ||
+    pathname.startsWith("/dokumen-desain/") ||
     isRequestWorkRoute
   );
 }
