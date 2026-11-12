@@ -1,24 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, Link2, Loader2, Lock, LockOpen, Settings2, X } from "lucide-react";
+import { ChevronsUpDown, Link2, Loader2, Lock, LockOpen, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { PilihCari } from "@/components/dokumen-desain/dokumen-form";
+import { CariAsync } from "./cari-async";
 import { STATUS_META, normalizeStatus } from "@/lib/permintaan-workflow";
 import {
   DIVISI_DEFAULT,
@@ -40,7 +32,6 @@ interface OpsiPermintaan {
   project: string | null;
   departemen: string | null;
   status: string;
-  created_at: string;
 }
 
 interface OpsiUser {
@@ -69,6 +60,7 @@ export interface NilaiAwalBast {
   penerima_dept: string | null;
   klausul: string | null;
   permintaan: { id: string; judul: string }[];
+  penerima_user_nama?: string | null;
   penyerah_signed_at?: string | null;
 }
 
@@ -104,8 +96,7 @@ export function BastForm({
 }) {
   const router = useRouter();
   const [opsi, setOpsi] = useState<{
-    permintaan: OpsiPermintaan[];
-    users: OpsiUser[];
+    staff: OpsiUser[];
     jenis: JenisBast[];
     me: { id: string; role: string };
   } | null>(null);
@@ -119,9 +110,11 @@ export function BastForm({
   const [kota, setKota] = useState(nilaiAwal?.kota ?? KOTA_DEFAULT);
   const [noDokumen, setNoDokumen] = useState(nilaiAwal?.no_dokumen ?? "");
   const [noManual, setNoManual] = useState(!!nilaiAwal);
-  const [permintaanIds, setPermintaanIds] = useState<string[]>(
-    nilaiAwal?.permintaan.map((p) => p.id) ?? (permintaanAwal ? [permintaanAwal] : []),
+  // Disimpan beserta judulnya karena pilihan permintaan dimuat bertahap dari server
+  const [permintaanTerkait, setPermintaanTerkait] = useState<{ id: string; judul: string }[]>(
+    nilaiAwal?.permintaan.map((p) => ({ id: p.id, judul: p.judul })) ?? [],
   );
+  const permintaanIds = permintaanTerkait.map((p) => p.id);
   const [penyerahId, setPenyerahId] = useState(nilaiAwal?.penyerah_id ?? "");
   const [divisi, setDivisi] = useState(nilaiAwal?.penyerah_divisi ?? DIVISI_DEFAULT);
   const [judulBarang, setJudulBarang] = useState(nilaiAwal?.judul_barang ?? "");
@@ -132,6 +125,7 @@ export function BastForm({
   });
   const [instansi, setInstansi] = useState(nilaiAwal?.penerima_instansi ?? "");
   const [penerimaUserId, setPenerimaUserId] = useState(nilaiAwal?.penerima_user_id ?? "");
+  const [penerimaUserNama, setPenerimaUserNama] = useState(nilaiAwal?.penerima_user_nama ?? "");
   const [penerimaNama, setPenerimaNama] = useState(nilaiAwal?.penerima_nama ?? "");
   const [penerimaDept, setPenerimaDept] = useState(nilaiAwal?.penerima_dept ?? "");
   const [klausul, setKlausul] = useState(nilaiAwal?.klausul ?? "");
@@ -145,8 +139,18 @@ export function BastForm({
         if (!nilaiAwal) {
           setPenyerahId((v) => v || json.me.id);
           if (json.jenis[0]) terapkanJenis(json.jenis[0], true);
-          const awal = json.permintaan.find((p: OpsiPermintaan) => p.id === permintaanAwal);
-          if (awal?.departemen) setInstansi((v) => v || awal.departemen);
+          // Dibuka dari detail permintaan: permintaan itu langsung dikaitkan
+          if (permintaanAwal) {
+            fetch(`/api/permintaan?id=${encodeURIComponent(permintaanAwal)}`)
+              .then((res) => (res.ok ? res.json() : null))
+              .then((json2) => {
+                const item = json2?.data ?? json2;
+                if (!item?.id) return;
+                setPermintaanTerkait((list) => (list.length ? list : [{ id: item.id, judul: item.judul }]));
+                if (item.departemen) setInstansi((v) => v || item.departemen);
+              })
+              .catch(() => {});
+          }
         } else if (nilaiAwal.jenis_id) {
           const j = json.jenis.find((x: JenisBast) => x.id === nilaiAwal.jenis_id);
           if (j) setJenisKode(j.kode);
@@ -178,20 +182,18 @@ export function BastForm({
     );
   }
 
-  const staff = useMemo(() => (opsi?.users ?? []).filter((u) => u.role === "admin" || u.role === "designer"), [opsi]);
+  const staff = opsi?.staff ?? [];
   const isAdmin = opsi?.me.role === "admin";
-  const penyerah = opsi?.users.find((u) => u.id === penyerahId);
+  const penyerah = staff.find((u) => u.id === penyerahId);
 
-  const togglePermintaan = (id: string) => {
-    setPermintaanIds((ids) => {
-      if (ids.includes(id)) return ids.filter((x) => x !== id);
-      const p = opsi?.permintaan.find((x) => x.id === id);
-      if (p?.departemen) setInstansi((v) => v || p.departemen!);
-      return [...ids, id];
-    });
+  const togglePermintaan = (p: OpsiPermintaan) => {
+    if (permintaanIds.includes(p.id)) {
+      setPermintaanTerkait((list) => list.filter((x) => x.id !== p.id));
+      return;
+    }
+    setPermintaanTerkait((list) => [...list, { id: p.id, judul: p.judul }]);
+    if (p.departemen) setInstansi((v) => v || p.departemen!);
   };
-  const judulPermintaan = (id: string) =>
-    opsi?.permintaan.find((p) => p.id === id)?.judul ?? nilaiAwal?.permintaan.find((p) => p.id === id)?.judul ?? "Permintaan";
 
   const kirim = async () => {
     const cek = normalisasiBarang(barang.mode, barang.kolom, barang.items);
@@ -328,47 +330,33 @@ export function BastForm({
           judul="Permintaan desain terkait"
           keterangan="Opsional. BAST jadi lampiran bukti di permintaan tersebut; status permintaan tidak berubah."
         >
-          <Popover>
-            <PopoverTrigger asChild>
+          <CariAsync<OpsiPermintaan>
+            tipe="permintaan"
+            placeholder="Cari judul, project, departemen..."
+            terpilih={permintaanIds}
+            onPilih={togglePermintaan}
+            tetapBuka
+            label={(p) => p.judul}
+            detail={(p) =>
+              [STATUS_META[normalizeStatus(p.status)].short, p.departemen, p.project].filter(Boolean).join(" · ")
+            }
+            trigger={
               <Button variant="outline" className="w-full justify-start font-normal text-muted-foreground">
-                <Link2 className="mr-2 h-4 w-4" /> Cari & kaitkan permintaan...
+                <Link2 className="mr-2 h-4 w-4 shrink-0" /> Cari & kaitkan permintaan...
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] min-w-[300px] max-w-[calc(100vw-2rem)] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Cari judul, project, departemen..." className="h-9" />
-                <CommandList>
-                  <CommandEmpty>Tidak ditemukan.</CommandEmpty>
-                  <CommandGroup>
-                    {opsi.permintaan.map((p) => (
-                      <CommandItem
-                        key={p.id}
-                        value={`${p.judul} ${p.project ?? ""} ${p.departemen ?? ""} ${p.id}`}
-                        onSelect={() => togglePermintaan(p.id)}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate">{p.judul}</div>
-                          <div className="truncate text-xs text-muted-foreground">
-                            {[STATUS_META[normalizeStatus(p.status)].short, p.departemen, p.project].filter(Boolean).join(" · ")}
-                          </div>
-                        </div>
-                        <Check className={cn("ml-2 h-4 w-4", permintaanIds.includes(p.id) ? "opacity-100" : "opacity-0")} />
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+            }
+          />
           {permintaanIds.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {permintaanIds.map((id) => (
-                <Badge key={id} variant="secondary" className="max-w-full gap-1 py-1 pl-2.5 pr-1 font-normal">
-                  <span className="truncate">{judulPermintaan(id)}</span>
+              {permintaanTerkait.map((p) => (
+                <Badge key={p.id} variant="secondary" className="max-w-full gap-1 py-1 pl-2.5 pr-1 font-normal">
+                  <span className="min-w-0 truncate" title={p.judul}>
+                    {p.judul}
+                  </span>
                   <button
                     type="button"
-                    className="rounded-full p-0.5 hover:bg-background"
-                    onClick={() => setPermintaanIds((ids) => ids.filter((x) => x !== id))}
+                    className="shrink-0 rounded-full p-0.5 hover:bg-background"
+                    onClick={() => setPermintaanTerkait((list) => list.filter((x) => x.id !== p.id))}
                     aria-label="Lepas"
                   >
                     <X className="h-3 w-3" />
@@ -441,25 +429,35 @@ export function BastForm({
             <Label>Penerima punya akun di aplikasi? (opsional)</Label>
             <div className="flex gap-2">
               <div className="min-w-0 flex-1">
-                <PilihCari
-                  items={opsi.users}
-                  value={penerimaUserId}
-                  onChange={(id) => {
-                    setPenerimaUserId(id);
-                    const u = opsi.users.find((x) => x.id === id);
-                    if (u) {
-                      setPenerimaNama(namaUser(u));
-                      if (u.departemen) setPenerimaDept(u.departemen);
-                    }
+                <CariAsync<OpsiUser>
+                  tipe="user"
+                  placeholder="Cari nama, email, departemen..."
+                  terpilih={penerimaUserId ? [penerimaUserId] : []}
+                  onPilih={(u) => {
+                    setPenerimaUserId(u.id);
+                    setPenerimaUserNama(namaUser(u));
+                    setPenerimaNama(namaUser(u));
+                    if (u.departemen) setPenerimaDept(u.departemen);
                   }}
-                  placeholder="Tidak — TTD langsung di perangkat penyerah / scan"
                   label={namaUser}
                   detail={(u) => [u.email, u.departemen].filter(Boolean).join(" · ")}
-                  cari={(u) => `${u.name ?? ""} ${u.email ?? ""} ${u.departemen ?? ""}`}
+                  trigger={
+                    <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                      <span className={cn("truncate", !penerimaUserId && "text-muted-foreground")}>
+                        {penerimaUserId
+                          ? penerimaUserNama || "Akun terpilih"
+                          : "Tidak — TTD langsung di perangkat penyerah / scan"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  }
                 />
               </div>
               {penerimaUserId && (
-                <Button type="button" variant="ghost" size="icon" title="Hapus" onClick={() => setPenerimaUserId("")}>
+                <Button type="button" variant="ghost" size="icon" title="Hapus" onClick={() => {
+                    setPenerimaUserId("");
+                    setPenerimaUserNama("");
+                  }}>
                   <X className="h-4 w-4" />
                 </Button>
               )}
