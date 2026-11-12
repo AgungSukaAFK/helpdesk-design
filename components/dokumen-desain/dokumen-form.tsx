@@ -79,7 +79,7 @@ const barisBaru = (user_id = "", jabatan = ""): Baris => ({ key: ++seq, user_id,
 const namaUser = (u?: OpsiUser) => u?.name || u?.email || "Tanpa nama";
 
 /** Pilih satu item dari daftar dengan pencarian. */
-function PilihCari<T extends { id: string }>({
+export function PilihCari<T extends { id: string }>({
   items,
   value,
   onChange,

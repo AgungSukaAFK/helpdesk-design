@@ -52,6 +52,7 @@ import {
   TrendingUp,
   X,
   Upload,
+  PackageCheck,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -114,6 +115,7 @@ interface Permintaan {
   revision_at?: string | null;
   revision_count?: number | null;
   done_at?: string | null;
+  bast_status?: "DITERIMA" | "MENUNGGU" | null;
 }
 
 interface MonthStats {
@@ -1706,6 +1708,24 @@ export default function PermintaanList() {
                           }`}
                         >
                           {item.hasil_label}
+                        </Badge>
+                      )}
+                      {item.bast_status && (
+                        <Badge
+                          variant="outline"
+                          title={
+                            item.bast_status === "DITERIMA"
+                              ? "Sudah dilengkapi BAST yang diterima"
+                              : "BAST sudah dibuat, menunggu serah terima"
+                          }
+                          className={`gap-1 text-[10px] px-1.5 py-0 font-medium ${
+                            item.bast_status === "DITERIMA"
+                              ? "border-sky-500/40 text-sky-700 bg-sky-500/10 dark:text-sky-300"
+                              : "border-dashed text-muted-foreground"
+                          }`}
+                        >
+                          <PackageCheck className="h-3 w-3" />
+                          {item.bast_status === "DITERIMA" ? "BAST" : "BAST proses"}
                         </Badge>
                       )}
                     </div>

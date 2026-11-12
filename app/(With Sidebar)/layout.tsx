@@ -35,6 +35,8 @@ function isDesignerAllowedRoute(pathname: string) {
     pathname.startsWith("/artikel-admin/") ||
     pathname === "/dokumen-desain" ||
     pathname.startsWith("/dokumen-desain/") ||
+    pathname === "/bast" ||
+    pathname.startsWith("/bast/") ||
     isRequestWorkRoute
   );
 }

@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   MessageSquareDot,
   Newspaper,
+  PackageCheck,
   ShieldCheck,
   Target,
   UserCheck,
@@ -62,6 +63,7 @@ export function buildNavGroups(role?: string | null): NavGroup[] {
         { title: "Riwayat", url: "/riwayat", icon: Clock, visible: !isStaff },
         { title: "Review & Rating", url: "/feedback", icon: MessageSquareDot, visible: true },
         { title: "Dokumen Form Desain", url: "/dokumen-desain", icon: FilePen, visible: true },
+        { title: "BAST / Serah Terima", url: "/bast", icon: PackageCheck, visible: true },
       ],
     },
     {

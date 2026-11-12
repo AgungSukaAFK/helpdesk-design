@@ -495,6 +495,20 @@ export async function GET(request: NextRequest) {
       finalPageData = formattedData.slice(from, to);
     }
 
+    // Penanda BAST: DITERIMA bila ada BAST terkait yang sudah diterima, MENUNGGU bila baru dibuat
+    if (finalPageData.length > 0 && finalPageData.length <= 1000) {
+      const { data: bastLink } = await supabase
+        .from("bast_permintaan")
+        .select("permintaan_id, bast:bast_id ( status )")
+        .in("permintaan_id", finalPageData.map((item) => item.id));
+      const bastStatus = new Map<string, "DITERIMA" | "MENUNGGU">();
+      for (const l of (bastLink ?? []) as any[]) {
+        const st = l.bast?.status === "DITERIMA" ? "DITERIMA" : "MENUNGGU";
+        if (bastStatus.get(l.permintaan_id) !== "DITERIMA") bastStatus.set(l.permintaan_id, st);
+      }
+      finalPageData = finalPageData.map((item) => ({ ...item, bast_status: bastStatus.get(item.id) ?? null }));
+    }
+
     return NextResponse.json({
       data: finalPageData,
       total: filteredTotal,

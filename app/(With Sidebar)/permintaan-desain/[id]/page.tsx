@@ -87,6 +87,7 @@ import { FileDropArea, FileDropzone } from "@/components/file-drop";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { downloadFile } from "@/lib/permintaan-files";
 import { DokumenTerkait } from "@/components/dokumen-desain/dokumen-terkait";
+import { BastTerkait } from "@/components/bast/bast-terkait";
 
 // --- TIPE DATA ---
 
@@ -1027,6 +1028,12 @@ export default function DetailPermintaanPage() {
 
             {/* Dokumen Form Desain (pengesahan hasil) */}
             <DokumenTerkait
+              permintaanId={data.id}
+              bolehBuat={role === "admin" || (role === "designer" && isPic)}
+            />
+
+            {/* BAST (serah terima barang fisik) */}
+            <BastTerkait
               permintaanId={data.id}
               bolehBuat={role === "admin" || (role === "designer" && isPic)}
             />

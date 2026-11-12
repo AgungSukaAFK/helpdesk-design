@@ -23,7 +23,7 @@ const MAX_UPLOAD_MB = 5;
 export type HasilTtd = { pakaiTersimpan: true } | { ttd: string; simpan: boolean };
 
 /** Potong area kosong (transparan) di sekitar coretan, lalu kembalikan PNG data URL. */
-function trimCanvas(src: HTMLCanvasElement): string | null {
+export function trimCanvas(src: HTMLCanvasElement): string | null {
   const ctx = src.getContext("2d")!;
   const { width, height } = src;
   const data = ctx.getImageData(0, 0, width, height).data;
@@ -52,7 +52,7 @@ function trimCanvas(src: HTMLCanvasElement): string | null {
 }
 
 /** Pad coretan tanda tangan dengan pointer (mouse, sentuh, stylus). */
-function PadGambar({ onChange }: { onChange: (canvas: HTMLCanvasElement | null) => void }) {
+export function PadGambar({ onChange }: { onChange: (canvas: HTMLCanvasElement | null) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
@@ -247,12 +247,19 @@ export function SignatureDialog({
   tersimpanUrl,
   peranLabel,
   onSubmit,
+  judul = "Setujui & Tanda Tangan",
+  labelTombol = "Setujui & Tanda Tangani",
+  children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tersimpanUrl?: string | null;
   peranLabel: string;
   onSubmit: (hasil: HasilTtd) => Promise<boolean>;
+  judul?: string;
+  labelTombol?: string;
+  /** Isian tambahan di bawah pad tanda tangan. */
+  children?: React.ReactNode;
 }) {
   const [tab, setTab] = useState<string>(tersimpanUrl ? "tersimpan" : "gambar");
   const [canvasGambar, setCanvasGambar] = useState<HTMLCanvasElement | null>(null);
@@ -294,7 +301,7 @@ export function SignatureDialog({
     <Dialog open={open} onOpenChange={(v) => !loading && onOpenChange(v)}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Setujui & Tanda Tangan</DialogTitle>
+          <DialogTitle>{judul}</DialogTitle>
           <DialogDescription>
             Anda menandatangani dokumen ini sebagai <b>{peranLabel}</b>. Tanda tangan tidak dapat diubah
             setelah dikirim.
@@ -340,13 +347,15 @@ export function SignatureDialog({
           </div>
         )}
 
+        {children}
+
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
             Batal
           </Button>
           <Button onClick={kirim} disabled={loading || !siap}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Setujui & Tanda Tangani
+            {labelTombol}
           </Button>
         </DialogFooter>
       </DialogContent>
