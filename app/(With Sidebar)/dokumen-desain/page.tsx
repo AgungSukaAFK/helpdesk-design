@@ -37,7 +37,7 @@ interface DokumenRow {
   created_by: string;
   created_by_name: string;
   permintaan_judul: string;
-  hasil_file: { name: string; url: string } | null;
+  hasil_files: { name: string; url: string }[] | null;
   ttd_total: number;
   ttd_selesai: number;
   perlu_ttd_saya: boolean;
@@ -179,9 +179,14 @@ export default function DokumenDesainPage() {
                 )}
               >
                 <div className="relative aspect-[16/9] bg-muted">
-                  {r.hasil_file?.url && (
+                  {r.hasil_files?.[0] && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={r.hasil_file.url} alt={r.hasil_file.name} className="h-full w-full object-contain" loading="lazy" />
+                    <img src={r.hasil_files[0].url} alt={r.hasil_files[0].name} className="h-full w-full object-contain" loading="lazy" />
+                  )}
+                  {(r.hasil_files?.length ?? 0) > 1 && (
+                    <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-xs font-medium text-white">
+                      +{r.hasil_files!.length - 1} gambar
+                    </span>
                   )}
                   <Badge variant="outline" className={cn("absolute left-2 top-2 bg-background/90", DOKUMEN_STATUS_META[st].badgeClass)}>
                     {DOKUMEN_STATUS_META[st].label}

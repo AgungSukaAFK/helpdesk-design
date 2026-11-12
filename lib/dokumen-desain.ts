@@ -6,6 +6,9 @@ export type DokumenStatus = "MENUNGGU" | "DISETUJUI" | "DITOLAK";
 export type PeranTtd = "designer" | "acknowledge" | "approval";
 export type RoleApp = "admin" | "designer" | "user";
 
+/** Batas gambar hasil per lembar agar tetap terbaca saat dicetak A4. */
+export const MAKS_HASIL = 6;
+
 export const NO_DOKUMEN_CONTOH = "GMI.CR.F.001-002";
 export const NO_DOKUMEN_SUB_CONTOH = "SRG.001/001/2026/HSE";
 

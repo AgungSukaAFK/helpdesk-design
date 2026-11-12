@@ -1,8 +1,8 @@
 -- Dokumen Form Desain: lembar pengesahan hasil desain (title block seperti
 -- "referensi dokumen.jpeg") yang ditandatangani secara digital di aplikasi.
 --
--- - Satu dokumen selalu terkait ke satu permintaan desain dan satu file hasil
---   (gambar) dari lampiran permintaan tersebut.
+-- - Satu dokumen selalu terkait ke satu permintaan desain dan minimal satu file
+--   hasil (gambar) dari lampiran permintaan tersebut; semuanya tampil di satu lembar.
 -- - Penanda tangan ditentukan saat dokumen dibuat: 1 designer, lalu sejumlah
 --   Acknowledge dan Approval. Masing-masing tanda tangan sendiri (upload gambar
 --   atau digambar di web), urutannya bebas.
@@ -13,8 +13,10 @@ create table if not exists public.dokumen_desain (
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now(),
   permintaan_id   uuid not null references public.permintaan(id) on delete restrict,
-  -- Salinan {name, url} file hasil yang dipilih dari permintaan.files
-  hasil_file      jsonb not null,
+  -- Salinan [{name, url}] file hasil yang dipilih dari permintaan.files, sesuai urutan tampil
+  hasil_files     jsonb not null
+                  check (jsonb_typeof(hasil_files) = 'array' and jsonb_array_length(hasil_files) > 0),
+  tanggal_dokumen date not null default current_date,
   no_dokumen      text not null,
   no_dokumen_sub  text,
   project_design  text not null,

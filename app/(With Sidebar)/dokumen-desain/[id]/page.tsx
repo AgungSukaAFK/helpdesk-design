@@ -63,7 +63,8 @@ interface DokumenDetail {
   created_at: string;
   updated_at: string;
   permintaan_id: string;
-  hasil_file: { name: string; url: string };
+  hasil_files: { name: string; url: string }[];
+  tanggal_dokumen: string;
   no_dokumen: string;
   no_dokumen_sub: string | null;
   project_design: string;
@@ -96,6 +97,13 @@ const fmtWaktu = (iso?: string | null) =>
         minute: "2-digit",
       })
     : "-";
+
+const fmtTanggal = (ymd?: string | null) => {
+  const [y, m, d] = (ymd || "").split("-").map(Number);
+  return y && m && d
+    ? new Date(y, m - 1, d).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+    : "-";
+};
 
 const AKSI_LABEL: Record<string, string> = {
   DIBUAT: "Membuat dokumen",
@@ -345,10 +353,20 @@ export default function DetailDokumenDesainPage({ params }: { params: Promise<{ 
                 )}
               </div>
               <div>
-                <div className="text-muted-foreground">Hasil desain</div>
-                <a href={data.hasil_file.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all font-medium hover:underline">
-                  {data.hasil_file.name} <ExternalLink className="h-3 w-3 shrink-0" />
-                </a>
+                <div className="text-muted-foreground">Hasil desain ({data.hasil_files.length})</div>
+                <ol className="list-decimal space-y-0.5 pl-5">
+                  {data.hasil_files.map((f) => (
+                    <li key={f.url}>
+                      <a href={f.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all font-medium hover:underline">
+                        {f.name} <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Tanggal dokumen</div>
+                <div>{fmtTanggal(data.tanggal_dokumen)}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Dibuat</div>

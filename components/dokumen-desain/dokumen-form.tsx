@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/command";
 import { STATUS_META, normalizeStatus } from "@/lib/permintaan-workflow";
 import {
+  MAKS_HASIL,
   NO_DOKUMEN_CONTOH,
   NO_DOKUMEN_SUB_CONTOH,
   validasiPenandaTangan,
@@ -49,7 +50,8 @@ interface OpsiUser {
 
 export interface NilaiAwalDokumen {
   permintaan_id: string;
-  hasil_file: { name: string; url: string };
+  hasil_files: { name: string; url: string }[];
+  tanggal_dokumen: string;
   no_dokumen: string;
   no_dokumen_sub: string | null;
   project_design: string;
@@ -65,6 +67,11 @@ interface Baris {
 }
 
 let seq = 0;
+/** yyyy-mm-dd hari ini menurut waktu lokal. */
+const hariIni = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 const barisBaru = (user_id = "", jabatan = ""): Baris => ({ key: ++seq, user_id, jabatan });
 const namaUser = (u?: OpsiUser) => u?.name || u?.email || "Tanpa nama";
 
@@ -230,7 +237,9 @@ export function DokumenForm({
   const [users, setUsers] = useState<OpsiUser[]>([]);
 
   const [permintaanId, setPermintaanId] = useState(nilaiAwal?.permintaan_id ?? "");
-  const [hasilUrl, setHasilUrl] = useState(nilaiAwal?.hasil_file.url ?? "");
+  // Urutan pilih = urutan tampil di lembar dokumen
+  const [hasilUrls, setHasilUrls] = useState<string[]>(nilaiAwal?.hasil_files.map((f) => f.url) ?? []);
+  const [tanggal, setTanggal] = useState(nilaiAwal?.tanggal_dokumen ?? hariIni());
   const [noDokumen, setNoDokumen] = useState(nilaiAwal?.no_dokumen ?? "");
   const [noSub, setNoSub] = useState(nilaiAwal?.no_dokumen_sub ?? "");
   const [project, setProject] = useState(nilaiAwal?.project_design ?? "");
@@ -277,17 +286,28 @@ export function DokumenForm({
   const gambar = useMemo(() => {
     const list = permintaan?.gambar ?? [];
     // File hasil dokumen lama yang sudah dihapus dari lampiran tetap ditampilkan
-    if (nilaiAwal && permintaanId === nilaiAwal.permintaan_id && !list.some((g) => g.url === nilaiAwal.hasil_file.url)) {
-      return [nilaiAwal.hasil_file, ...list];
+    if (nilaiAwal && permintaanId === nilaiAwal.permintaan_id) {
+      const hilang = nilaiAwal.hasil_files.filter((f) => !list.some((g) => g.url === f.url));
+      return [...hilang, ...list];
     }
     return list;
   }, [permintaan, permintaanId, nilaiAwal]);
+
+  const hasilTerpilih = hasilUrls
+    .map((url) => gambar.find((g) => g.url === url))
+    .filter((g): g is { name: string; url: string } => !!g);
+
+  const toggleHasil = (url: string) => {
+    if (hasilUrls.includes(url)) return setHasilUrls(hasilUrls.filter((u) => u !== url));
+    if (hasilUrls.length >= MAKS_HASIL) return toast.error(`Maksimal ${MAKS_HASIL} hasil desain per dokumen.`);
+    setHasilUrls([...hasilUrls, url]);
+  };
 
   const staf = users.filter((u) => u.role === "admin" || u.role === "designer");
 
   function pilihPermintaan(p: OpsiPermintaan, me?: string) {
     setPermintaanId(p.id);
-    setHasilUrl(p.gambar.length === 1 ? p.gambar[0].url : "");
+    setHasilUrls(p.gambar.length === 1 ? [p.gambar[0].url] : []);
     setProject((v) => v || p.project || "");
     setDeskripsi((v) => v || p.judul || "");
     if (p.admin) setDesignerId(p.admin);
@@ -305,9 +325,9 @@ export function DokumenForm({
   ];
 
   const simpan = async () => {
-    const hasil = gambar.find((g) => g.url === hasilUrl);
     if (!permintaanId) return toast.error("Pilih permintaan desain.");
-    if (!hasil) return toast.error("Pilih hasil desain.");
+    if (hasilTerpilih.length === 0) return toast.error("Pilih minimal satu hasil desain.");
+    if (!tanggal) return toast.error("Tanggal dokumen wajib diisi.");
     if (!noDokumen.trim()) return toast.error("No. Document wajib diisi.");
     if (!project.trim() || !tipe.trim() || !deskripsi.trim()) {
       return toast.error("Project Design, Tipe Design, dan Description wajib diisi.");
@@ -323,7 +343,8 @@ export function DokumenForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           permintaan_id: permintaanId,
-          hasil_file: hasil,
+          hasil_files: hasilTerpilih,
+          tanggal_dokumen: tanggal,
           no_dokumen: noDokumen,
           no_dokumen_sub: noSub,
           project_design: project,
@@ -358,7 +379,8 @@ export function DokumenForm({
     project_design: project || "-",
     tipe_design: tipe || "-",
     deskripsi: deskripsi || "-",
-    hasil_file: gambar.find((g) => g.url === hasilUrl) ?? null,
+    tanggal_dokumen: tanggal,
+    hasil_files: hasilTerpilih,
     ttd: penandaTangan().map((p, i) => ({
       id: `${p.peran}-${i}`,
       peran: p.peran,
@@ -375,7 +397,7 @@ export function DokumenForm({
         <div>
           <h2 className="text-base font-semibold">1. Permintaan & Hasil Desain</h2>
           <p className="text-sm text-muted-foreground">
-            Dokumen wajib terkait ke satu permintaan desain dan satu file hasil (gambar) dari lampirannya.
+            Dokumen wajib terkait ke satu permintaan desain dan minimal satu file hasil (gambar) dari lampirannya.
           </p>
         </div>
         <div className="space-y-1.5">
@@ -406,9 +428,14 @@ export function DokumenForm({
 
         {permintaanId && (
           <div className="space-y-1.5">
-            <Label>
-              Hasil Desain <span className="text-destructive">*</span>
-            </Label>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <Label>
+                Hasil Desain <span className="text-destructive">*</span>
+              </Label>
+              <span className="text-xs text-muted-foreground">
+                Bisa pilih lebih dari satu (maks. {MAKS_HASIL}); nomor = urutan di lembar. {hasilUrls.length} dipilih.
+              </span>
+            </div>
             {gambar.length === 0 ? (
               <div className="flex items-center gap-3 rounded-md border border-dashed p-4 text-sm text-muted-foreground">
                 <ImageOff className="h-5 w-5 shrink-0" />
@@ -416,26 +443,30 @@ export function DokumenForm({
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                {gambar.map((g) => (
+                {gambar.map((g) => {
+                  const no = hasilUrls.indexOf(g.url) + 1;
+                  return (
                   <button
                     key={g.url}
                     type="button"
-                    onClick={() => setHasilUrl(g.url)}
+                    aria-pressed={no > 0}
+                    onClick={() => toggleHasil(g.url)}
                     className={cn(
                       "group relative overflow-hidden rounded-lg border-2 text-left transition",
-                      hasilUrl === g.url ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-muted-foreground/30",
+                      no > 0 ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-muted-foreground/30",
                     )}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={g.url} alt={g.name} className="aspect-[4/3] w-full bg-muted object-contain" />
                     <div className="truncate px-2 py-1 text-xs">{g.name}</div>
-                    {hasilUrl === g.url && (
-                      <span className="absolute right-1.5 top-1.5 rounded-full bg-primary p-0.5 text-primary-foreground">
-                        <Check className="h-3.5 w-3.5" />
+                    {no > 0 && (
+                      <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                        {no}
                       </span>
                     )}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -446,6 +477,12 @@ export function DokumenForm({
       <section className="space-y-4">
         <h2 className="text-base font-semibold">2. Isi Dokumen</h2>
         <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2 sm:max-w-xs">
+            <Label htmlFor="tanggal">
+              Tanggal Dokumen <span className="text-destructive">*</span>
+            </Label>
+            <Input id="tanggal" type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="no-dokumen">
               No. Document <span className="text-destructive">*</span>

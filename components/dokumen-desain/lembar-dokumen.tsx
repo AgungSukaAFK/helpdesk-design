@@ -22,7 +22,9 @@ export interface DataLembar {
   project_design: string;
   tipe_design: string;
   deskripsi: string;
-  hasil_file: { name: string; url: string } | null;
+  /** yyyy-mm-dd */
+  tanggal_dokumen?: string | null;
+  hasil_files: { name: string; url: string }[];
   ttd: TtdLembar[];
 }
 
@@ -30,6 +32,23 @@ const tgl = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "";
 
 const B = "border border-black";
+
+/** Tanggal kalender (yyyy-mm-dd) tanpa geser zona waktu, mis. "12 November 2026". */
+const tglPanjang = (ymd?: string | null) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd || "");
+  if (!m) return "";
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+};
+
+/** Kolom x baris grid hasil desain sesuai jumlah gambar. */
+const gridHasil = (n: number) => {
+  const kolom = n <= 3 ? Math.max(n, 1) : n === 4 ? 2 : 3;
+  return { kolom, baris: Math.ceil(Math.max(n, 1) / kolom) };
+};
 
 /** Isi kotak tanda tangan sesuai status. */
 function KotakTtd({ t, className }: { t?: TtdLembar; className?: string }) {
@@ -65,20 +84,20 @@ export function LembarDokumen({ data, className }: { data: DataLembar; className
         className,
       )}
     >
-      <div className="flex min-h-0 flex-1 border-2 border-black">
+      <div className="flex min-h-0 flex-1 flex-col border-2 border-black">
+        {/* Kop: logo kiri, tanggal dokumen kanan */}
+        <div className="flex h-[58px] shrink-0 items-center justify-between px-3 pt-2">
+          <img src="/lourdes.png" alt="Lourdes Auto Parts" className="h-full w-auto object-contain" />
+          <div className="text-right text-[12px] leading-tight">
+            <div className="text-[9px] text-neutral-600">Tanggal</div>
+            <div className="font-semibold">{tglPanjang(data.tanggal_dokumen) || "-"}</div>
+          </div>
+        </div>
+
+      <div className="flex min-h-0 flex-1">
         {/* Kolom kiri: hasil desain + title block */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="relative flex min-h-0 flex-1 items-center justify-center p-4">
-            {data.hasil_file ? (
-              <img
-                src={data.hasil_file.url}
-                alt={data.hasil_file.name}
-                className="h-full w-full object-contain"
-              />
-            ) : (
-              <span className="text-sm text-neutral-400">Belum ada hasil desain</span>
-            )}
-          </div>
+          <HasilDesain files={data.hasil_files} />
 
           <table className="w-full table-fixed border-collapse text-[11px] leading-tight">
             <colgroup>
@@ -167,6 +186,33 @@ export function LembarDokumen({ data, className }: { data: DataLembar; className
           </table>
         </div>
       </div>
+      </div>
+    </div>
+  );
+}
+
+function HasilDesain({ files }: { files: { name: string; url: string }[] }) {
+  if (files.length === 0) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-neutral-400">
+        Belum ada hasil desain
+      </div>
+    );
+  }
+  const { kolom, baris } = gridHasil(files.length);
+  return (
+    <div
+      className="grid min-h-0 flex-1 gap-3 p-3"
+      style={{
+        gridTemplateColumns: `repeat(${kolom}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${baris}, minmax(0, 1fr))`,
+      }}
+    >
+      {files.map((f, i) => (
+        <div key={`${i}-${f.url}`} className="flex min-h-0 min-w-0 items-center justify-center">
+          <img src={f.url} alt={f.name} className="h-full w-full object-contain" />
+        </div>
+      ))}
     </div>
   );
 }
