@@ -1,36 +1,40 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
+import { TriangleAlert } from "lucide-react";
+import { AuthShell, AuthStatusIcon } from "@/components/auth/auth-shell";
+import { Button } from "@/components/ui/button";
 
-export default async function Page({
+export default async function AuthErrorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
-  const params = await searchParams;
+  const { error } = await searchParams;
 
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">
-                Sorry, something went wrong.
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {params?.error ? (
-                <p className="text-sm text-muted-foreground">
-                  Code error: {params.error}
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  An unspecified error occurred.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+    <AuthShell title="Tautan Tidak Dapat Diproses">
+      <div className="space-y-6 text-center">
+        <AuthStatusIcon tone="error">
+          <TriangleAlert />
+        </AuthStatusIcon>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Tautan konfirmasi atau reset password mungkin sudah kedaluwarsa atau
+          pernah dipakai. Silakan masuk kembali, atau minta tautan baru lewat
+          Lupa password.
+        </p>
+        {error && (
+          <p className="wrap-break-word rounded-md border bg-muted/50 px-3 py-2 font-mono text-xs text-muted-foreground">
+            Kode error: {error}
+          </p>
+        )}
+        <div className="grid gap-3">
+          <Button asChild className="h-11 w-full">
+            <Link href="/auth/login">Kembali ke Halaman Login</Link>
+          </Button>
+          <Button asChild variant="outline" className="h-11 w-full">
+            <Link href="/auth/forgot-password">Minta Tautan Reset Baru</Link>
+          </Button>
         </div>
       </div>
-    </div>
+    </AuthShell>
   );
 }

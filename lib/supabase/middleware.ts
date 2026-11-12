@@ -62,8 +62,12 @@ export async function updateSession(request: NextRequest) {
     !isApi
   ) {
     // no user, potentially respond by redirecting the user to the login page
+    // Bawa halaman asal lewat ?next= supaya setelah login user kembali ke
+    // sana (divalidasi getSafeNextPath di halaman login).
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
+    url.search = "";
+    url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
 
