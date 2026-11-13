@@ -46,6 +46,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { ProfileOrgFields } from "@/components/profile-org-fields";
+import { ROLE_OPTIONS } from "@/lib/profile-options";
 
 interface UserItem {
   id: string;
@@ -53,6 +55,8 @@ interface UserItem {
   name: string;
   role: string;
   departemen: string;
+  perusahaan: string;
+  lokasi: string;
   avatar_url?: string | null;
   created_at: string;
   last_sign_in_at?: string;
@@ -65,11 +69,13 @@ export default function UserManagementPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [total, setTotal] = useState<number>(0);
   const [departemens, setDepartemens] = useState<string[]>([]);
+  const [perusahaans, setPerusahaans] = useState<string[]>([]);
 
   // Filter & Pagination States
   const [search, setSearch] = useState<string>("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [companyFilter, setCompanyFilter] = useState<string>("all");
   const [page, setPage] = useState<number>(1);
   const [limit, setLimit] = useState<number>(25);
 
@@ -79,13 +85,16 @@ export default function UserManagementPage() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
-  const [newUser, setNewUser] = useState({
+  const emptyNewUser = {
     email: "",
     name: "",
     password: "",
     role: "user",
-    departemen: "General Affair",
-  });
+    perusahaan: "",
+    lokasi: "",
+    departemen: "",
+  };
+  const [newUser, setNewUser] = useState(emptyNewUser);
 
   // Fetch Users
   const fetchUsers = useCallback(async () => {
@@ -97,6 +106,7 @@ export default function UserManagementPage() {
       if (search.trim()) params.set("search", search.trim());
       if (roleFilter !== "all") params.set("role", roleFilter);
       if (deptFilter !== "all") params.set("departemen", deptFilter);
+      if (companyFilter !== "all") params.set("perusahaan", companyFilter);
 
       const res = await fetch(`/api/user-management?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -105,13 +115,14 @@ export default function UserManagementPage() {
       setUsers(json.data || []);
       setTotal(json.total || 0);
       if (json.departemens) setDepartemens(json.departemens);
+      if (json.perusahaans) setPerusahaans(json.perusahaans);
     } catch (err: any) {
       console.error("Fetch users error:", err);
       toast.error("Gagal memuat data pengguna: " + err.message);
     } finally {
       setLoading(false);
     }
-  }, [page, limit, search, roleFilter, deptFilter]);
+  }, [page, limit, search, roleFilter, deptFilter, companyFilter]);
 
   useEffect(() => {
     fetchUsers();
@@ -132,6 +143,12 @@ export default function UserManagementPage() {
 
   const handleDeptChange = (val: string) => {
     setDeptFilter(val);
+    setPage(1);
+    setSelectedUserIds([]);
+  };
+
+  const handleCompanyChange = (val: string) => {
+    setCompanyFilter(val);
     setPage(1);
     setSelectedUserIds([]);
   };
@@ -169,6 +186,10 @@ export default function UserManagementPage() {
 
   const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!newUser.departemen.trim()) {
+      toast.error("Departemen wajib diisi");
+      return;
+    }
     setIsCreatingUser(true);
     try {
       const res = await fetch("/api/user-management", {
@@ -181,7 +202,7 @@ export default function UserManagementPage() {
 
       toast.success("Pengguna berhasil ditambahkan dan bisa langsung login");
       setIsAddDialogOpen(false);
-      setNewUser({ email: "", name: "", password: "", role: "user", departemen: "General Affair" });
+      setNewUser(emptyNewUser);
       setSelectedUserIds([]);
       if (page === 1) await fetchUsers();
       else setPage(1);
@@ -302,7 +323,7 @@ export default function UserManagementPage() {
           <div className="relative w-full sm:flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Cari berdasarkan nama, email, atau departemen..."
+              placeholder="Cari nama, email, perusahaan, lokasi, atau departemen..."
               value={search}
               onChange={handleSearchChange}
               className="pl-9"
@@ -316,8 +337,22 @@ export default function UserManagementPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua Role</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="user">User</SelectItem>
+              {ROLE_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Perusahaan Filter */}
+          <Select value={companyFilter} onValueChange={handleCompanyChange}>
+            <SelectTrigger className="w-full sm:w-[220px]">
+              <SelectValue placeholder="Pilih Perusahaan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Perusahaan</SelectItem>
+              {perusahaans.map((p) => (
+                <SelectItem key={p} value={p}>{p}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -356,7 +391,7 @@ export default function UserManagementPage() {
 
         {/* TABLE */}
         <div className="rounded-md border bg-card overflow-x-auto">
-          <Table className="min-w-[700px]">
+          <Table className="min-w-[860px]">
             <TableHeader>
               <TableRow className="bg-muted/40">
                 <TableHead className="w-10">
@@ -369,6 +404,7 @@ export default function UserManagementPage() {
                 </TableHead>
                 <TableHead className="w-[50px]">No</TableHead>
                 <TableHead>Pengguna</TableHead>
+                <TableHead>Perusahaan / Lokasi</TableHead>
                 <TableHead>Departemen</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead className="hidden md:table-cell">Terdaftar</TableHead>
@@ -378,7 +414,7 @@ export default function UserManagementPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center">
+                  <TableCell colSpan={8} className="h-32 text-center">
                     <div className="flex items-center justify-center gap-2 text-muted-foreground">
                       <Loader2 className="h-5 w-5 animate-spin" />
                       Memuat data pengguna...
@@ -387,7 +423,7 @@ export default function UserManagementPage() {
                 </TableRow>
               ) : users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                     Tidak ada pengguna yang cocok dengan filter.
                   </TableCell>
                 </TableRow>
@@ -432,6 +468,15 @@ export default function UserManagementPage() {
                             <p className="text-xs text-muted-foreground">{u.email}</p>
                           </div>
                         </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <p className="text-sm text-foreground leading-tight">
+                          {u.perusahaan && u.perusahaan !== "-" ? u.perusahaan : "-"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {u.lokasi && u.lokasi !== "-" ? u.lokasi : "-"}
+                        </p>
                       </TableCell>
 
                       <TableCell>
@@ -612,7 +657,7 @@ export default function UserManagementPage() {
       </Dialog>
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-primary" />
@@ -656,33 +701,29 @@ export default function UserManagementPage() {
                 required
               />
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="new-user-role">Role</Label>
-                <Select
-                  value={newUser.role}
-                  onValueChange={(role) => setNewUser({ ...newUser, role })}
-                >
-                  <SelectTrigger id="new-user-role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="designer">Designer</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="new-user-departemen">Departemen</Label>
-                <Input
-                  id="new-user-departemen"
-                  value={newUser.departemen}
-                  onChange={(event) => setNewUser({ ...newUser, departemen: event.target.value })}
-                  required
-                />
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-user-role">Role</Label>
+              <Select
+                value={newUser.role}
+                onValueChange={(role) => setNewUser({ ...newUser, role })}
+              >
+                <SelectTrigger id="new-user-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            <ProfileOrgFields
+              key={isAddDialogOpen ? "buka" : "tutup"}
+              idPrefix="new-user"
+              value={newUser}
+              onChange={(org) => setNewUser({ ...newUser, ...org })}
+              disabled={isCreatingUser}
+            />
             <DialogFooter>
               <Button
                 type="button"

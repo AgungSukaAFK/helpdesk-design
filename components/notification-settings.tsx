@@ -61,8 +61,8 @@ export function NotificationSettings() {
   const [pushBusy, setPushBusy] = useState(false);
 
   useEffect(() => {
-    getPushSubscriptionStatus().then(setPushStatus);
-  }, []);
+    getPushSubscriptionStatus(userId).then(setPushStatus);
+  }, [userId]);
 
   const selectSound = (soundType: SoundPresetId) => {
     update({ soundType });
@@ -105,7 +105,7 @@ export function NotificationSettings() {
         await unsubscribeFromPush();
         toast.success("Notifikasi HP dinonaktifkan di perangkat ini.");
       }
-      setPushStatus(await getPushSubscriptionStatus());
+      setPushStatus(await getPushSubscriptionStatus(userId));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Gagal mengubah notifikasi HP.");
     } finally {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserManagementAdminClient } from "@/lib/supabase/user-management-admin";
+import { profilOrganisasi } from "@/lib/profile-options";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export async function GET(request: NextRequest) {
     const search = (searchParams.get("search") || "").trim().toLowerCase();
     const role = searchParams.get("role") || "";
     const departemen = searchParams.get("departemen") || "";
+    const perusahaan = searchParams.get("perusahaan") || "";
 
     // 1. Fetch all users from Auth & Profiles
     const { data: authData, error: authError } = await supabase.auth.admin.listUsers({
@@ -36,14 +38,17 @@ export async function GET(request: NextRequest) {
       const prof = profileMap.get(u.id);
       const name = prof?.name || u.user_metadata?.name || u.email?.split("@")[0] || "User";
       const userRole = prof?.role || u.user_metadata?.role || "user";
-      const dept = u.user_metadata?.departemen || "-";
+      // Sumber utama user_profiles (sama dengan halaman My Profile), metadata hanya cadangan.
+      const org = profilOrganisasi(prof, u.user_metadata);
 
       return {
         id: u.id,
         email: u.email || "",
         name,
         role: userRole,
-        departemen: dept,
+        departemen: org.departemen || "-",
+        perusahaan: org.perusahaan || "-",
+        lokasi: org.lokasi || "-",
         avatar_url: prof?.avatar_url || null,
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at,
@@ -58,6 +63,9 @@ export async function GET(request: NextRequest) {
       }
     });
     const departemens = Array.from(departemenSet).sort();
+    const perusahaans = Array.from(
+      new Set(allUsers.map((u) => u.perusahaan).filter((p) => p && p !== "-"))
+    ).sort();
 
     // 3. Apply Filters
     if (search) {
@@ -65,7 +73,9 @@ export async function GET(request: NextRequest) {
         (u) =>
           u.name.toLowerCase().includes(search) ||
           u.email.toLowerCase().includes(search) ||
-          u.departemen.toLowerCase().includes(search)
+          u.departemen.toLowerCase().includes(search) ||
+          u.perusahaan.toLowerCase().includes(search) ||
+          u.lokasi.toLowerCase().includes(search)
       );
     }
 
@@ -75,6 +85,10 @@ export async function GET(request: NextRequest) {
 
     if (departemen && departemen !== "all") {
       allUsers = allUsers.filter((u) => u.departemen === departemen);
+    }
+
+    if (perusahaan && perusahaan !== "all") {
+      allUsers = allUsers.filter((u) => u.perusahaan === perusahaan);
     }
 
     // Sort: Admins first, then by name
@@ -94,6 +108,7 @@ export async function GET(request: NextRequest) {
       page,
       limit,
       departemens,
+      perusahaans,
     });
   } catch (err: any) {
     return NextResponse.json(
@@ -113,6 +128,8 @@ export async function POST(request: NextRequest) {
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const role = ["admin", "user", "designer"].includes(body.role) ? body.role : "";
     const departemen = typeof body.departemen === "string" ? body.departemen.trim() : "";
+    const perusahaan = typeof body.perusahaan === "string" ? body.perusahaan.trim() : "";
+    const lokasi = typeof body.lokasi === "string" ? body.lokasi.trim() : "";
     const password = typeof body.password === "string" ? body.password : "";
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -137,7 +154,7 @@ export async function POST(request: NextRequest) {
       email,
       password,
       email_confirm: true,
-      user_metadata: { name, role, departemen },
+      user_metadata: { name, role, departemen, perusahaan, lokasi },
     });
 
     if (error) {
@@ -153,6 +170,8 @@ export async function POST(request: NextRequest) {
       name,
       role,
       departemen,
+      perusahaan: perusahaan || null,
+      lokasi: lokasi || null,
       updated_at: new Date().toISOString(),
     };
     const { error: profileError } = await supabase.from("user_profiles").upsert(profile);

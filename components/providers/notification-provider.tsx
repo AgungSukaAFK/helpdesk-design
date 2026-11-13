@@ -7,6 +7,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { loadNotifSettings } from "@/lib/notifications/settings";
+import { syncPushSubscription } from "@/lib/notifications/push";
 import { playCustomSound, playSound, unlockAudio } from "@/lib/notifications/sound";
 
 export interface AppNotification {
@@ -67,6 +68,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
     return () => sub.subscription.unsubscribe();
   }, [supabase]);
+
+  // Pastikan push perangkat ini tercatat untuk akun yang sedang login.
+  useEffect(() => {
+    if (!userId) return;
+    syncPushSubscription(userId).catch((err) => console.error("[push] sync failed:", err));
+  }, [userId]);
 
   // Gesture pertama: minta izin notifikasi browser & buka kunci audio.
   useEffect(() => {

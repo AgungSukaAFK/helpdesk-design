@@ -10,13 +10,7 @@ import { User } from "@supabase/supabase-js";
 import { AppearanceSwitchers } from "@/components/theme-switcher";
 import { NotificationSettings } from "@/components/notification-settings";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ProfileOrgFields } from "@/components/profile-org-fields";
 import { toast } from "sonner";
 import {
   Camera,
@@ -137,15 +131,20 @@ export default function ProfilePage() {
 
   const handleUpdateProfile = async () => {
     if (!user) return;
+    if (!formData.name?.trim()) {
+      toast.error("Nama tidak boleh kosong.");
+      return;
+    }
     setIsUpdating(true);
     const supabase = createClient();
 
     try {
       const { error: profileError } = await supabase.from("user_profiles").update({
-        name: formData.name,
-        perusahaan: formData.perusahaan,
-        lokasi: formData.lokasi,
-        departemen: formData.departemen,
+        name: formData.name?.trim(),
+        perusahaan: formData.perusahaan || null,
+        lokasi: formData.lokasi || null,
+        departemen: formData.departemen?.trim() || null,
+        updated_at: new Date().toISOString(),
       }).eq("id", user.id);
 
       if (profileError) throw profileError;
@@ -379,58 +378,18 @@ export default function ProfilePage() {
               />
             </div>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="perusahaan">Perusahaan</Label>
-              <Select
-                value={formData.perusahaan || ""}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, perusahaan: value }))}
-                disabled={!isEditingProfile || isUpdating}
-              >
-                <SelectTrigger id="perusahaan" className="bg-muted/30">
-                  <SelectValue placeholder="Pilih Perusahaan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PT. Global Inti Sejati">PT. Global Inti Sejati</SelectItem>
-                  <SelectItem value="PT. Garuda Mart Indonesia">PT. Garuda Mart Indonesia</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="lokasi">Lokasi</Label>
-              <Select
-                value={formData.lokasi || ""}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, lokasi: value }))}
-                disabled={!isEditingProfile || isUpdating}
-              >
-                <SelectTrigger id="lokasi" className="bg-muted/30">
-                  <SelectValue placeholder="Pilih Lokasi" />
-                </SelectTrigger>
-                <SelectContent>
-                  {["GIS HO", "GIS BPN", "GIS J5", "GIS KM8", "GMI BPN", "GMI J4", "GMI J5", "GMI KM10", "GMI KM8", "GMI Site", "Branch Tanjung Enim"].map(loc => (
-                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="departemen">Departemen</Label>
-              <Select
-                value={formData.departemen || ""}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, departemen: value }))}
-                disabled={!isEditingProfile || isUpdating}
-              >
-                <SelectTrigger id="departemen" className="bg-muted/30">
-                  <SelectValue placeholder="Pilih Departemen" />
-                </SelectTrigger>
-                <SelectContent>
-                  {["HSE", "Legal", "HR", "GA", "IT", "SCM", "MARKETING", "RND", "PABRIKASI", "SERVICE"].map(dept => (
-                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <ProfileOrgFields
+              key={isEditingProfile ? "edit" : "lihat"}
+              idPrefix="profil"
+              value={{
+                perusahaan: formData.perusahaan || "",
+                lokasi: formData.lokasi || "",
+                departemen: formData.departemen || "",
+              }}
+              onChange={(org) => setFormData((prev) => ({ ...prev, ...org }))}
+              disabled={!isEditingProfile || isUpdating}
+              triggerClassName="bg-muted/30"
+            />
 
             <div className="flex justify-end mt-4">
               {isEditingProfile ? (

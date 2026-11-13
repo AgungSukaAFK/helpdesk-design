@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserManagementAdminClient } from "@/lib/supabase/user-management-admin";
+import { profilOrganisasi } from "@/lib/profile-options";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export async function GET(
     const user = authUser.user;
     const name = profile?.name || user.user_metadata?.name || user.email?.split("@")[0] || "User";
     const role = profile?.role || user.user_metadata?.role || "user";
-    const departemen = user.user_metadata?.departemen || "-";
+    const org = profilOrganisasi(profile, user.user_metadata);
 
     return NextResponse.json({
       data: {
@@ -39,7 +40,9 @@ export async function GET(
         email: user.email,
         name,
         role,
-        departemen,
+        departemen: org.departemen || "-",
+        perusahaan: org.perusahaan,
+        lokasi: org.lokasi,
         avatar_url: profile?.avatar_url || null,
         created_at: user.created_at,
         last_sign_in_at: user.last_sign_in_at,
@@ -64,7 +67,15 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, role, departemen } = body;
+    const { name, role, departemen, perusahaan, lokasi } = body;
+    for (const [field, v] of Object.entries({ name, departemen, perusahaan, lokasi })) {
+      if (v !== undefined && v !== null && typeof v !== "string") {
+        return NextResponse.json({ error: `Field ${field} tidak valid` }, { status: 400 });
+      }
+    }
+    if (name !== undefined && !name.trim()) {
+      return NextResponse.json({ error: "Nama pengguna wajib diisi" }, { status: 400 });
+    }
 
     if (role !== undefined && !["admin", "user", "designer"].includes(role)) {
       return NextResponse.json({ error: "Role pengguna tidak valid" }, { status: 400 });
@@ -85,7 +96,9 @@ export async function PATCH(
       ...currentMeta,
       ...(name !== undefined && { name: name.trim() }),
       ...(role !== undefined && { role: role }),
-      ...(departemen !== undefined && { departemen: departemen.trim() }),
+      ...(departemen !== undefined && { departemen: (departemen ?? "").trim() }),
+      ...(perusahaan !== undefined && { perusahaan: (perusahaan ?? "").trim() }),
+      ...(lokasi !== undefined && { lokasi: (lokasi ?? "").trim() }),
     };
 
     // 2. Update user_metadata in Auth
@@ -97,7 +110,7 @@ export async function PATCH(
       return NextResponse.json({ error: updateAuthErr.message }, { status: 500 });
     }
 
-    // 3. Upsert user_profiles (name & role)
+    // 3. Upsert user_profiles (sumber data yang juga dipakai halaman My Profile)
     const profileUpdates: Record<string, any> = {
       id,
       email: authUser.user.email,
@@ -105,15 +118,20 @@ export async function PATCH(
     };
     if (name !== undefined) profileUpdates.name = name.trim();
     if (role !== undefined) profileUpdates.role = role;
-    if (departemen !== undefined) profileUpdates.departemen = departemen.trim();
+    if (departemen !== undefined) profileUpdates.departemen = (departemen ?? "").trim() || null;
+    if (perusahaan !== undefined) profileUpdates.perusahaan = (perusahaan ?? "").trim() || null;
+    if (lokasi !== undefined) profileUpdates.lokasi = (lokasi ?? "").trim() || null;
 
-    await supabase.from("user_profiles").upsert(profileUpdates);
+    const { error: profileErr } = await supabase.from("user_profiles").upsert(profileUpdates);
+    if (profileErr) {
+      return NextResponse.json({ error: profileErr.message }, { status: 500 });
+    }
 
     // 4. Update departemen in permintaan table for historical consistency
-    if (departemen) {
+    if (typeof departemen === "string" && departemen.trim()) {
       await supabase
         .from("permintaan")
-        .update({ departemen: departemen })
+        .update({ departemen: departemen.trim() })
         .eq("requester", id);
     }
 
@@ -125,6 +143,8 @@ export async function PATCH(
         name: updatedMeta.name,
         role: updatedMeta.role,
         departemen: updatedMeta.departemen,
+        perusahaan: updatedMeta.perusahaan,
+        lokasi: updatedMeta.lokasi,
       },
     });
   } catch (err: any) {

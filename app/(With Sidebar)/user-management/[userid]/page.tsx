@@ -27,31 +27,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-
-const ROLE_OPTIONS = [
-  { label: "Admin", value: "admin" },
-  { label: "Designer", value: "designer" },
-  { label: "User", value: "user" },
-];
-
-const DEPARTEMEN_OPTIONS = [
-  "General Affair",
-  "Marketing",
-  "Manufacture",
-  "HR",
-  "HR/GA",
-  "HSE",
-  "IT",
-  "Finance",
-  "SCM",
-  "Warehouse",
-  "Purchasing",
-  "Service",
-  "General Manager",
-  "Executive Manager",
-  "Boards of Director",
-  "Design",
-];
+import { ProfileOrgFields } from "@/components/profile-org-fields";
+import { ROLE_OPTIONS, type ProfilOrganisasi } from "@/lib/profile-options";
 
 interface UserData {
   id: string;
@@ -59,6 +36,8 @@ interface UserData {
   name: string;
   role: string;
   departemen: string;
+  perusahaan?: string;
+  lokasi?: string;
   avatar_url?: string | null;
 }
 
@@ -77,8 +56,7 @@ export default function EditUserPage({
   // Form states
   const [name, setName] = useState("");
   const [role, setRole] = useState("user");
-  const [departemen, setDepartemen] = useState("General Affair");
-  const [customDept, setCustomDept] = useState("");
+  const [org, setOrg] = useState<ProfilOrganisasi>({ perusahaan: "", lokasi: "", departemen: "" });
 
   useEffect(() => {
     async function loadUser() {
@@ -98,16 +76,11 @@ export default function EditUserPage({
         setName(u.name || "");
         setRole(u.role || "user");
 
-        if (u.departemen && DEPARTEMEN_OPTIONS.includes(u.departemen)) {
-          setDepartemen(u.departemen);
-          setCustomDept("");
-        } else if (u.departemen && u.departemen !== "-") {
-          setDepartemen("Lainnya");
-          setCustomDept(u.departemen);
-        } else {
-          setDepartemen("General Affair");
-          setCustomDept("");
-        }
+        setOrg({
+          perusahaan: u.perusahaan || "",
+          lokasi: u.lokasi || "",
+          departemen: u.departemen && u.departemen !== "-" ? u.departemen : "",
+        });
       } catch (err: any) {
         toast.error("Gagal memuat pengguna: " + err.message);
       } finally {
@@ -125,7 +98,10 @@ export default function EditUserPage({
       return;
     }
 
-    const finalDept = departemen === "Lainnya" && customDept.trim() ? customDept.trim() : departemen;
+    if (!org.departemen.trim()) {
+      toast.error("Departemen wajib diisi");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -135,7 +111,9 @@ export default function EditUserPage({
         body: JSON.stringify({
           name: name.trim(),
           role,
-          departemen: finalDept,
+          departemen: org.departemen.trim(),
+          perusahaan: org.perusahaan,
+          lokasi: org.lokasi,
         }),
       });
 
@@ -225,11 +203,11 @@ export default function EditUserPage({
         </div>
 
         {/* EDIT FORM */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {/* Nama Lengkap */}
-          <div className="space-y-1.5">
-            <Label htmlFor="user-name" className="text-sm font-semibold">
-              Nama Lengkap <span className="text-destructive">*</span>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="user-name">
+              Nama <span className="text-destructive">*</span>
             </Label>
             <Input
               id="user-name"
@@ -241,10 +219,8 @@ export default function EditUserPage({
           </div>
 
           {/* Email (Readonly info) */}
-          <div className="space-y-1.5">
-            <Label htmlFor="user-email" className="text-sm font-semibold text-muted-foreground">
-              Email Akun (Sistem)
-            </Label>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="user-email">Email</Label>
             <Input
               id="user-email"
               value={user.email}
@@ -253,57 +229,25 @@ export default function EditUserPage({
             />
           </div>
 
-          {/* Role & Departemen Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Role */}
-            <div className="space-y-1.5">
-              <Label htmlFor="user-role" className="text-sm font-semibold">
-                Hak Akses (Role)
-              </Label>
-              <Select value={role} onValueChange={setRole}>
-                <SelectTrigger id="user-role" className="w-full">
-                  <SelectValue placeholder="Pilih Role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Departemen */}
-            <div className="space-y-1.5">
-              <Label htmlFor="user-dept" className="text-sm font-semibold">
-                Departemen
-              </Label>
-              <Select value={departemen} onValueChange={setDepartemen}>
-                <SelectTrigger id="user-dept" className="w-full">
-                  <SelectValue placeholder="Pilih Departemen" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  {DEPARTEMEN_OPTIONS.map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="Lainnya">Lainnya...</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {departemen === "Lainnya" && (
-                <Input
-                  className="mt-2"
-                  placeholder="Ketikkan nama departemen..."
-                  value={customDept}
-                  onChange={(e) => setCustomDept(e.target.value)}
-                  required
-                />
-              )}
-            </div>
+          {/* Role */}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="user-role">Role</Label>
+            <Select value={role} onValueChange={setRole}>
+              <SelectTrigger id="user-role" className="w-full">
+                <SelectValue placeholder="Pilih Role" />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Perusahaan, Lokasi, Departemen: sama persis dengan My Profile */}
+          <ProfileOrgFields idPrefix="user" value={org} onChange={setOrg} disabled={saving} triggerClassName="w-full" />
 
           {/* FOOTER BUTTONS */}
           <div className="pt-4 flex items-center justify-end gap-3 border-t">
