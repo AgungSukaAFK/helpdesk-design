@@ -25,6 +25,7 @@ import {
   Info,
   Layers,
   Loader2,
+  Presentation,
   ShieldAlert,
   ShieldCheck,
   Target,
@@ -57,6 +58,7 @@ export function RekapBulananPage() {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [exporting, setExporting] = useState<boolean>(false);
+  const [exportingPpt, setExportingPpt] = useState<boolean>(false);
   const [rekap, setRekap] = useState<YearIntegratedRekap | null>(null);
 
   // View mode for Chart: Daily (Tgl 1 - 31) or Monthly (Jan - Des)
@@ -136,6 +138,29 @@ export function RekapBulananPage() {
       toast.error("Gagal mengekspor Excel: " + (error?.message || ""));
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleExportPpt = async () => {
+    setExportingPpt(true);
+    try {
+      const res = await fetch(`/api/rekap-bulanan/deck?year=${year}&month=${selectedMonth}`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Gagal membuat PPT");
+      }
+      const fileName = `Rekap-Bulanan-${year}-${selectedMonth}.pptx`;
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success(`Berhasil membuat ${fileName}`);
+    } catch (error: any) {
+      toast.error("Gagal membuat PPT: " + (error?.message || ""));
+    } finally {
+      setExportingPpt(false);
     }
   };
 
@@ -423,6 +448,20 @@ export function RekapBulananPage() {
                 <FileSpreadsheet className="size-3.5 text-emerald-600 dark:text-emerald-400" />
               )}
               Export Excel (4 Modul)
+            </button>
+
+            <button
+              onClick={handleExportPpt}
+              disabled={exportingPpt}
+              title={`Buat presentasi untuk ${MONTH_NAMES_ID[Number(selectedMonth) - 1]} ${year}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-300 bg-orange-50/70 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-950/60 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {exportingPpt ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Presentation className="size-3.5 text-orange-600 dark:text-orange-400" />
+              )}
+              Generate PPT ({MONTH_NAMES_ID[Number(selectedMonth) - 1]})
             </button>
 
             <Link

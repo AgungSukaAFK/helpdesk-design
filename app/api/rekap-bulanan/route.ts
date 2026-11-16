@@ -448,7 +448,7 @@ export async function GET(request: NextRequest) {
           const score = weightedSum / totalWeight;
           if (score >= 90) kpiGrade = "Sangat Baik";
           else if (score >= 80) kpiGrade = "Baik";
-          else if (score >= 65) kpiGrade = "Cukup Baik";
+          else if (score >= 60) kpiGrade = "Cukup Baik";
           else kpiGrade = "Kurang Baik";
         }
       }
@@ -687,7 +687,7 @@ export async function GET(request: NextRequest) {
     const overallScore = permintaanSlaPct * 0.4 + dailyRate * 0.35 + attendanceRate * 0.25;
     if (overallScore >= 90) overallKpiGrade = "Sangat Baik";
     else if (overallScore >= 80) overallKpiGrade = "Baik";
-    else if (overallScore >= 65) overallKpiGrade = "Cukup Baik";
+    else if (overallScore >= 60) overallKpiGrade = "Cukup Baik";
     else overallKpiGrade = "Kurang Baik";
 
     // Summary statuses
@@ -718,7 +718,7 @@ export async function GET(request: NextRequest) {
     let slaGradeYtd = "Sangat Baik";
     if (permintaanSlaPct >= 90) slaGradeYtd = "Sangat Baik";
     else if (permintaanSlaPct >= 80) slaGradeYtd = "Baik";
-    else if (permintaanSlaPct >= 65) slaGradeYtd = "Cukup Baik";
+    else if (permintaanSlaPct >= 60) slaGradeYtd = "Cukup Baik";
     else slaGradeYtd = "Kurang Baik";
 
     const result = {
