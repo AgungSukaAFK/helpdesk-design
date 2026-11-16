@@ -35,7 +35,6 @@ import { createClient } from "@/lib/supabase/client";
 import { getCurrentProfile, getCurrentUser } from "@/lib/supabase/current-user";
 import {
   fetchIntegratedRekap,
-  exportIntegratedExcel,
   MONTH_NAMES_ID,
   LOCAL_ATTENDANCE,
   LOCAL_DAILY,
@@ -129,7 +128,9 @@ export function RekapBulananPage() {
     if (!rekap) return;
     setExporting(true);
     try {
-      const fileName = exportIntegratedExcel(rekap);
+      // Dimuat saat dibutuhkan agar library Excel tidak membebani halaman
+      const { exportIntegratedExcel } = await import("@/lib/rekap-integrated-excel");
+      const fileName = await exportIntegratedExcel(rekap, { selectedMonth });
       toast.success(`Berhasil mengekspor ${fileName}`);
     } catch (error: any) {
       toast.error("Gagal mengekspor Excel: " + (error?.message || ""));
