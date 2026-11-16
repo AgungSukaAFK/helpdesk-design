@@ -24,8 +24,10 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
-import { toSheetName } from "@/lib/utils";
+import {
+  BADGE, XC, bukuBaru, infoEkspor, namaSheet, pct, sheetHeader, sum, unduhWorkbook, writeRingkasan, writeTable,
+  type Col,
+} from "@/lib/excel/tema";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -421,90 +423,123 @@ export default function KpiClientComponent() {
     setIsExporting(true);
     try {
       const periodLabel = formatMonthPeriod(selectedMonth);
-      const now = new Date().toLocaleString("id-ID");
+      const kategori = getScoreCategory(data.total_nilai_akhir).label;
+      const capaian = (realisasi: number | null, target: number) =>
+        realisasi === null ? "Belum Ada Data" : realisasi >= target ? "Tercapai" : realisasi >= target * 0.75 ? "Mendekati Target" : "Belum Tercapai";
+      const badgeCapaian = (v: unknown) =>
+        v === "Tercapai" ? BADGE.hijau : v === "Mendekati Target" ? BADGE.kuning : v === "Belum Tercapai" ? BADGE.merah : BADGE.abu;
 
-      // Sheet 1: KPI Table
-      const kpiRows = data.rows.map((row) => ({
-        "No": row.no,
-        "Perspective BSC": row.perspektif_bsc,
-        "Strategy": row.strategy,
-        "Tujuan Strategi": row.tujuan_strategi,
-        "Area Kinerja Utama": row.area_kinerja_utama,
-        "Key Performance Indicators": row.kpi,
-        "Bobot": `${row.bobot}%`,
-        "Polarity": row.polarity,
-        "Cap": `${row.cap}%`,
-        "Target": `${row.target}%`,
-        "Keterangan": row.keterangan,
-        "Realisasi": row.realisasi !== null ? `${row.realisasi}%` : "-",
-        "Skor": row.skor !== null ? row.skor.toFixed(2) : "-",
-        "Skor Akhir": row.skor_akhir !== null ? `${row.skor_akhir.toFixed(2)}%` : "-",
-        "Cara Pengukuran": row.cara_pengukuran,
-        "Departemen": row.departemen || "Creative",
-      }));
+      const wb = await bukuBaru();
+      const info = infoEkspor([`Periode ${data.period_label}`, `${data.rows.length} KPI`]);
 
-      // Add total row
-      kpiRows.push({
-        "No": "" as any,
-        "Perspective BSC": "",
-        "Strategy": "",
-        "Tujuan Strategi": "",
-        "Area Kinerja Utama": "",
-        "Key Performance Indicators": "TOTAL BOBOT & NILAI AKHIR",
-        "Bobot": `${data.total_bobot}%`,
-        "Polarity": "" as any,
-        "Cap": "" as any,
-        "Target": "" as any,
-        "Keterangan": "",
-        "Realisasi": "" as any,
-        "Skor": "" as any,
-        "Skor Akhir": `${data.total_nilai_akhir.toFixed(2)}%`,
-        "Cara Pengukuran": "",
-        "Departemen": "",
+      // Sheet 1: tabel KPI
+      const ws = wb.addWorksheet(namaSheet("KPI " + periodLabel));
+      const columns: Col[] = [
+        { key: "no", header: "No", width: 6, type: "int" },
+        { key: "bsc", header: "Perspective BSC", width: 16, type: "text", wrap: true },
+        { key: "strategy", header: "Strategy", width: 30, type: "text", wrap: true },
+        { key: "tujuan", header: "Tujuan Strategi", width: 30, type: "text", wrap: true },
+        { key: "area", header: "Area Kinerja Utama", width: 20, type: "text", wrap: true },
+        { key: "kpi", header: "Key Performance Indicators", width: 42, type: "text", wrap: true },
+        { key: "bobot", header: "Bobot", width: 9, type: "pct" },
+        { key: "pol", header: "Polarity", width: 10, type: "text", center: true },
+        { key: "cap", header: "Cap", width: 9, type: "pct" },
+        { key: "target", header: "Target", width: 9, type: "pct" },
+        { key: "ket", header: "Keterangan", width: 18, type: "text", wrap: true },
+        { key: "real", header: "Realisasi", width: 11, type: "pct" },
+        { key: "capaian", header: "Status Capaian", width: 16, type: "text", center: true, badge: badgeCapaian },
+        { key: "skor", header: "Skor", width: 9, type: "dec2" },
+        { key: "akhir", header: "Skor Akhir", width: 11, type: "pct" },
+        { key: "cara", header: "Cara Pengukuran", width: 42, type: "text", wrap: true },
+        { key: "dept", header: "Departemen", width: 14, type: "text" },
+      ];
+      sheetHeader(
+        ws,
+        `Key Performance Indicators — ${data.period_label}`,
+        `Nilai akhir ${data.total_nilai_akhir.toFixed(2)}% (${kategori}). Baris TOTAL ikut menyesuaikan filter.`,
+        info,
+        columns.length
+      );
+      writeTable(ws, {
+        startRow: 5,
+        groups: [
+          { label: "Indikator", span: 6, color: XC.periode },
+          { label: "Parameter", span: 5, color: XC.permintaan },
+          { label: "Hasil", span: 4, color: XC.kpi },
+          { label: "Lainnya", span: 2, color: XC.periode },
+        ],
+        columns,
+        rows: data.rows.map((row) => ({
+          values: [
+            row.no,
+            row.perspektif_bsc,
+            row.strategy,
+            row.tujuan_strategi,
+            row.area_kinerja_utama,
+            row.kpi,
+            pct(row.bobot),
+            row.polarity,
+            pct(row.cap),
+            pct(row.target),
+            row.keterangan || "-",
+            pct(row.realisasi),
+            capaian(row.realisasi, row.target),
+            row.skor,
+            pct(row.skor_akhir),
+            row.cara_pengukuran,
+            row.departemen || "Creative",
+          ],
+        })),
+        freezeCols: 1,
+        totalLabel: "TOTAL",
+        total: (c, a, b) => [
+          null, "", "", "", "", "Total bobot & nilai akhir",
+          sum(c("bobot"), a, b, data.total_bobot / 100), "", "", "", "", "", "", "",
+          sum(c("akhir"), a, b, data.total_nilai_akhir / 100), "", "",
+        ],
       });
 
-      // Sheet 2: Meta data
-      const metaRows = [
-        { "Info": "Periode", "Nilai": data.period_label },
-        { "Info": "Tanggal Export", "Nilai": now },
-        { "Info": "Total KPI Items", "Nilai": data.rows.length },
-        { "Info": "Total Bobot", "Nilai": `${data.total_bobot}%` },
-        { "Info": "Nilai Akhir KPI", "Nilai": `${data.total_nilai_akhir.toFixed(2)}%` },
-        { "Info": "Kategori", "Nilai": getScoreCategory(data.total_nilai_akhir).label },
-        { "Info": "", "Nilai": "" },
-        { "Info": "Detail Data Aktual", "Nilai": "" },
-        { "Info": "Hari Kerja Bulan", "Nilai": data.meta.workingDays },
-        { "Info": "Total Permintaan Desain", "Nilai": data.meta.totalPermintaan },
-        { "Info": "Permintaan Done", "Nilai": data.meta.donePermintaan },
-        { "Info": "Permintaan On-Time", "Nilai": data.meta.onTimePermintaan },
-        { "Info": "Total Daily Activity", "Nilai": data.meta.totalDailyEntries },
-        { "Info": "Hari Ada Aktivitas Done", "Nilai": data.meta.daysWithDoneActivity },
-        { "Info": "Hari Hadir (Attendance)", "Nilai": data.meta.presentDays },
-        { "Info": "Expected Hari Hadir", "Nilai": data.meta.expectedAttendanceDays },
-        { "Info": "Safety Toolbox Meeting HSE Terpenuhi", "Nilai": data.meta.fulfilledStandbyDays },
-        { "Info": "Safety Toolbox Meeting HSE Expected", "Nilai": data.meta.totalExpectedStandby },
-      ];
-
-      const ws1 = XLSX.utils.json_to_sheet(kpiRows);
-      const ws2 = XLSX.utils.json_to_sheet(metaRows);
-
-      // Auto-width
-      const maxW = (rows: any[], key: string) =>
-        Math.max(key.length, ...rows.map((r) => String(r[key] || "").length));
-
-      ws1["!cols"] = [
-        { wch: 4 }, { wch: 18 }, { wch: 40 }, { wch: 40 }, { wch: 20 },
-        { wch: 55 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 },
-        { wch: 12 }, { wch: 14 }, { wch: 8 }, { wch: 55 }, { wch: 20 }, { wch: 8 },
-      ];
-      ws2["!cols"] = [{ wch: 30 }, { wch: 30 }];
-
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws1, toSheetName("KPI " + periodLabel));
-      XLSX.utils.book_append_sheet(wb, ws2, "Meta Data");
+      // Sheet 2: ringkasan & data aktual pembentuk nilai
+      const ws2 = wb.addWorksheet("Ringkasan");
+      sheetHeader(ws2, `Ringkasan KPI — ${data.period_label}`, "Nilai akhir dan data aktual yang dipakai untuk menghitung realisasi.", info, 3);
+      const m = data.meta;
+      writeRingkasan(ws2, {
+        startRow: 5,
+        kolomNilai: ["Nilai"],
+        lebar: [40, 20, 48],
+        bagian: [
+          {
+            judul: "NILAI KPI",
+            warna: XC.kpi,
+            baris: [
+              { label: "Nilai Akhir KPI", nilai: [pct(data.total_nilai_akhir)], tipe: "pct" },
+              { label: "Kategori", nilai: [kategori], tipe: "grade", ket: "≥90 Baik Sekali • ≥75 Baik • ≥60 Cukup • ≥40 Kurang • <40 Sangat Kurang" },
+              { label: "Total Bobot", nilai: [pct(data.total_bobot)], tipe: "pct" },
+              { label: "Jumlah KPI", nilai: [data.rows.length], tipe: "int" },
+            ],
+          },
+          {
+            judul: "DATA AKTUAL",
+            warna: XC.periode,
+            baris: [
+              { label: "Hari Kerja Bulan", nilai: [m.workingDays], tipe: "int" },
+              { label: "Total Permintaan Desain", nilai: [m.totalPermintaan], tipe: "int" },
+              { label: "Permintaan Done", nilai: [m.donePermintaan], tipe: "int" },
+              { label: "Permintaan On-Time", nilai: [m.onTimePermintaan], tipe: "int" },
+              { label: "Total Daily Activity", nilai: [m.totalDailyEntries], tipe: "int" },
+              { label: "Hari Ada Aktivitas Done", nilai: [m.daysWithDoneActivity], tipe: "int" },
+              { label: "Hari Hadir (Attendance)", nilai: [m.presentDays], tipe: "int" },
+              { label: "Expected Hari Hadir", nilai: [m.expectedAttendanceDays], tipe: "int" },
+              { label: "Safety Toolbox Meeting HSE Terpenuhi", nilai: [m.fulfilledStandbyDays], tipe: "int" },
+              { label: "Safety Toolbox Meeting HSE Expected", nilai: [m.totalExpectedStandby], tipe: "int" },
+            ],
+          },
+        ],
+      });
+      ws2.views = [{ showGridLines: false }];
 
       const fileName = `KPI_${selectedMonth || getCurrentMonthPeriod()}.xlsx`;
-      XLSX.writeFile(wb, fileName);
+      await unduhWorkbook(wb, fileName, [XC.kpi, XC.periode]);
       toast.success(`File KPI berhasil diunduh: ${fileName}`);
     } catch (err: any) {
       toast.error("Gagal export: " + err.message);

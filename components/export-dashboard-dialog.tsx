@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import * as XLSX from "xlsx";
+import {
+  BADGE, XC, badgeStatus, bukuBaru, infoEkspor, pct, rate, ratio, sheetHeader, sum, tglExcel, unduhWorkbook, writeRingkasan, writeTable,
+  type Col,
+} from "@/lib/excel/tema";
 import { toast } from "sonner";
 import {
   Calendar,
@@ -186,117 +189,116 @@ export function ExportDashboardDialog({
       const countWaiting = filteredRows.filter((r) => r.status.toLowerCase().includes("waiting")).length;
       const resolutionRate = totalTiket > 0 ? Math.round((countDone / totalTiket) * 1000) / 10 : 0;
 
-      // 2. Build Excel with XLSX
-      const wb = XLSX.utils.book_new();
+      // 2. Bangun Excel bergaya standar
+      const wb = await bukuBaru();
+      const periode = `${tanggalAwal} s.d. ${tanggalAkhir}`;
+      const info = infoEkspor([`Periode ${periode}`, `${totalTiket} tiket`]);
+      const persen = (n: number) => (totalTiket > 0 ? n / totalTiket : null);
 
-      // Sheet 1: Ringkasan Eksekutif
-      const summaryAoa = [
-        ["LAPORAN EKSEKUTIF KPI HELPDESK IT & DESIGN"],
-        ["Format Rekapitulasi Data Penanganan Tiket Excel (.xlsx)"],
-        [],
-        ["Parameter Filter", "Keterangan"],
-        ["Tanggal Awal", tanggalAwal],
-        ["Tanggal Akhir", tanggalAkhir],
-        ["Filter Designer", designer === "all" ? "Semua Designer" : designer],
-        ["Filter Status", status === "all" ? "Semua Status" : status],
-        ["Filter Teknisi", teknisi === "all" ? "Semua Teknisi" : teknisi],
-        ["Filter Kategori", kategori === "all" ? "Semua Kategori" : kategori],
-        [],
-        ["Ringkasan KPI", "Jumlah Tiket", "Persentase (%)"],
-        ["Total Tiket Ditangani", totalTiket, "100%"],
-        ["Selesai (Done)", countDone, `${totalTiket > 0 ? Math.round((countDone / totalTiket) * 100) : 0}%`],
-        ["Dalam Pengerjaan (In Progress)", countProgress, `${totalTiket > 0 ? Math.round((countProgress / totalTiket) * 100) : 0}%`],
-        ["Revisi Pengerjaan (Revisi)", countRevisi, `${totalTiket > 0 ? Math.round((countRevisi / totalTiket) * 100) : 0}%`],
-        ["Tertunda (Pending)", countPending, `${totalTiket > 0 ? Math.round((countPending / totalTiket) * 100) : 0}%`],
-        ["Menunggu Antrian (Waiting)", countWaiting, `${totalTiket > 0 ? Math.round((countWaiting / totalTiket) * 100) : 0}%`],
-        ["Resolution Rate KPI", `${resolutionRate}%`, "Target: ≥90%"],
-      ];
-
-      const wsSummary = XLSX.utils.aoa_to_sheet(summaryAoa);
-      wsSummary["!cols"] = [{ wch: 32 }, { wch: 22 }, { wch: 20 }];
-      XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan KPI");
-
-      // Sheet 2: Detail Penanganan Tiket
-      const detailAoa: (string | number)[][] = [
-        [
-          "No",
-          "Tanggal Masuk",
-          "Judul Permintaan / Tugas",
-          "Designer",
-          "Kategori Kendala",
-          "Project / Departemen",
-          "Status Pengerjaan",
-          "Target Due Date",
+      // Sheet 1: Ringkasan KPI
+      const wsSummary = wb.addWorksheet("Ringkasan KPI");
+      sheetHeader(wsSummary, "Laporan Eksekutif KPI Helpdesk IT & Design", `Rekap penanganan tiket periode ${periode}.`, info, 4);
+      writeRingkasan(wsSummary, {
+        startRow: 5,
+        kolomNilai: ["Jumlah Tiket", "Persentase"],
+        lebar: [34, 16, 14, 36],
+        bagian: [
+          {
+            judul: "PARAMETER FILTER",
+            warna: XC.periode,
+            baris: [
+              { label: "Tanggal Awal", nilai: [tanggalAwal, ""], tipe: "text" },
+              { label: "Tanggal Akhir", nilai: [tanggalAkhir, ""], tipe: "text" },
+              { label: "Designer", nilai: [designer === "all" ? "Semua Designer" : designer, ""], tipe: "text" },
+              { label: "Status", nilai: [status === "all" ? "Semua Status" : status, ""], tipe: "text" },
+              { label: "Teknisi", nilai: [teknisi === "all" ? "Semua Teknisi" : teknisi, ""], tipe: "text" },
+              { label: "Kategori", nilai: [kategori === "all" ? "Semua Kategori" : kategori, ""], tipe: "text" },
+            ],
+          },
+          {
+            judul: "RINGKASAN KPI",
+            warna: XC.permintaan,
+            baris: [
+              { label: "Total Tiket Ditangani", nilai: [totalTiket, persen(totalTiket)], tipe: ["int", "pct"] },
+              { label: "Selesai (Done)", nilai: [countDone, persen(countDone)], tipe: ["int", "pct"], badge: BADGE.hijau },
+              { label: "Dalam Pengerjaan (In Progress)", nilai: [countProgress, persen(countProgress)], tipe: ["int", "pct"] },
+              { label: "Revisi Pengerjaan (Revisi)", nilai: [countRevisi, persen(countRevisi)], tipe: ["int", "pct"] },
+              { label: "Tertunda (Pending)", nilai: [countPending, persen(countPending)], tipe: ["int", "pct"] },
+              { label: "Menunggu Antrian (Waiting)", nilai: [countWaiting, persen(countWaiting)], tipe: ["int", "pct"] },
+              { label: "Resolution Rate KPI", nilai: [countDone, pct(resolutionRate)], tipe: ["int", "pct"], ket: "Target ≥ 90%", badge: resolutionRate >= 90 ? BADGE.hijau : BADGE.kuning },
+            ],
+          },
         ],
-        ...filteredRows.map((r, i) => [
-          i + 1,
-          r.tanggal,
-          r.judul,
-          r.designer,
-          r.kategori,
-          `${r.project} - ${r.departemen}`,
-          r.status,
-          r.due_date,
-        ]),
+      });
+      wsSummary.views = [{ showGridLines: false }];
+
+      // Sheet 2: Detail tiket
+      const wsDetail = wb.addWorksheet("Detail Tiket Helpdesk");
+      const detailCols: Col[] = [
+        { key: "no", header: "No", width: 6, type: "int" },
+        { key: "tgl", header: "Tanggal Masuk", width: 14, type: "date" },
+        { key: "judul", header: "Judul Permintaan / Tugas", width: 40, type: "text", wrap: true },
+        { key: "designer", header: "Designer", width: 20, type: "text" },
+        { key: "kategori", header: "Kategori Kendala", width: 20, type: "text" },
+        { key: "project", header: "Project", width: 22, type: "text", wrap: true },
+        { key: "dept", header: "Departemen", width: 22, type: "text", wrap: true },
+        { key: "status", header: "Status Pengerjaan", width: 16, type: "text", center: true, badge: badgeStatus },
+        { key: "due", header: "Target Due Date", width: 14, type: "date" },
       ];
-
-      const wsDetail = XLSX.utils.aoa_to_sheet(detailAoa);
-      wsDetail["!cols"] = [
-        { wch: 6 },
-        { wch: 14 },
-        { wch: 38 },
-        { wch: 22 },
-        { wch: 22 },
-        { wch: 28 },
-        { wch: 18 },
-        { wch: 16 },
-      ];
-      XLSX.utils.book_append_sheet(wb, wsDetail, "Detail Tiket Helpdesk");
-
-      // Sheet 3: Produktivitas Designer
-      const paulusTasks = filteredRows.filter((r) => r.designer.includes("Paulus"));
-      const farelTasks = filteredRows.filter((r) => r.designer.includes("Farel"));
-
-      const designerAoa: (string | number)[][] = [
-        ["Nama Designer", "Total Tiket", "Done", "In Progress", "Revisi", "Waiting/Pending", "Resolution Rate"],
-        [
-          "Paulus Sianipar",
-          paulusTasks.length,
-          paulusTasks.filter((r) => r.status.toLowerCase().includes("done")).length,
-          paulusTasks.filter((r) => r.status.toLowerCase().includes("progress")).length,
-          paulusTasks.filter((r) => r.status.toLowerCase().includes("revisi")).length,
-          paulusTasks.filter((r) => r.status.toLowerCase().includes("waiting") || r.status.toLowerCase().includes("pending")).length,
-          paulusTasks.length > 0
-            ? `${Math.round((paulusTasks.filter((r) => r.status.toLowerCase().includes("done")).length / paulusTasks.length) * 100)}%`
-            : "0%",
+      sheetHeader(wsDetail, "Detail Penanganan Tiket", `Periode ${periode}. Baris TOTAL ikut menyesuaikan filter.`, info, detailCols.length);
+      writeTable(wsDetail, {
+        startRow: 5,
+        columns: detailCols,
+        rows: filteredRows.map((r, i) => ({
+          values: [i + 1, tglExcel(r.tanggal, false), r.judul, r.designer, r.kategori, r.project, r.departemen, r.status, tglExcel(r.due_date, false)],
+        })),
+        totalLabel: "TOTAL",
+        total: (c, a, b) => [
+          null, "",
+          { formula: `SUBTOTAL(103,${c("judul")}${a}:${c("judul")}${b})&" tiket"`, result: `${totalTiket} tiket` },
+          "", "", "", "",
+          { formula: `SUMPRODUCT(SUBTOTAL(103,OFFSET(${c("status")}${a},ROW(${c("status")}${a}:${c("status")}${b})-ROW(${c("status")}${a}),0)),--ISNUMBER(SEARCH("done",${c("status")}${a}:${c("status")}${b})))&" done"`, result: `${countDone} done` },
+          "",
         ],
-        [
-          "Farel Ramadhan",
-          farelTasks.length,
-          farelTasks.filter((r) => r.status.toLowerCase().includes("done")).length,
-          farelTasks.filter((r) => r.status.toLowerCase().includes("progress")).length,
-          farelTasks.filter((r) => r.status.toLowerCase().includes("revisi")).length,
-          farelTasks.filter((r) => r.status.toLowerCase().includes("waiting") || r.status.toLowerCase().includes("pending")).length,
-          farelTasks.length > 0
-            ? `${Math.round((farelTasks.filter((r) => r.status.toLowerCase().includes("done")).length / farelTasks.length) * 100)}%`
-            : "0%",
-        ],
-      ];
+      });
 
-      const wsDesigner = XLSX.utils.aoa_to_sheet(designerAoa);
-      wsDesigner["!cols"] = [
-        { wch: 20 },
-        { wch: 14 },
-        { wch: 10 },
-        { wch: 14 },
-        { wch: 10 },
-        { wch: 18 },
-        { wch: 18 },
+      // Sheet 3: Kinerja per designer (dihitung dari data, bukan daftar nama tetap)
+      const wsDesigner = wb.addWorksheet("Kinerja Designer");
+      const perDesigner = new Map<string, { total: number; done: number; progress: number; revisi: number; tunggu: number }>();
+      for (const r of filteredRows) {
+        const st = r.status.toLowerCase();
+        const d = perDesigner.get(r.designer) || { total: 0, done: 0, progress: 0, revisi: 0, tunggu: 0 };
+        d.total += 1;
+        if (st.includes("done")) d.done += 1;
+        if (st.includes("progress")) d.progress += 1;
+        if (st.includes("revisi")) d.revisi += 1;
+        if (st.includes("waiting") || st.includes("pending")) d.tunggu += 1;
+        perDesigner.set(r.designer, d);
+      }
+      const desCols: Col[] = [
+        { key: "nama", header: "Nama Designer", width: 24, type: "text" },
+        { key: "total", header: "Total Tiket", width: 12, type: "int" },
+        { key: "done", header: "Done", width: 10, type: "int" },
+        { key: "progress", header: "In Progress", width: 12, type: "int" },
+        { key: "revisi", header: "Revisi", width: 10, type: "int" },
+        { key: "tunggu", header: "Waiting/Pending", width: 14, type: "int" },
+        { key: "rate", header: "Resolution Rate", width: 14, type: "pct" },
       ];
-      XLSX.utils.book_append_sheet(wb, wsDesigner, "Kinerja Designer");
+      sheetHeader(wsDesigner, "Kinerja Designer", `Produktivitas per designer, periode ${periode}.`, info, desCols.length);
+      writeTable(wsDesigner, {
+        startRow: 5,
+        columns: desCols,
+        rows: [...perDesigner.entries()].sort((a, b) => b[1].total - a[1].total).map(([nama, d]) => ({
+          values: [nama, d.total, d.done, d.progress, d.revisi, d.tunggu, ratio(d.done, d.total)],
+        })),
+        total: (c, a, b) => [
+          null, sum(c("total"), a, b, totalTiket), sum(c("done"), a, b, countDone), sum(c("progress"), a, b), sum(c("revisi"), a, b),
+          sum(c("tunggu"), a, b), rate([c("done")], [c("total")], a, b, ratio(countDone, totalTiket)),
+        ],
+      });
 
       const fileName = `Laporan-KPI-Helpdesk-${tanggalAwal}_sd_${tanggalAkhir}.xlsx`;
-      XLSX.writeFile(wb, fileName);
+      await unduhWorkbook(wb, fileName, [XC.permintaan, XC.periode, XC.kpi]);
 
       toast.success(`Berhasil mengunduh ${fileName} (${totalTiket} tiket)`);
       onOpenChange(false);

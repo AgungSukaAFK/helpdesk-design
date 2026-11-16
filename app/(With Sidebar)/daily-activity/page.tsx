@@ -29,7 +29,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { formatDateDisplay, getTodayDate, shiftDate, toSheetName } from "@/lib/utils";
+import { formatDateDisplay, getTodayDate, shiftDate } from "@/lib/utils";
+import {
+  XC, badgeStatus, bukuBaru, infoEkspor, namaSheet, rate, sheetHeader, sum, unduhWorkbook, writeTable, writeTemplate,
+  type Col,
+} from "@/lib/excel/tema";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { Button } from "@/components/ui/button";
@@ -903,95 +907,140 @@ export default function DailyActivityPage() {
   };
 
   // Download Excel Template aligned with Attendance Template structure
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
     const activePeriod = selectedMonth !== "all" ? selectedMonth : getCurrentMonthPeriod();
-    const templateRows = [
-      {
-        "No.": 1,
-        "Activity Date": `${activePeriod}-01`,
-        Name: activities[0]?.name || "Paulus Petrus Parlindungan Sianipar",
-        "Task Description": "Mengerjakan materi desain promosi bulanan dan banner katalog produk",
-        Status: "✅ Done (Selesai)",
-        Remarks: "Selesai tepat waktu dan materi sudah disetujui",
-      },
-      {
-        "No.": 2,
-        "Activity Date": `${activePeriod}-02`,
-        Name: "Muhammad Farel Ramadhan",
-        "Task Description": "Revisi layout katalog produk dan penyesuaian resolusi cetak",
-        Status: "⚡ In Progress (Dalam Proses)",
-        Remarks: "Menunggu aset foto resolusi tinggi dari tim marketing",
-      },
-      {
-        "No.": 3,
-        "Activity Date": `${activePeriod}-03`,
-        Name: "Paulus Petrus Parlindungan Sianipar, Muhammad Farel Ramadhan",
-        "Task Description": "Desain konten media sosial feed dan stories Instagram",
-        Status: "🔄 Revisi (Revisi Pengerjaan)",
-        Remarks: "Revisi copy teks promosi",
-      },
-    ];
-
-    const worksheet = XLSX.utils.json_to_sheet(templateRows);
-    worksheet["!cols"] = [
-      { wch: 6 },
-      { wch: 16 },
-      { wch: 35 },
-      { wch: 45 },
-      { wch: 30 },
-      { wch: 35 },
-    ];
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Template Bulanan");
-    XLSX.writeFile(workbook, "Template_Daily_Activity_Bulanan.xlsx");
-    toast.success("Template Excel berhasil diunduh.");
+    try {
+      const wb = await bukuBaru();
+      const ws = wb.addWorksheet("Template Bulanan");
+      writeTemplate(
+        ws,
+        [
+          { header: "No.", width: 7 },
+          { header: "Activity Date", width: 16 },
+          { header: "Name", width: 34 },
+          { header: "Task Description", width: 48 },
+          { header: "Status", width: 30 },
+          { header: "Remarks", width: 38 },
+        ],
+        [
+          [1, `${activePeriod}-01`, activities[0]?.name || "Paulus Petrus Parlindungan Sianipar", "Mengerjakan materi desain promosi bulanan dan banner katalog produk", "✅ Done (Selesai)", "Selesai tepat waktu dan materi sudah disetujui"],
+          [2, `${activePeriod}-02`, "Muhammad Farel Ramadhan", "Revisi layout katalog produk dan penyesuaian resolusi cetak", "⚡ In Progress (Dalam Proses)", "Menunggu aset foto resolusi tinggi dari tim marketing"],
+          [3, `${activePeriod}-03`, "Paulus Petrus Parlindungan Sianipar, Muhammad Farel Ramadhan", "Desain konten media sosial feed dan stories Instagram", "🔄 Revisi (Revisi Pengerjaan)", "Revisi copy teks promosi"],
+        ]
+      );
+      await unduhWorkbook(wb, "Template_Daily_Activity_Bulanan.xlsx", [XC.daily]);
+      toast.success("Template Excel berhasil diunduh.");
+    } catch (err: any) {
+      toast.error("Gagal membuat template: " + (err?.message || ""));
+    }
   };
 
   // Export to Excel
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     const rowsToExport = filteredActivities;
     if (rowsToExport.length === 0) {
       toast.error("Tidak ada data sesuai filter untuk diekspor.");
       return;
     }
-    const rows = rowsToExport.map((activity, index) => ({
-      "No.": index + 1,
-      "Activity Date": activity.activity_date,
-      "Jam Mulai": formatTime(activity.jam_mulai) || "-",
-      "Jam Selesai": formatTime(activity.jam_selesai) || "-",
-      Name: activity.name,
-      "Jenis Pekerjaan": activity.jenis_pekerjaan || "-",
-      Lokasi: activity.lokasi || "-",
-      "Task Description": activity.task_description,
-      Status: activity.status,
-      Remarks: activity.remarks || "-",
-    }));
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    worksheet["!cols"] = [
-      { wch: 6 },
-      { wch: 16 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 32 },
-      { wch: 20 },
-      { wch: 18 },
-      { wch: 45 },
-      { wch: 28 },
-      { wch: 35 },
-    ];
-    const workbook = XLSX.utils.book_new();
-    const sheetName = toSheetName(selectedMonth !== "all" ? formatPeriodMonth(selectedMonth) : "Daily Activity");
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    try {
+      const wb = await bukuBaru();
+      const info = infoEkspor([`${rowsToExport.length} aktivitas`]);
 
-    const filename = selectedDate
-      ? `Daily_Activity_${selectedDate}.xlsx`
-      : selectedMonth !== "all"
-        ? `Daily_Activity_${selectedMonth}.xlsx`
-        : `Daily_Activity_Semua_Bulan.xlsx`;
+      // Sheet 1: daftar aktivitas. Kolom sama dengan format import agar bisa di-import ulang.
+      const ws = wb.addWorksheet(namaSheet(selectedMonth !== "all" ? formatPeriodMonth(selectedMonth) : "Daily Activity"));
+      const columns: Col[] = [
+        { key: "no", header: "No.", width: 7, type: "int" },
+        { key: "tgl", header: "Activity Date", width: 14, type: "text" },
+        { key: "mulai", header: "Jam Mulai", width: 10, type: "text", center: true },
+        { key: "selesai", header: "Jam Selesai", width: 10, type: "text", center: true },
+        { key: "nama", header: "Name", width: 30, type: "text", wrap: true },
+        { key: "jenis", header: "Jenis Pekerjaan", width: 20, type: "text", wrap: true },
+        { key: "lokasi", header: "Lokasi", width: 16, type: "text", wrap: true },
+        { key: "task", header: "Task Description", width: 48, type: "text", wrap: true },
+        { key: "status", header: "Status", width: 26, type: "text", badge: badgeStatus },
+        { key: "remarks", header: "Remarks", width: 36, type: "text", wrap: true },
+      ];
+      sheetHeader(
+        ws,
+        `Daily Activity — ${periodLabel}`,
+        "Aktivitas harian tim sesuai filter halaman. Kolom sama dengan template, jadi file ini bisa di-import kembali.",
+        info,
+        columns.length
+      );
+      writeTable(ws, {
+        startRow: 5,
+        columns,
+        rows: rowsToExport.map((activity, index) => ({
+          values: [
+            index + 1,
+            activity.activity_date,
+            formatTime(activity.jam_mulai) || "-",
+            formatTime(activity.jam_selesai) || "-",
+            activity.name,
+            activity.jenis_pekerjaan || "-",
+            activity.lokasi || "-",
+            activity.task_description,
+            activity.status,
+            activity.remarks || "-",
+          ],
+        })),
+        freezeCols: 2,
+      });
 
-    XLSX.writeFile(workbook, filename);
-    toast.success(`Berhasil mengekspor ${rowsToExport.length} data ke ${filename}.`);
+      // Sheet 2: ringkasan status & per orang dari data yang diekspor
+      const ringkas = wb.addWorksheet("Ringkasan");
+      const statusCount = new Map<string, number>();
+      const orang = new Map<string, { total: number; done: number }>();
+      for (const a of rowsToExport) {
+        const st = a.status || "-";
+        statusCount.set(st, (statusCount.get(st) || 0) + 1);
+        const nama = a.name || "-";
+        const o = orang.get(nama) || { total: 0, done: 0 };
+        o.total += 1;
+        if (/done|selesai/i.test(st)) o.done += 1;
+        orang.set(nama, o);
+      }
+      const statusCols: Col[] = [
+        { key: "status", header: "Status", width: 34, type: "text", badge: badgeStatus },
+        { key: "n", header: "Jumlah", width: 12, type: "int" },
+        { key: "p", header: "Persentase", width: 12, type: "pct" },
+      ];
+      sheetHeader(ringkas, `Ringkasan Daily Activity — ${periodLabel}`, "Rekap status dan per orang dari data yang diekspor.", info, 5);
+      const t1 = writeTable(ringkas, {
+        startRow: 5,
+        columns: statusCols,
+        rows: [...statusCount.entries()].sort((a, b) => b[1] - a[1]).map(([st, n]) => ({ values: [st, n, n / rowsToExport.length] })),
+        total: (c, a, b) => [null, sum(c("n"), a, b, rowsToExport.length), sum(c("p"), a, b, 1)],
+        freeze: false,
+        filter: false,
+      });
+      const orangCols: Col[] = [
+        { key: "nama", header: "Name", width: 34, type: "text" },
+        { key: "total", header: "Total Aktivitas", width: 12, type: "int" },
+        { key: "done", header: "Done", width: 12, type: "int" },
+        { key: "rate", header: "Penyelesaian", width: 12, type: "pct" },
+      ];
+      writeTable(ringkas, {
+        startRow: t1.nextRow + 2,
+        groups: [{ label: "Per Orang", span: 4, color: XC.daily }],
+        columns: orangCols,
+        rows: [...orang.entries()].sort((a, b) => b[1].total - a[1].total).map(([nama, o]) => ({ values: [nama, o.total, o.done, o.done / o.total] })),
+        total: (c, a, b) => [null, sum(c("total"), a, b), sum(c("done"), a, b), rate([c("done")], [c("total")], a, b, null)],
+        freeze: false,
+      });
+      ringkas.views = [{ showGridLines: false }];
+
+      const filename = selectedDate
+        ? `Daily_Activity_${selectedDate}.xlsx`
+        : selectedMonth !== "all"
+          ? `Daily_Activity_${selectedMonth}.xlsx`
+          : `Daily_Activity_Semua_Bulan.xlsx`;
+      await unduhWorkbook(wb, filename, [XC.daily, XC.periode]);
+      toast.success(`Berhasil mengekspor ${rowsToExport.length} data ke ${filename}.`);
+    } catch (err: any) {
+      toast.error("Gagal mengekspor Excel: " + (err?.message || ""));
+    }
   };
 
   // Excel File upload & parsing

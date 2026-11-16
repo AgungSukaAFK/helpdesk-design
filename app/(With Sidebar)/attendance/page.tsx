@@ -38,7 +38,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { formatDateDisplay, getTodayDate, shiftDate, toSheetName } from "@/lib/utils";
+import { formatDateDisplay, getTodayDate, shiftDate } from "@/lib/utils";
+import {
+  XC, badgeStatus, bukuBaru, infoEkspor, namaSheet, pct, rate, sheetHeader, sum, unduhWorkbook, writeTable, writeTemplate,
+  type Col,
+} from "@/lib/excel/tema";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -533,41 +537,99 @@ export default function AttendancePage() {
   }, [employeeSummaries]);
 
   // Ekspor Rekap Kehadiran Per Karyawan ke Excel
-  const handleExportEmployeeSummaryExcel = () => {
+  const handleExportEmployeeSummaryExcel = async () => {
     if (employeeSummaries.length === 0) {
       toast.error("Tidak ada data ringkasan karyawan untuk diekspor.");
       return;
     }
 
-    const exportRows = employeeSummaries.map((emp, idx) => ({
-      "Ranking": idx + 1,
-      "Employee No (NIK)": emp.employee_no,
-      "Nama Karyawan": emp.name,
-      "Periode": selectedDate
-        ? formatDateDisplay(selectedDate)
-        : selectedMonth === "all"
-          ? "Semua Periode"
-          : formatPeriodMonth(selectedMonth),
-      "Total Hari Terdata": emp.totalRecords,
-      "Hari Libur (OFF)": emp.offCount,
-      "Hari Kerja Efektif": emp.workDays,
-      "Hadir (PRS)": emp.prsCount,
-      "Absen / Mangkir (ABS)": emp.absCount,
-      "Persentase Kehadiran (%)": `${emp.attendanceRate}%`,
-      "Persentase Absen (%)": `${emp.absenceRate}%`,
-      "Predikat Kehadiran": emp.predicate.label,
-      "Sesi Lembur": emp.ovtCount,
-      "Total Lembur (Menit)": emp.totalOvertimeMinutes,
-      "Total Lembur (Jam & Mnt)": emp.overtimeDuration,
-    }));
+    const periodeLabel = selectedDate
+      ? formatDateDisplay(selectedDate)
+      : selectedMonth === "all"
+        ? "Semua Periode"
+        : formatPeriodMonth(selectedMonth);
 
-    const worksheet = XLSX.utils.json_to_sheet(exportRows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Per Karyawan");
-
-    const fileName = `Rekap_Kehadiran_Karyawan_${selectedDate || (selectedMonth === "all" ? "Semua" : selectedMonth)}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
-    toast.success(`Berhasil mengunduh rekapitulasi kehadiran (${fileName})`);
+    try {
+      const wb = await bukuBaru();
+      const ws = wb.addWorksheet("Rekap Per Karyawan");
+      const columns: Col[] = [
+        { key: "rank", header: "Ranking", width: 9, type: "int" },
+        { key: "nik", header: "Employee No (NIK)", width: 16, type: "text" },
+        { key: "nama", header: "Nama Karyawan", width: 34, type: "text" },
+        { key: "rec", header: "Total Hari Terdata", width: 12, type: "int" },
+        { key: "off", header: "Hari Libur (OFF)", width: 11, type: "int" },
+        { key: "kerja", header: "Hari Kerja Efektif", width: 12, type: "int" },
+        { key: "prs", header: "Hadir (PRS)", width: 11, type: "int" },
+        { key: "abs", header: "Absen / Mangkir (ABS)", width: 13, type: "int" },
+        { key: "rate", header: "Kehadiran", width: 11, type: "pct" },
+        { key: "absRate", header: "Absen", width: 10, type: "pct" },
+        { key: "pred", header: "Predikat", width: 16, type: "grade" },
+        { key: "ovt", header: "Sesi Lembur", width: 10, type: "int" },
+        { key: "ovtMin", header: "Lembur (Menit)", width: 12, type: "int" },
+        { key: "ovtJam", header: "Lembur (Jam & Mnt)", width: 18, type: "text", center: true },
+      ];
+      sheetHeader(
+        ws,
+        `Rekap Kehadiran Per Karyawan — ${periodeLabel}`,
+        "Diurutkan dari tingkat kehadiran tertinggi. Kehadiran = PRS ÷ hari kerja efektif. Baris TOTAL ikut menyesuaikan filter.",
+        infoEkspor([`${employeeSummaries.length} karyawan`]),
+        columns.length
+      );
+      const ovtTotal = employeeSummaries.reduce((a, e) => a + e.totalOvertimeMinutes, 0);
+      writeTable(ws, {
+        startRow: 5,
+        groups: [
+          { label: "Karyawan", span: 3, color: XC.periode },
+          { label: "Rekap Hari", span: 5, color: XC.attendance },
+          { label: "Kinerja Kehadiran", span: 3, color: XC.kpi },
+          { label: "Lembur", span: 3, color: XC.permintaan },
+        ],
+        columns,
+        rows: employeeSummaries.map((emp, idx) => ({
+          values: [
+            idx + 1,
+            emp.employee_no,
+            emp.name,
+            emp.totalRecords,
+            emp.offCount,
+            emp.workDays,
+            emp.prsCount,
+            emp.absCount,
+            pct(emp.attendanceRate),
+            pct(emp.absenceRate),
+            emp.predicate.label,
+            emp.ovtCount,
+            emp.totalOvertimeMinutes,
+            emp.overtimeDuration,
+          ],
+        })),
+        freezeCols: 3,
+        total: (c, a, b) => [
+          null,
+          "",
+          { formula: `SUBTOTAL(103,${c("nama")}${a}:${c("nama")}${b})&" karyawan"`, result: `${employeeSummaries.length} karyawan` },
+          sum(c("rec"), a, b),
+          sum(c("off"), a, b),
+          sum(c("kerja"), a, b),
+          sum(c("prs"), a, b),
+          sum(c("abs"), a, b),
+          rate([c("prs")], [c("kerja")], a, b, null),
+          rate([c("abs")], [c("kerja")], a, b, null),
+          "",
+          sum(c("ovt"), a, b),
+          sum(c("ovtMin"), a, b, ovtTotal),
+          {
+            formula: `INT(SUBTOTAL(109,${c("ovtMin")}${a}:${c("ovtMin")}${b})/60)&" jam "&MOD(SUBTOTAL(109,${c("ovtMin")}${a}:${c("ovtMin")}${b}),60)&" mnt"`,
+            result: `${Math.floor(ovtTotal / 60)} jam ${ovtTotal % 60} mnt`,
+          },
+        ],
+      });
+      const fileName = `Rekap_Kehadiran_Karyawan_${selectedDate || (selectedMonth === "all" ? "Semua" : selectedMonth)}.xlsx`;
+      await unduhWorkbook(wb, fileName, [XC.attendance]);
+      toast.success(`Berhasil mengunduh rekapitulasi kehadiran (${fileName})`);
+    } catch (err: any) {
+      toast.error("Gagal mengekspor Excel: " + (err?.message || ""));
+    }
   };
 
   // Navigasi cepat filter karyawan ke tab log
@@ -653,16 +715,16 @@ export default function AttendancePage() {
     let headerRowIdx = -1;
     for (let i = 0; i < Math.min(rows.length, 10); i++) {
       const row = rows[i].map((cell) => String(cell || "").trim().toLowerCase());
-      if (
-        row.some(
-          (c) =>
-            c.includes("employee") ||
-            c.includes("nik") ||
-            c.includes("name") ||
-            c.includes("nama") ||
-            c.includes("shift")
-        )
-      ) {
+      // Minimal 2 kolom cocok, supaya baris judul pada file hasil export tidak dianggap header
+      const cocok = row.filter(
+        (c) =>
+          c.includes("employee") ||
+          c.includes("nik") ||
+          c.includes("name") ||
+          c.includes("nama") ||
+          c.includes("shift")
+      ).length;
+      if (cocok >= 2) {
         headerRowIdx = i;
         break;
       }
@@ -882,108 +944,92 @@ export default function AttendancePage() {
   };
 
   // Export Excel untuk bulan terpilih
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (filteredRecords.length === 0) {
       toast.error("Tidak ada data untuk diekspor pada bulan ini.");
       return;
     }
 
-    const exportRows = filteredRecords.map((r, idx) => ({
-      "No.": idx + 1,
-      "Employee No": r.employee_no,
-      Name: r.name,
-      Date: r.date,
-      Shift: r.shift,
-      "Start Time": r.start_time,
-      "End Time": r.end_time,
-      Status: r.status,
-      Overtime: r.overtime,
-      "Overtime Index": r.overtime_index,
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(exportRows);
-    worksheet["!cols"] = [
-      { wch: 6 },
-      { wch: 15 },
-      { wch: 35 },
-      { wch: 18 },
-      { wch: 32 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 10 },
-      { wch: 14 },
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(
-      workbook,
-      worksheet,
-      toSheetName(
-        selectedDate
-          ? formatDateDisplay(selectedDate)
-          : selectedMonth !== "all"
-            ? formatPeriodMonth(selectedMonth)
-            : "Attendance"
-      )
-    );
-
-    const filename = selectedDate
-      ? `Attendance_List_${selectedDate}.xlsx`
+    const periodeLabel = selectedDate
+      ? formatDateDisplay(selectedDate)
       : selectedMonth !== "all"
-        ? `Attendance_List_${selectedMonth}.xlsx`
-        : `Attendance_List_Semua_Bulan.xlsx`;
+        ? formatPeriodMonth(selectedMonth)
+        : "Semua Bulan";
 
-    XLSX.writeFile(workbook, filename);
-    toast.success(`Berhasil mengekspor ${filteredRecords.length} data ke ${filename}.`);
+    try {
+      const wb = await bukuBaru();
+      const ws = wb.addWorksheet(namaSheet(selectedDate || selectedMonth !== "all" ? periodeLabel : "Attendance"));
+      // Nama & isi kolom sama dengan template agar file ini tetap bisa di-import ulang
+      const columns: Col[] = [
+        { key: "no", header: "No.", width: 7, type: "int" },
+        { key: "nik", header: "Employee No", width: 15, type: "text" },
+        { key: "nama", header: "Name", width: 34, type: "text" },
+        { key: "tgl", header: "Date", width: 18, type: "text" },
+        { key: "shift", header: "Shift", width: 30, type: "text" },
+        { key: "mulai", header: "Start Time", width: 11, type: "text", center: true },
+        { key: "selesai", header: "End Time", width: 11, type: "text", center: true },
+        { key: "status", header: "Status", width: 14, type: "text", center: true, badge: badgeStatus },
+        { key: "ovt", header: "Overtime", width: 10, type: "text", center: true },
+        { key: "idx", header: "Overtime Index", width: 13, type: "text", center: true },
+      ];
+      sheetHeader(
+        ws,
+        `Data Attendance — ${periodeLabel}`,
+        "Catatan kehadiran harian sesuai filter halaman. Kolom sama dengan template, jadi file ini bisa di-import kembali.",
+        infoEkspor([`${filteredRecords.length} baris`]),
+        columns.length
+      );
+      writeTable(ws, {
+        startRow: 5,
+        columns,
+        rows: filteredRecords.map((r, idx) => ({
+          // "" = sel kosong (bukan "-") supaya hasil import ulang sama dengan data asli
+          values: [idx + 1, r.employee_no, r.name, r.date, r.shift ?? "", r.start_time ?? "", r.end_time ?? "", r.status ?? "", (r.overtime ?? "") as never, (r.overtime_index ?? "") as never],
+        })),
+        freezeCols: 3,
+      });
+
+      const filename = selectedDate
+        ? `Attendance_List_${selectedDate}.xlsx`
+        : selectedMonth !== "all"
+          ? `Attendance_List_${selectedMonth}.xlsx`
+          : `Attendance_List_Semua_Bulan.xlsx`;
+      await unduhWorkbook(wb, filename, [XC.attendance]);
+      toast.success(`Berhasil mengekspor ${filteredRecords.length} data ke ${filename}.`);
+    } catch (err: any) {
+      toast.error("Gagal mengekspor Excel: " + (err?.message || ""));
+    }
   };
 
   // Download Template
-  const handleDownloadTemplate = () => {
-    const templateRows = [
-      {
-        "No.": 1,
-        "Employee No": "GIS25100212",
-        Name: "Muhammad Farel Ramadhan",
-        Date: "Tue, 01 Sep 2026",
-        Shift: "Shift Daily from 08:00 to 17:00",
-        "Start Time": "07:54",
-        "End Time": "17:04",
-        Status: "EAI,PRS",
-        Overtime: 0,
-        "Overtime Index": "0",
-      },
-      {
-        "No.": 2,
-        "Employee No": "GIS19040039",
-        Name: "Paulus Petrus Parlindungan Sianipar",
-        Date: "Tue, 01 Sep 2026",
-        Shift: "Shift Daily from 08:00 to 17:00",
-        "Start Time": "07:17",
-        "End Time": "21:11",
-        Status: "EAI,PRS",
-        Overtime: 0,
-        "Overtime Index": "0",
-      },
-    ];
-
-    const worksheet = XLSX.utils.json_to_sheet(templateRows);
-    worksheet["!cols"] = [
-      { wch: 6 },
-      { wch: 15 },
-      { wch: 35 },
-      { wch: 18 },
-      { wch: 32 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 10 },
-      { wch: 14 },
-    ];
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Template Bulanan");
-    XLSX.writeFile(workbook, "Template_Attendance_Bulanan.xlsx");
-    toast.success("Template Excel berhasil diunduh.");
+  const handleDownloadTemplate = async () => {
+    try {
+      const wb = await bukuBaru();
+      const ws = wb.addWorksheet("Template Bulanan");
+      writeTemplate(
+        ws,
+        [
+          { header: "No.", width: 7 },
+          { header: "Employee No", width: 15 },
+          { header: "Name", width: 34 },
+          { header: "Date", width: 18 },
+          { header: "Shift", width: 30 },
+          { header: "Start Time", width: 11 },
+          { header: "End Time", width: 11 },
+          { header: "Status", width: 14 },
+          { header: "Overtime", width: 10 },
+          { header: "Overtime Index", width: 13 },
+        ],
+        [
+          [1, "GIS25100212", "Muhammad Farel Ramadhan", "Tue, 01 Sep 2026", "Shift Daily from 08:00 to 17:00", "07:54", "17:04", "EAI,PRS", 0, "0"],
+          [2, "GIS19040039", "Paulus Petrus Parlindungan Sianipar", "Tue, 01 Sep 2026", "Shift Daily from 08:00 to 17:00", "07:17", "21:11", "EAI,PRS", 0, "0"],
+        ]
+      );
+      await unduhWorkbook(wb, "Template_Attendance_Bulanan.xlsx", [XC.attendance]);
+      toast.success("Template Excel berhasil diunduh.");
+    } catch (err: any) {
+      toast.error("Gagal membuat template: " + (err?.message || ""));
+    }
   };
 
   // Buka dialog tambah manual

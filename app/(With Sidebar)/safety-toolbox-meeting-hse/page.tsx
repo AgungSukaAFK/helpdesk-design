@@ -33,7 +33,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { toSheetName } from "@/lib/utils";
+import {
+  BADGE, BORDER_ALL, FONT, XC, bukuBaru, colLetter, infoEkspor, namaSheet, sheetHeader, solid, styleBadge, unduhWorkbook,
+} from "@/lib/excel/tema";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -704,7 +706,7 @@ export default function SafetyToolboxMeetingHsePage() {
 
   // ==================== 4. EXPORT & IMPORT EXCEL ====================
   // Export to Excel with exact 3-level header from prompt attachment
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (monthRecords.length === 0) {
       toast.error("Belum ada data untuk diekspor pada bulan ini.");
       return;
@@ -713,74 +715,124 @@ export default function SafetyToolboxMeetingHsePage() {
     try {
       const monthLabel =
         INDONESIAN_MONTHS.find((m) => m.value === selectedMonth)?.label || "Bulan";
+      const bulanNum = parseInt(selectedMonth, 10);
+      const wb = await bukuBaru();
+      const ws = wb.addWorksheet(namaSheet(`Safety Toolbox HSE ${monthLabel}`));
 
-      // Row 1: No, Nama, Month Name (spanning days), Summary headers
-      const row1: string[] = ["No", "Nama", monthLabel];
-      for (let d = 2; d <= totalDays; d++) {
-        row1.push("");
-      }
-      row1.push("Total H", "Total h", "Total Safety Toolbox Meeting");
+      // Kolom: A No, B Nama, C.. tanggal, lalu Total H / Total h / Total Sesi
+      const dayCol = (d: number) => 2 + d;
+      const colH = dayCol(totalDays) + 1;
+      const colHs = colH + 1;
+      const colTot = colH + 2;
+      const lastCol = colTot;
 
-      // Row 2: Empty, Empty, 1, 2, ..., totalDays, Total cols
-      const row2: (string | number)[] = ["", ""];
-      for (let d = 1; d <= totalDays; d++) {
-        row2.push(d);
-      }
-      row2.push("", "", "");
-
-      // Row 3: Empty, Empty, Sen, Sel, Rab, ..., Day names
-      const row3: string[] = ["", ""];
-      for (let d = 1; d <= totalDays; d++) {
-        row3.push(getDayNameIndo(selectedYear, parseInt(selectedMonth, 10), d));
-      }
-      row3.push("", "", "");
-
-      // Data Rows
-      const dataRows: any[][] = [];
-      monthRecords.forEach((person, idx) => {
-        const pStats = calculatePersonStats(person.schedule);
-        const row: any[] = [idx + 1, person.name];
-
-        for (let d = 1; d <= totalDays; d++) {
-          row.push(person.schedule?.[d] || "");
-        }
-
-        row.push(pStats.countH, pStats.countHSmall, pStats.totalStandby);
-        dataRows.push(row);
-      });
-
-      // Total Standby Harian Footer Row
-      const totalRow: any[] = ["", "TOTAL STANDBY"];
-      for (let d = 1; d <= totalDays; d++) {
-        totalRow.push(dailyTotals[d] || 0);
-      }
-      totalRow.push(
-        monthStats.totalH,
-        monthStats.totalHSmall,
-        monthStats.totalShifts
+      sheetHeader(
+        ws,
+        `Jadwal Safety Toolbox Meeting HSE — ${monthLabel} ${selectedYear}`,
+        "H = standby siang (08.00–17.00), h = standby malam (17.00–08.00). Kolom tanggal berlatar merah muda = Sabtu/Minggu. File ini bisa di-import kembali.",
+        infoEkspor([`${monthRecords.length} personil`, `${monthStats.totalShifts} sesi`]),
+        lastCol
       );
-      dataRows.push(totalRow);
 
-      const allRows = [row1, row2, row3, ...dataRows];
-      const worksheet = XLSX.utils.aoa_to_sheet(allRows);
+      ws.getColumn(1).width = 6;
+      ws.getColumn(2).width = 30;
+      for (let d = 1; d <= totalDays; d++) ws.getColumn(dayCol(d)).width = 4.6;
+      [colH, colHs, colTot].forEach((c) => (ws.getColumn(c).width = 10));
 
-      // Set merges:
-      // Row 1 Month title spans columns C to (C + totalDays - 1)
-      worksheet["!merges"] = [
-        // Merge Month Name across day columns: Row 0, col 2 to col (2 + totalDays - 1)
-        { s: { r: 0, c: 2 }, e: { r: 0, c: 2 + totalDays - 1 } },
-        // Merge 'No': Row 0-2, Col 0
-        { s: { r: 0, c: 0 }, e: { r: 2, c: 0 } },
-        // Merge 'Nama': Row 0-2, Col 1
-        { s: { r: 0, c: 1 }, e: { r: 2, c: 1 } },
-      ];
+      const weekend = (d: number) => [0, 6].includes(new Date(selectedYear, bulanNum - 1, d).getDay());
+      const head = (r: number, c: number, v: string | number, fill: string = XC.headerBg) => {
+        const cell = ws.getCell(r, c);
+        cell.value = v;
+        cell.font = { name: FONT, size: 10, bold: true, color: { argb: XC.white } };
+        cell.fill = solid(fill);
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        cell.border = BORDER_ALL;
+      };
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, toSheetName(`Safety Toolbox HSE ${monthLabel}`));
+      // Header 3 tingkat: bulan / tanggal / nama hari (baris 5-7)
+      const R1 = 5, R2 = 6, R3 = 7;
+      ws.mergeCells(R1, 1, R3, 1);
+      head(R1, 1, "No");
+      ws.mergeCells(R1, 2, R3, 2);
+      head(R1, 2, "Nama");
+      ws.mergeCells(R1, dayCol(1), R1, dayCol(totalDays));
+      head(R1, dayCol(1), `${monthLabel} ${selectedYear}`, XC.stb);
+      for (let d = 1; d <= totalDays; d++) {
+        const wk = weekend(d);
+        head(R2, dayCol(d), d, wk ? XC.weekend : XC.headerBg);
+        head(R3, dayCol(d), getDayNameIndo(selectedYear, bulanNum, d), wk ? XC.weekend : XC.periode);
+      }
+      ([[colH, "Total H"], [colHs, "Total h"], [colTot, "Total Safety Toolbox Meeting"]] as const).forEach(([c, label]) => {
+        ws.mergeCells(R1, c, R3, c);
+        head(R1, c, label, XC.kpi);
+      });
+      ws.getRow(R1).height = 20;
+      ws.getRow(R2).height = 18;
+      ws.getRow(R3).height = 18;
+
+      // Data personil
+      const first = R3 + 1;
+      monthRecords.forEach((person, idx) => {
+        const r = first + idx;
+        const pStats = calculatePersonStats(person.schedule);
+        const zebra = idx % 2 === 1;
+        const isi = (c: number, v: string | number | null, bold = false) => {
+          const cell = ws.getCell(r, c);
+          cell.value = v === "" ? null : v;
+          cell.font = { name: FONT, size: 10, bold, color: { argb: XC.text } };
+          cell.border = BORDER_ALL;
+          cell.alignment = { horizontal: c === 2 ? "left" : "center", vertical: "middle", indent: c === 2 ? 1 : 0 };
+          if (zebra) cell.fill = solid(XC.zebra);
+          return cell;
+        };
+        isi(1, idx + 1);
+        isi(2, person.name, true);
+        for (let d = 1; d <= totalDays; d++) {
+          const kode = person.schedule?.[d] || "";
+          const cell = isi(dayCol(d), kode);
+          if (kode === "H") styleBadge(cell, BADGE.biru);
+          else if (kode === "h") styleBadge(cell, BADGE.indigo);
+          else if (kode && kode !== "-") styleBadge(cell, BADGE.abu);
+          else if (weekend(d)) cell.fill = solid(XC.weekendBg);
+        }
+        isi(colH, pStats.countH);
+        isi(colHs, pStats.countHSmall);
+        isi(colTot, pStats.totalStandby, true);
+        ws.getRow(r).height = 18;
+      });
+      const last = first + monthRecords.length - 1;
+
+      // Baris TOTAL STANDBY: ikut menyesuaikan filter nama
+      const rt = last + 1;
+      const tot = (c: number, v: { formula: string; result: number } | string) => {
+        const cell = ws.getCell(rt, c);
+        cell.value = v as never;
+        cell.font = { name: FONT, size: 10, bold: true, color: { argb: XC.text } };
+        cell.fill = solid(XC.totalBg);
+        cell.border = { ...BORDER_ALL, top: { style: "medium", color: { argb: XC.headerBg } } };
+        cell.alignment = { horizontal: c === 2 ? "left" : "center", vertical: "middle", indent: c === 2 ? 1 : 0 };
+      };
+      tot(1, "");
+      tot(2, "TOTAL STANDBY");
+      for (let d = 1; d <= totalDays; d++) {
+        const L = colLetter(dayCol(d));
+        const rg = `${L}${first}:${L}${last}`;
+        tot(dayCol(d), {
+          formula: `SUMPRODUCT(SUBTOTAL(103,OFFSET(${L}${first},ROW(${rg})-ROW(${L}${first}),0)),--(${rg}<>"-"),--(UPPER(${rg})<>"OFF"))`,
+          result: dailyTotals[d] || 0,
+        });
+      }
+      ([[colH, monthStats.totalH], [colHs, monthStats.totalHSmall], [colTot, monthStats.totalShifts]] as const).forEach(([c, v]) => {
+        const L = colLetter(c);
+        tot(c, { formula: `SUBTOTAL(109,${L}${first}:${L}${last})`, result: v });
+      });
+      ws.getRow(rt).height = 20;
+
+      ws.autoFilter = { from: { row: R3, column: 1 }, to: { row: last, column: lastCol } };
+      ws.views = [{ state: "frozen", xSplit: 2, ySplit: R3, showGridLines: false }];
 
       const fileName = `Safety Toolbox Meeting HSE_${monthLabel}_${selectedYear}.xlsx`;
-      XLSX.writeFile(workbook, fileName);
-
+      await unduhWorkbook(wb, fileName, [XC.stb]);
       toast.success(`Jadwal Safety Toolbox Meeting HSE berhasil diunduh: ${fileName}`);
     } catch (err: any) {
       toast.error("Gagal mengekspor Excel: " + err.message);
@@ -827,7 +879,7 @@ export default function SafetyToolboxMeetingHsePage() {
       if (!detectedY) detectedY = detectYearFromText(file.name);
 
       // 3. Cek baris 0-6 pada tabel (misal cell C1 berisi "Juni")
-      for (let r = 0; r < Math.min(rawRows.length, 6); r++) {
+      for (let r = 0; r < Math.min(rawRows.length, 12); r++) {
         const rowStr = rawRows[r].join(" ");
         if (!detectedM) detectedM = detectMonthFromText(rowStr);
         if (!detectedY) detectedY = detectYearFromText(rowStr);
@@ -846,7 +898,7 @@ export default function SafetyToolboxMeetingHsePage() {
       let nameColIdx = 1;
       let firstDayColIdx = -1;
 
-      for (let r = 0; r < Math.min(rawRows.length, 6); r++) {
+      for (let r = 0; r < Math.min(rawRows.length, 12); r++) {
         const row = rawRows[r];
         for (let c = 0; c < row.length; c++) {
           const val = String(row[c]).trim();
@@ -861,7 +913,7 @@ export default function SafetyToolboxMeetingHsePage() {
 
       // Jika tidak ditemukan baris angka 1..2, cari kata "nama"
       if (dateRowIdx === -1) {
-        for (let r = 0; r < Math.min(rawRows.length, 6); r++) {
+        for (let r = 0; r < Math.min(rawRows.length, 12); r++) {
           const row = rawRows[r].map((c) => String(c || "").toLowerCase().trim());
           const nIdx = row.findIndex((c) => c === "nama" || c.includes("nama"));
           if (nIdx !== -1) {

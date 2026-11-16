@@ -26,7 +26,10 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useTransition } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx"; // Impor library Excel
+import { XC, badgeStatus, bukuBaru, infoEkspor, sheetHeader, tglExcel, unduhWorkbook, writeTable, type Col } from "@/lib/excel/tema";
+
+const formatTanggal = (v: string) =>
+  new Date(v).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 import { EditPermintaanDialog } from "@/components/edit-permintaan-dialog";
 
 // Definisikan tipe data untuk konsistensi
@@ -257,32 +260,49 @@ export function PermintaanAdminClientContent() {
         }
       }
 
-      // REVISI: Format data sesuai kolom yang diminta
-      const formattedData = data.map((item) => ({
-        "Tanggal Dibuat": new Date(item.created_at).toLocaleString("id-ID", {
-          dateStyle: "long",
-          timeStyle: "short",
-        }),
-        "Due Date": new Date(item.due_date).toLocaleDateString("id-ID", {
-          dateStyle: "long",
-        }),
-        "Judul Permintaan": item.judul,
-        Deskripsi: item.deskripsi,
-        Status: item.status,
-        Departemen: item.departemen,
-        Project: item.project,
-        Requester: (item.requester ? nameMap[item.requester] : null) || "N/A",
-      }));
-
-      const worksheet = XLSX.utils.json_to_sheet(formattedData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Permintaan Desain");
-      XLSX.writeFile(
-        workbook,
-        `Laporan_Permintaan_Desain_${
-          new Date().toISOString().split("T")[0]
-        }.xlsx`
+      const periode =
+        startDate || endDate
+          ? `${startDate ? formatTanggal(startDate) : "awal"} s.d. ${endDate ? formatTanggal(endDate) : "sekarang"}`
+          : "Semua tanggal";
+      const wb = await bukuBaru();
+      const ws = wb.addWorksheet("Permintaan Desain");
+      const columns: Col[] = [
+        { key: "no", header: "No", width: 6, type: "int" },
+        { key: "dibuat", header: "Tanggal Dibuat", width: 18, type: "datetime" },
+        { key: "due", header: "Due Date", width: 15, type: "date" },
+        { key: "judul", header: "Judul Permintaan", width: 38, type: "text", wrap: true },
+        { key: "desk", header: "Deskripsi", width: 48, type: "text", wrap: true },
+        { key: "status", header: "Status", width: 14, type: "text", center: true, badge: badgeStatus },
+        { key: "dept", header: "Departemen", width: 18, type: "text" },
+        { key: "project", header: "Project", width: 18, type: "text", wrap: true },
+        { key: "req", header: "Requester", width: 24, type: "text" },
+      ];
+      sheetHeader(
+        ws,
+        "Laporan Permintaan Desain",
+        `Periode ${periode}${statusFilter ? ` • Status ${statusFilter}` : ""}${searchTerm ? ` • Pencarian "${searchTerm}"` : ""}`,
+        infoEkspor([`${data.length} tiket`]),
+        columns.length
       );
+      writeTable(ws, {
+        startRow: 5,
+        columns,
+        rows: data.map((item, i) => ({
+          values: [
+            i + 1,
+            tglExcel(item.created_at),
+            tglExcel(item.due_date, false),
+            item.judul,
+            item.deskripsi,
+            item.status,
+            item.departemen,
+            item.project,
+            (item.requester ? nameMap[item.requester] : null) || "N/A",
+          ],
+        })),
+        freezeCols: 1,
+      });
+      await unduhWorkbook(wb, `Laporan_Permintaan_Desain_${new Date().toISOString().split("T")[0]}.xlsx`, [XC.permintaan]);
 
       toast.success("Data berhasil diunduh!");
     } catch (error: any) {

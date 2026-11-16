@@ -36,6 +36,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import {
+  FONT, XC, avg, badgeStatus, bukuBaru, infoEkspor, pct, sheetHeader, solid, unduhWorkbook, writeTable, writeTemplate,
+  type Col,
+} from "@/lib/excel/tema";
 import { createClient } from "@/lib/supabase/client";
 import { Mounted } from "@/components/mounted";
 import { Button } from "@/components/ui/button";
@@ -601,25 +605,28 @@ export default function ProgramKerjaPage() {
     let headerRowIdx = -1;
 
     // Scan baris awal untuk mendeteksi tahun
-    for (let i = 0; i < Math.min(rawRows.length, 6); i++) {
-      const rowStr = rawRows[i].join(" ");
-      const yrMatch = rowStr.match(/\b(20\d{2})\b/);
-      if (yrMatch) {
-        detectedYear = parseInt(yrMatch[1], 10);
-      }
+    let tahunDariJudul = false;
+    for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
       const lowerCells = rawRows[i].map((c) => String(c || "").trim().toLowerCase());
-      if (
-        lowerCells.some(
-          (c) =>
-            c.includes("quartal") ||
-            c.includes("program kerja") ||
-            c.includes("proker") ||
-            c.includes("kegiatan") ||
-            c.includes("tujuan")
-        )
-      ) {
+      // Header = baris dengan minimal 2 kolom dikenal (baris judul hanya 1 sel)
+      const cocok = lowerCells.filter(
+        (c) =>
+          c.includes("quartal") ||
+          c.includes("program kerja") ||
+          c.includes("proker") ||
+          c.includes("kegiatan") ||
+          c.includes("tujuan")
+      ).length;
+      if (cocok >= 2) {
         headerRowIdx = i;
         break;
+      }
+      // Tahun diambil dari baris pertama di atas header yang memuat tahun (judul),
+      // bukan dari baris info tanggal ekspor
+      const yrMatch = rawRows[i].join(" ").match(/\b(20\d{2})\b/);
+      if (yrMatch && !tahunDariJudul) {
+        detectedYear = parseInt(yrMatch[1], 10);
+        tahunDariJudul = true;
       }
     }
 
@@ -824,7 +831,7 @@ export default function ProgramKerjaPage() {
   };
 
   // ==================== 5. EXPORT & TEMPLATE DOWNLOAD ====================
-  const handleExportExcel = (exportAll = false) => {
+  const handleExportExcel = async (exportAll = false) => {
     const dataToExport = exportAll ? records : yearRecords;
     if (dataToExport.length === 0) {
       toast.warning("Tidak ada data untuk diekspor.");
@@ -837,147 +844,116 @@ export default function ProgramKerjaPage() {
       return a.quartal.localeCompare(b.quartal);
     });
 
-    const worksheetData: any[][] = [
-      [`PROGRAM KERJA ACTUAL Design & Multimedia ${exportAll ? "Semua Tahun" : selectedYear}`],
-      [],
-      [],
-      [
-        "Quartal",
-        "Program Kerja",
-        "Tujuan",
-        "Realisasi",
-        "Realisasi Aktual",
-        "Status",
-        "Progress",
-        "PIC",
-        "Deadline",
-        "Risiko/Kendala",
-        "Keterangan",
-      ],
-    ];
+    try {
+      const wb = await bukuBaru();
+      const ws = wb.addWorksheet(exportAll ? "Program Kerja All" : `Proker ${selectedYear}`);
+      const columns: Col[] = [
+        { key: "q", header: "Quartal", width: 18, type: "text", wrap: true },
+        { key: "program", header: "Program Kerja", width: 36, type: "text", wrap: true },
+        { key: "tujuan", header: "Tujuan", width: 32, type: "text", wrap: true },
+        { key: "realisasi", header: "Realisasi", width: 32, type: "text", wrap: true },
+        { key: "aktual", header: "Realisasi Aktual", width: 16, type: "text", wrap: true },
+        { key: "status", header: "Status", width: 14, type: "text", center: true, badge: badgeStatus },
+        { key: "progress", header: "Progress", width: 10, type: "pct" },
+        { key: "pic", header: "PIC", width: 22, type: "text", wrap: true },
+        { key: "deadline", header: "Deadline", width: 18, type: "text", wrap: true },
+        { key: "risiko", header: "Risiko/Kendala", width: 28, type: "text", wrap: true },
+        { key: "ket", header: "Keterangan", width: 28, type: "text", wrap: true },
+      ];
+      // Baris 1 memuat tahun & kata "Program Kerja Actual" — dibaca importer saat file di-import ulang
+      sheetHeader(
+        ws,
+        `PROGRAM KERJA ACTUAL Design & Multimedia ${exportAll ? "Semua Tahun" : selectedYear}`,
+        "Daftar program kerja beserta progresnya. Kolom sama dengan template, jadi file ini bisa di-import kembali.",
+        infoEkspor([`${sorted.length} program`]),
+        columns.length
+      );
+      const avgProgress = sorted.reduce((a, r) => a + (Number(r.progress) || 0), 0) / sorted.length;
+      writeTable(ws, {
+        startRow: 5,
+        columns,
+        rows: sorted.map((r) => ({
+          values: [
+            r.quartal_fokus ? `${r.quartal}\n\nFokus: ${r.quartal_fokus}` : r.quartal,
+            r.program_kerja,
+            r.tujuan || "",
+            r.realisasi || "",
+            r.realisasi_aktual || "",
+            r.status || "",
+            pct(Number(r.progress) || 0),
+            r.pic || "",
+            r.deadline || "",
+            r.risiko_kendala || "",
+            r.keterangan || "",
+          ],
+        })),
+        freezeCols: 2,
+        totalLabel: "RINGKASAN",
+        total: (c, a, b) => [
+          // kolom Program Kerja sengaja kosong: importer melewati baris tanpa program
+          null,
+          "",
+          { formula: `SUBTOTAL(103,${c("program")}${a}:${c("program")}${b})&" program kerja"`, result: `${sorted.length} program kerja` },
+          "", "", "Rata-rata",
+          avg(c("progress"), a, b, avgProgress / 100),
+          "", "", "", "",
+        ],
+      });
 
-    sorted.forEach((r) => {
-      const quartalLabel = r.quartal_fokus ? `${r.quartal}\n\nFokus: ${r.quartal_fokus}` : r.quartal;
-      worksheetData.push([
-        quartalLabel,
-        r.program_kerja,
-        r.tujuan || "",
-        r.realisasi || "",
-        r.realisasi_aktual || "",
-        r.status || "",
-        `${r.progress}%`,
-        r.pic || "",
-        r.deadline || "",
-        r.risiko_kendala || "",
-        r.keterangan || "",
-      ]);
-    });
-
-    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-    worksheet["!cols"] = [
-      { wch: 18 }, // Quartal
-      { wch: 38 }, // Program Kerja
-      { wch: 35 }, // Tujuan
-      { wch: 35 }, // Realisasi
-      { wch: 16 }, // Realisasi Aktual
-      { wch: 14 }, // Status
-      { wch: 10 }, // Progress
-      { wch: 22 }, // PIC
-      { wch: 22 }, // Deadline
-      { wch: 30 }, // Risiko/Kendala
-      { wch: 30 }, // Keterangan
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    const sheetName = exportAll ? "Program Kerja All" : `Proker ${selectedYear}`;
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-
-    const fileName = exportAll
-      ? `Program_Kerja_Design_Multimedia_Semua_Tahun.xlsx`
-      : `Program_Kerja_Design_Multimedia_${selectedYear}.xlsx`;
-
-    XLSX.writeFile(workbook, fileName);
-    toast.success(`Data berhasil diekspor ke ${fileName}`);
+      const fileName = exportAll
+        ? `Program_Kerja_Design_Multimedia_Semua_Tahun.xlsx`
+        : `Program_Kerja_Design_Multimedia_${selectedYear}.xlsx`;
+      await unduhWorkbook(wb, fileName, [XC.permintaan]);
+      toast.success(`Data berhasil diekspor ke ${fileName}`);
+    } catch (err: any) {
+      toast.error("Gagal mengekspor Excel: " + (err?.message || ""));
+    }
   };
 
-  const handleDownloadTemplate = () => {
-    const templateData: any[][] = [
-      [`PROGRAM KERJA ACTUAL Design & Multimedia 2027`],
-      [],
-      [],
-      [
-        "Quartal",
-        "Program Kerja",
-        "Tujuan",
-        "Realisasi",
-        "Realisasi Aktual",
-        "Status",
-        "Progress",
-        "PIC",
-        "Deadline",
-        "Risiko/Kendala",
-        "Keterangan",
-      ],
-      [
-        "Quartal 1\n\nFokus: Perencanaan & Setup",
-        "Audit dan Pembaharuan Aset Digital",
-        "Merapikan struktur file & aset cloud tahun baru",
-        "Audit Google Drive dan Server Desain",
-        "Proses",
-        "Planned",
-        "50%",
-        "Designer & Multimedia",
-        "Week 2 Januari",
-        "",
-        "Folder 2027 sudah disiapkan",
-      ],
-      [
-        "Quartal 1",
-        "Produksi Konten Marketing Q1",
-        "Meningkatkan engagement sosial media",
-        "Pembuatan 10 banner promosi produk",
-        "Proses",
-        "In Progress",
-        "80%",
-        "Designer",
-        "Week 3 Januari",
-        "",
-        "",
-      ],
-      [
-        "Quartal 2\n\nFokus: Kampanye & Iklan",
-        "Kampanye Produk Semester 1",
-        "Dukungan materi iklan digital",
-        "Shooting dan editing video promosi",
-        "Belum dimulai",
-        "Planned",
-        "0%",
-        "Multimedia",
-        "Week 1 April",
-        "",
-        "",
-      ],
-    ];
-
-    const worksheet = XLSX.utils.aoa_to_sheet(templateData);
-    worksheet["!cols"] = [
-      { wch: 20 },
-      { wch: 35 },
-      { wch: 32 },
-      { wch: 32 },
-      { wch: 15 },
-      { wch: 14 },
-      { wch: 10 },
-      { wch: 22 },
-      { wch: 20 },
-      { wch: 25 },
-      { wch: 25 },
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Template Proker");
-    XLSX.writeFile(workbook, "Template_Program_Kerja_Tahunan.xlsx");
-    toast.success("Template Excel Program Kerja berhasil diunduh.");
+  const handleDownloadTemplate = async () => {
+    try {
+      const wb = await bukuBaru();
+      const ws = wb.addWorksheet("Template Proker");
+      // Struktur sama seperti sebelumnya: judul bertahun di baris 1, header di baris 4
+      ws.mergeCells(1, 1, 1, 11);
+      const t = ws.getCell(1, 1);
+      t.value = "PROGRAM KERJA ACTUAL Design & Multimedia 2027";
+      t.font = { name: FONT, size: 15, bold: true, color: { argb: XC.white } };
+      t.fill = solid(XC.navy);
+      t.alignment = { vertical: "middle", indent: 1 };
+      ws.getRow(1).height = 30;
+      ws.mergeCells(2, 1, 2, 11);
+      const n = ws.getCell(2, 1);
+      n.value = "Ganti tahun di judul sesuai tahun program. Hapus baris contoh (miring abu) sebelum diisi. Progress boleh ditulis 50 atau 50%.";
+      n.font = { name: FONT, size: 10, italic: true, color: { argb: XC.muted } };
+      n.alignment = { indent: 1 };
+      writeTemplate(
+        ws,
+        [
+          { header: "Quartal", width: 20 },
+          { header: "Program Kerja", width: 35 },
+          { header: "Tujuan", width: 32 },
+          { header: "Realisasi", width: 32 },
+          { header: "Realisasi Aktual", width: 15 },
+          { header: "Status", width: 14 },
+          { header: "Progress", width: 10 },
+          { header: "PIC", width: 22 },
+          { header: "Deadline", width: 20 },
+          { header: "Risiko/Kendala", width: 25 },
+          { header: "Keterangan", width: 25 },
+        ],
+        [
+          ["Quartal 1\n\nFokus: Perencanaan & Setup", "Audit dan Pembaharuan Aset Digital", "Merapikan struktur file & aset cloud tahun baru", "Audit Google Drive dan Server Desain", "Proses", "Planned", "50%", "Designer & Multimedia", "Week 2 Januari", "", "Folder 2027 sudah disiapkan"],
+          ["Quartal 1", "Produksi Konten Marketing Q1", "Meningkatkan engagement sosial media", "Pembuatan 10 banner promosi produk", "Proses", "In Progress", "80%", "Designer", "Week 3 Januari", "", ""],
+          ["Quartal 2\n\nFokus: Kampanye & Iklan", "Kampanye Produk Semester 1", "Dukungan materi iklan digital", "Shooting dan editing video promosi", "Belum dimulai", "Planned", "0%", "Multimedia", "Week 1 April", "", ""],
+        ],
+        4
+      );
+      await unduhWorkbook(wb, "Template_Program_Kerja_Tahunan.xlsx", [XC.permintaan]);
+      toast.success("Template Excel Program Kerja berhasil diunduh.");
+    } catch (err: any) {
+      toast.error("Gagal membuat template: " + (err?.message || ""));
+    }
   };
 
   const handleCopySql = () => {

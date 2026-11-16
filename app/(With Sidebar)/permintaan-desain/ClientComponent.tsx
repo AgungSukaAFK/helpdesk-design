@@ -92,6 +92,10 @@ import {
   type Role,
 } from "@/lib/permintaan-workflow";
 import { cn, formatDateDisplay, getTodayDate, shiftDate } from "@/lib/utils";
+import {
+  BADGE, XC, badgeStatus, bukuBaru, infoEkspor, pct, sheetHeader, tglExcel, unduhWorkbook, writeRingkasan, writeTable,
+  type Col,
+} from "@/lib/excel/tema";
 
 interface Permintaan {
   id: string;
@@ -468,98 +472,103 @@ export default function PermintaanList() {
       const rows = json.data || [];
       const stats = json.stats || monthStats;
 
-      const excelData = rows.map((item: any, i: number) => ({
-        No: i + 1,
-        "Periode Bulan": selectedMonth === "all" ? "Semua Periode" : formatMonthPeriod(selectedMonth),
-        "Tanggal Dibuat": item.created_at
-          ? new Date(item.created_at).toLocaleDateString("id-ID", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "-",
-        "Target Selesai (Due Date)": item.due_date
-          ? new Date(item.due_date).toLocaleDateString("id-ID", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })
-          : "-",
-        "Judul Permintaan": item.judul,
-        "Kategori Desain": item.category || "-",
-        "Hasil": item.hasil_label || "-",
-        "Jenis Proyek": item.project,
-        "Departemen / Departemen": item.departemen,
-        "Peminta / Pelapor": item.requester_name || "Pelapor",
-        Desainer: item.admin_name || "-",
-        Status: item.status,
-        "Jumlah Revisi": item.revision_count ?? 0,
-        "Revisi Terakhir": item.revision_at
-          ? new Date(item.revision_at).toLocaleString("id-ID", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "-",
-        "Deskripsi / Kendala": item.deskripsi,
-      }));
+      const periodeLabel = selectedDate
+        ? formatDateDisplay(selectedDate)
+        : selectedMonth === "all"
+          ? "Semua Periode"
+          : formatMonthPeriod(selectedMonth);
+      const info = infoEkspor([`Periode ${periodeLabel}`, `${rows.length} tiket`]);
+      const wb = await bukuBaru();
 
-      const wb = XLSX.utils.book_new();
+      // Sheet 1: Ringkasan hasil & kategori
+      const wsSummary = wb.addWorksheet("Ringkasan & Kategori");
+      sheetHeader(wsSummary, `Ringkasan Permintaan Desain — ${periodeLabel}`, "Hasil pengerjaan dan sebaran kategori desain sesuai filter halaman.", info, 4);
+      const totalTiket = stats.kategori?.totalTiket ?? rows.length;
+      const kat = (n: number | undefined) => [n ?? 0, totalTiket > 0 ? (n ?? 0) / totalTiket : null];
+      writeRingkasan(wsSummary, {
+        startRow: 5,
+        kolomNilai: ["Jumlah", "Persentase"],
+        lebar: [34, 14, 14, 44],
+        bagian: [
+          {
+            judul: "HASIL PENGERJAAN",
+            warna: XC.kpi,
+            baris: [
+              { label: "Tercapai", nilai: [stats.hasil?.tercapai ?? 0, pct(stats.hasil?.tercapaiPct ?? 0)], tipe: ["int", "pct"], ket: "Tiket selesai sesuai target", badge: BADGE.hijau },
+              { label: "Tidak Tercapai", nilai: [stats.hasil?.tidakTercapai ?? 0, pct(stats.hasil?.tidakTercapaiPct ?? 0)], tipe: ["int", "pct"], ket: "Tiket melewati target", badge: BADGE.merah },
+            ],
+          },
+          {
+            judul: "KATEGORI DESAIN",
+            warna: XC.permintaan,
+            baris: [
+              { label: "Design Cetak", nilai: kat(stats.kategori?.designCetak), tipe: ["int", "pct"] },
+              { label: "Design Digital", nilai: kat(stats.kategori?.designDigital), tipe: ["int", "pct"] },
+              { label: "Editing Foto", nilai: kat(stats.kategori?.editingFoto), tipe: ["int", "pct"] },
+              { label: "Editing Video", nilai: kat(stats.kategori?.editingVideo), tipe: ["int", "pct"] },
+              { label: "Total Tiket", nilai: [totalTiket, totalTiket > 0 ? 1 : null], tipe: ["int", "pct"] },
+            ],
+          },
+        ],
+      });
+      wsSummary.views = [{ showGridLines: false }];
 
-      // Sheet 1: Ringkasan Hasil & Kategori Desain (Sesuai Format Excel Pengguna)
-      const summaryRows = [
-        ["LAPORAN RINGKASAN & PERHITUNGAN PERMINTAAN DESAIN"],
-        [
-          "Periode:",
-          selectedDate
-            ? formatDateDisplay(selectedDate)
-            : selectedMonth === "all"
-              ? "Semua Periode"
-              : formatMonthPeriod(selectedMonth),
-        ],
-        [
-          "Tanggal Unduh:",
-          new Date().toLocaleDateString("id-ID", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        ],
-        [],
-        ["HASIL PENGERJAAN", "", ""],
-        ["Hasil", "Jumlah", "Persentase"],
-        ["Tercapai", stats.hasil?.tercapai ?? 0, `${stats.hasil?.tercapaiPct ?? 0}%`],
-        ["Tidak Tercapai", stats.hasil?.tidakTercapai ?? 0, `${stats.hasil?.tidakTercapaiPct ?? 0}%`],
-        [],
-        ["KATEGORI DESAIN", ""],
-        ["Kategori Desain", "Jumlah Tiket"],
-        ["Design Cetak", stats.kategori?.designCetak ?? 0],
-        ["Design Digital", stats.kategori?.designDigital ?? 0],
-        ["Editing Foto", stats.kategori?.editingFoto ?? 0],
-        ["Editing Video", stats.kategori?.editingVideo ?? 0],
-        ["Total tiket", stats.kategori?.totalTiket ?? rows.length],
+      // Sheet 2: Daftar tiket (nama kolom tetap, agar bisa di-import ulang)
+      const ws = wb.addWorksheet(selectedMonth === "all" ? "Semua Tiket" : "Daftar Tiket");
+      const columns: Col[] = [
+        { key: "no", header: "No", width: 6, type: "int" },
+        { key: "periode", header: "Periode Bulan", width: 15, type: "text" },
+        { key: "dibuat", header: "Tanggal Dibuat", width: 18, type: "datetime" },
+        { key: "due", header: "Target Selesai (Due Date)", width: 15, type: "date" },
+        { key: "judul", header: "Judul Permintaan", width: 38, type: "text", wrap: true },
+        { key: "kategori", header: "Kategori Desain", width: 16, type: "text" },
+        { key: "hasil", header: "Hasil", width: 15, type: "text", center: true, badge: badgeStatus },
+        { key: "project", header: "Jenis Proyek", width: 18, type: "text", wrap: true },
+        { key: "dept", header: "Departemen / Departemen", width: 18, type: "text" },
+        { key: "peminta", header: "Peminta / Pelapor", width: 22, type: "text" },
+        { key: "desainer", header: "Desainer", width: 22, type: "text" },
+        { key: "status", header: "Status", width: 14, type: "text", center: true, badge: badgeStatus },
+        { key: "revisi", header: "Jumlah Revisi", width: 10, type: "int" },
+        { key: "revAt", header: "Revisi Terakhir", width: 18, type: "datetime" },
+        { key: "desk", header: "Deskripsi / Kendala", width: 48, type: "text", wrap: true },
       ];
-
-      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
-      XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan & Kategori");
-
-      // Sheet 2: Detail Tiket
-      const wsData = XLSX.utils.json_to_sheet(excelData);
-      const sheetName = selectedMonth === "all" ? "Semua Tiket" : `Daftar Tiket`;
-      XLSX.utils.book_append_sheet(wb, wsData, sheetName);
+      sheetHeader(ws, `Daftar Permintaan Desain — ${periodeLabel}`, "Seluruh tiket sesuai filter halaman. Kolom sama dengan format import, jadi file ini bisa di-import kembali.", info, columns.length);
+      writeTable(ws, {
+        startRow: 5,
+        groups: [
+          { label: "Waktu", span: 4, color: XC.periode },
+          { label: "Permintaan", span: 6, color: XC.permintaan },
+          { label: "Pengerjaan", span: 5, color: XC.kpi },
+        ],
+        columns,
+        rows: rows.map((item: any, i: number) => ({
+          values: [
+            i + 1,
+            selectedMonth === "all" ? "Semua Periode" : formatMonthPeriod(selectedMonth),
+            tglExcel(item.created_at),
+            tglExcel(item.due_date, false),
+            item.judul,
+            item.category || "-",
+            item.hasil_label || "-",
+            item.project,
+            item.departemen,
+            item.requester_name || "Pelapor",
+            item.admin_name || "-",
+            item.status,
+            item.revision_count ?? 0,
+            tglExcel(item.revision_at),
+            item.deskripsi,
+          ],
+        })),
+        freezeCols: 1,
+      });
 
       const fileNamePeriod = selectedDate
         ? selectedDate
         : selectedMonth === "all"
           ? "Semua_Periode"
           : formatMonthPeriod(selectedMonth).replace(/\s+/g, "_");
-      XLSX.writeFile(wb, `Laporan_Permintaan_Desain_${fileNamePeriod}.xlsx`);
+      await unduhWorkbook(wb, `Laporan_Permintaan_Desain_${fileNamePeriod}.xlsx`, [XC.kpi, XC.permintaan]);
       toast.success(`Excel berhasil diunduh (${rows.length} tiket)`);
     } catch (e: any) {
       toast.error("Gagal export: " + e.message);
