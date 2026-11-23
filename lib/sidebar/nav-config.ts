@@ -7,6 +7,7 @@ import {
   BookOpen,
   Bot,
   CalendarCheck2,
+  CalendarDays,
   ClipboardCheck,
   Clock,
   FileBox,
@@ -73,6 +74,7 @@ export function buildNavGroups(role?: string | null): NavGroup[] {
         { title: "Daily Activity", url: "/daily-activity", icon: CalendarCheck2, visible: isStaff },
         { title: "Safety Toolbox Meeting HSE", url: "/safety-toolbox-meeting-hse", icon: ShieldCheck, visible: isAdmin },
         { title: "Program Kerja", url: "/program-kerja", icon: FolderKanban, visible: isAdmin },
+        { title: "Timeline Creative Tim", url: "/timeline", icon: CalendarDays, visible: isAdmin },
       ],
     },
     {
