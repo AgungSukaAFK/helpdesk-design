@@ -120,11 +120,8 @@ interface Permintaan {
   revision_at?: string | null;
   revision_count?: number | null;
   done_at?: string | null;
-<<<<<<< HEAD
   bast_status?: "DITERIMA" | "MENUNGGU" | null;
-=======
   cetak?: unknown;
->>>>>>> 10d3a2b (Penambahan fitur generate PPT)
 }
 
 interface MonthStats {

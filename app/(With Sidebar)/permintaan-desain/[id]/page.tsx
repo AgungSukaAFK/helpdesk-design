@@ -86,13 +86,10 @@ import { cn } from "@/lib/utils";
 import { FileDropArea, FileDropzone } from "@/components/file-drop";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { downloadFile } from "@/lib/permintaan-files";
-<<<<<<< HEAD
 import { DokumenTerkait } from "@/components/dokumen-desain/dokumen-terkait";
 import { BastTerkait } from "@/components/bast/bast-terkait";
-=======
 import { CetakDialogs, CetakTracker, type CetakDialogKind } from "@/components/permintaan-cetak";
 import { isProyekCetak, normalizeCetak, tahapBerikutnya, type DataCetak } from "@/lib/permintaan-cetak";
->>>>>>> 10d3a2b (Penambahan fitur generate PPT)
 
 // --- TIPE DATA ---
 

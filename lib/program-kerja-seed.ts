@@ -27,11 +27,27 @@ export const CANONICAL_QUARTALS = [
 
 export function normalizeQuartal(raw: string): string {
   if (!raw) return "Quartal 1";
-  const str = String(raw).trim().toLowerCase();
-  if (str.includes("1") || str.includes("q1")) return "Quartal 1";
-  if (str.includes("2") || str.includes("q2")) return "Quartal 2";
-  if (str.includes("3") || str.includes("q3")) return "Quartal 3";
-  if (str.includes("4") || str.includes("q4")) return "Quartal 4";
+  // Strip 4-digit years (e.g. 2026, 2027) so their digits don't interfere
+  const str = String(raw).trim().toLowerCase().replace(/\b(19|20)\d{2}\b/g, "").trim();
+
+  // Explicit keyword + number patterns (checked 4→1 so "Quartal 4" isn't misread as 1)
+  if (/(?:q|quartal|kuartal|quarter|triwulan|tw)[\s._-]*4\b/.test(str)) return "Quartal 4";
+  if (/(?:q|quartal|kuartal|quarter|triwulan|tw)[\s._-]*3\b/.test(str)) return "Quartal 3";
+  if (/(?:q|quartal|kuartal|quarter|triwulan|tw)[\s._-]*2\b/.test(str)) return "Quartal 2";
+  if (/(?:q|quartal|kuartal|quarter|triwulan|tw)[\s._-]*1\b/.test(str)) return "Quartal 1";
+
+  // Roman numerals after keyword
+  if (/(?:quartal|kuartal|quarter|triwulan|tw)[\s._-]*iv\b/.test(str)) return "Quartal 4";
+  if (/(?:quartal|kuartal|quarter|triwulan|tw)[\s._-]*iii\b/.test(str)) return "Quartal 3";
+  if (/(?:quartal|kuartal|quarter|triwulan|tw)[\s._-]*ii\b/.test(str)) return "Quartal 2";
+  if (/(?:quartal|kuartal|quarter|triwulan|tw)[\s._-]*i\b/.test(str)) return "Quartal 1";
+
+  // Standalone digit after year removal
+  if (/\b4\b/.test(str)) return "Quartal 4";
+  if (/\b3\b/.test(str)) return "Quartal 3";
+  if (/\b2\b/.test(str)) return "Quartal 2";
+  if (/\b1\b/.test(str)) return "Quartal 1";
+
   return "Quartal 1";
 }
 

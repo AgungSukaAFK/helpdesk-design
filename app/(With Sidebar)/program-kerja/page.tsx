@@ -832,9 +832,6 @@ export default function ProgramKerjaPage() {
   };
 
   // ==================== 5. EXPORT & TEMPLATE DOWNLOAD ====================
-<<<<<<< HEAD
-  const handleExportExcel = async (exportAll = false) => {
-=======
   const [isExportingPptx, setIsExportingPptx] = useState(false);
   const handleExportPptx = async () => {
     if (yearRecords.length === 0) {
@@ -853,8 +850,7 @@ export default function ProgramKerjaPage() {
     }
   };
 
-  const handleExportExcel = (exportAll = false) => {
->>>>>>> 10d3a2b (Penambahan fitur generate PPT)
+  const handleExportExcel = async (exportAll = false) => {
     const dataToExport = exportAll ? records : yearRecords;
     if (dataToExport.length === 0) {
       toast.warning("Tidak ada data untuk diekspor.");
@@ -934,13 +930,15 @@ export default function ProgramKerjaPage() {
   };
 
   const handleDownloadTemplate = async () => {
+    // Tahun template = tahun yang sedang aktif + 1 (untuk perencanaan tahun depan)
+    const templateYear = selectedYear + 1;
     try {
       const wb = await bukuBaru();
       const ws = wb.addWorksheet("Template Proker");
       // Struktur sama seperti sebelumnya: judul bertahun di baris 1, header di baris 4
       ws.mergeCells(1, 1, 1, 11);
       const t = ws.getCell(1, 1);
-      t.value = "PROGRAM KERJA ACTUAL Design & Multimedia 2027";
+      t.value = `PROGRAM KERJA ACTUAL Design & Multimedia ${templateYear}`;
       t.font = { name: FONT, size: 15, bold: true, color: { argb: XC.white } };
       t.fill = solid(XC.navy);
       t.alignment = { vertical: "middle", indent: 1 };
@@ -966,13 +964,15 @@ export default function ProgramKerjaPage() {
           { header: "Keterangan", width: 25 },
         ],
         [
-          ["Quartal 1\n\nFokus: Perencanaan & Setup", "Audit dan Pembaharuan Aset Digital", "Merapikan struktur file & aset cloud tahun baru", "Audit Google Drive dan Server Desain", "Proses", "Planned", "50%", "Designer & Multimedia", "Week 2 Januari", "", "Folder 2027 sudah disiapkan"],
+          ["Quartal 1\n\nFokus: Perencanaan & Setup", "Audit dan Pembaharuan Aset Digital", "Merapikan struktur file & aset cloud tahun baru", "Audit Google Drive dan Server Desain", "Proses", "Planned", "50%", "Designer & Multimedia", "Week 2 Januari", "", `Folder ${templateYear} sudah disiapkan`],
           ["Quartal 1", "Produksi Konten Marketing Q1", "Meningkatkan engagement sosial media", "Pembuatan 10 banner promosi produk", "Proses", "In Progress", "80%", "Designer", "Week 3 Januari", "", ""],
           ["Quartal 2\n\nFokus: Kampanye & Iklan", "Kampanye Produk Semester 1", "Dukungan materi iklan digital", "Shooting dan editing video promosi", "Belum dimulai", "Planned", "0%", "Multimedia", "Week 1 April", "", ""],
+          ["Quartal 3\n\nFokus: Evaluasi & Review", "Review Kinerja Semester 1", "Evaluasi capaian program H1", "Rekapitulasi progress seluruh proker", "Belum dimulai", "Planned", "0%", "Designer & Multimedia", "Week 1 Juli", "", ""],
+          ["Quartal 4\n\nFokus: Closing & Laporan", "Laporan Akhir Tahun", "Penyusunan laporan tahunan departemen", "Kompilasi seluruh dokumentasi", "Belum dimulai", "Planned", "0%", "Designer & Multimedia", "Week 3 Desember", "", ""],
         ],
         4
       );
-      await unduhWorkbook(wb, "Template_Program_Kerja_Tahunan.xlsx", [XC.permintaan]);
+      await unduhWorkbook(wb, `Template_Program_Kerja_${templateYear}.xlsx`, [XC.permintaan]);
       toast.success("Template Excel Program Kerja berhasil diunduh.");
     } catch (err: any) {
       toast.error("Gagal membuat template: " + (err?.message || ""));
@@ -1818,7 +1818,7 @@ notify pgrst, 'reload schema';`;
 
       {/* ==================== 5. MODAL IMPORT EXCEL / CSV PER-TAHUN ==================== */}
       <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileUp className="size-5 text-emerald-600" />
@@ -1892,31 +1892,31 @@ notify pgrst, 'reload schema';`;
                 </span>
                 <span className="text-xs text-muted-foreground">Menampilkan 5 baris pertama</span>
               </div>
-              <div className="border rounded-xl overflow-hidden max-h-60">
+              <div className="border rounded-xl overflow-hidden">
                 <div className="max-h-60 overflow-y-auto">
                   <div className="overflow-x-auto">
                     <Table>
-                  <TableHeader className="bg-muted text-[11px]">
-                    <TableRow>
-                      <TableHead className="w-[100px] min-w-[90px]">Quartal</TableHead>
-                      <TableHead className="min-w-[180px]">Program Kerja</TableHead>
-                      <TableHead className="w-[100px] text-center whitespace-nowrap">Status</TableHead>
-                      <TableHead className="w-[80px] text-center whitespace-nowrap">Progress</TableHead>
-                      <TableHead className="min-w-[120px]">PIC</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody className="text-xs">
-                    {importPreviewRows.slice(0, 5).map((row, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="font-semibold align-top whitespace-normal break-words">{row.quartal}</TableCell>
-                        <TableCell className="align-top whitespace-normal break-words [overflow-wrap:anywhere]">{row.program_kerja}</TableCell>
-                        <TableCell className="align-top text-center whitespace-nowrap">{row.status}</TableCell>
-                        <TableCell className="align-top text-center font-bold whitespace-nowrap">{row.progress}%</TableCell>
-                        <TableCell className="align-top whitespace-normal break-words [overflow-wrap:anywhere]">{row.pic}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                      <TableHeader className="bg-muted text-[11px]">
+                        <TableRow>
+                          <TableHead className="w-[100px] min-w-[90px]">Quartal</TableHead>
+                          <TableHead className="min-w-[180px]">Program Kerja</TableHead>
+                          <TableHead className="w-[100px] text-center whitespace-nowrap">Status</TableHead>
+                          <TableHead className="w-[80px] text-center whitespace-nowrap">Progress</TableHead>
+                          <TableHead className="min-w-[120px]">PIC</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody className="text-xs">
+                        {importPreviewRows.slice(0, 5).map((row, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="font-semibold align-top whitespace-normal break-words">{row.quartal}</TableCell>
+                            <TableCell className="align-top whitespace-normal break-words [overflow-wrap:anywhere]">{row.program_kerja}</TableCell>
+                            <TableCell className="align-top text-center whitespace-nowrap">{row.status}</TableCell>
+                            <TableCell className="align-top text-center font-bold whitespace-nowrap">{row.progress}%</TableCell>
+                            <TableCell className="align-top whitespace-normal break-words [overflow-wrap:anywhere]">{row.pic}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               </div>
@@ -1956,7 +1956,7 @@ notify pgrst, 'reload schema';`;
 
       {/* ==================== 6. MODAL TAMBAH / EDIT PROGRAM KERJA ==================== */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FolderKanban className="size-5 text-primary" />

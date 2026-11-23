@@ -141,28 +141,6 @@ export function RekapBulananPage() {
     }
   };
 
-<<<<<<< HEAD
-  const handleExportPpt = async () => {
-    setExportingPpt(true);
-    try {
-      const res = await fetch(`/api/rekap-bulanan/deck?year=${year}&month=${selectedMonth}`);
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json.error || "Gagal membuat PPT");
-      }
-      const fileName = `Rekap-Bulanan-${year}-${selectedMonth}.pptx`;
-      const url = URL.createObjectURL(await res.blob());
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success(`Berhasil membuat ${fileName}`);
-    } catch (error: any) {
-      toast.error("Gagal membuat PPT: " + (error?.message || ""));
-    } finally {
-      setExportingPpt(false);
-=======
   const [exportingPptx, setExportingPptx] = useState<boolean>(false);
   const handleExportPptx = async () => {
     if (!rekap) return;
@@ -175,7 +153,6 @@ export function RekapBulananPage() {
       toast.error("Gagal membuat PPTX: " + (error?.message || ""));
     } finally {
       setExportingPptx(false);
->>>>>>> 10d3a2b (Penambahan fitur generate PPT)
     }
   };
 
@@ -466,30 +443,17 @@ export function RekapBulananPage() {
             </button>
 
             <button
-<<<<<<< HEAD
-              onClick={handleExportPpt}
-              disabled={exportingPpt}
-              title={`Buat presentasi untuk ${MONTH_NAMES_ID[Number(selectedMonth) - 1]} ${year}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-300 bg-orange-50/70 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-950/60 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {exportingPpt ? (
-=======
               onClick={handleExportPptx}
               disabled={exportingPptx}
               title={`Presentasi gaya QCC untuk bulan ${MONTH_NAMES_ID[Number(selectedMonth) - 1] ?? "terakhir yang berisi data"}`}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-300 bg-orange-50/70 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-950/60 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
               {exportingPptx ? (
->>>>>>> 10d3a2b (Penambahan fitur generate PPT)
                 <Loader2 className="size-3.5 animate-spin" />
               ) : (
                 <Presentation className="size-3.5 text-orange-600 dark:text-orange-400" />
               )}
-<<<<<<< HEAD
-              Generate PPT ({MONTH_NAMES_ID[Number(selectedMonth) - 1]})
-=======
               Export PPTX QCC ({MONTH_NAMES_ID[Number(selectedMonth) - 1] ?? "bulan terakhir"})
->>>>>>> 10d3a2b (Penambahan fitur generate PPT)
             </button>
 
             <Link
