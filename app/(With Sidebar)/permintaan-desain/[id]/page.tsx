@@ -86,8 +86,13 @@ import { cn } from "@/lib/utils";
 import { FileDropArea, FileDropzone } from "@/components/file-drop";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { downloadFile } from "@/lib/permintaan-files";
+<<<<<<< HEAD
 import { DokumenTerkait } from "@/components/dokumen-desain/dokumen-terkait";
 import { BastTerkait } from "@/components/bast/bast-terkait";
+=======
+import { CetakDialogs, CetakTracker, type CetakDialogKind } from "@/components/permintaan-cetak";
+import { isProyekCetak, normalizeCetak, tahapBerikutnya, type DataCetak } from "@/lib/permintaan-cetak";
+>>>>>>> 10d3a2b (Penambahan fitur generate PPT)
 
 // --- TIPE DATA ---
 
@@ -145,6 +150,7 @@ interface PermintaanDetail {
   revision_at?: string | null;
   revision_count?: number | null;
   done_at?: string | null;
+  cetak?: DataCetak | null;
   riwayat?: RiwayatItem[];
 }
 
@@ -226,8 +232,10 @@ function riwayatLabel(r: RiwayatItem, revisionNo: number) {
       return isPengajuanRevisi(r) ? `Revisi ke-${revisionNo} diajukan` : "Revisi dilanjutkan";
     case "PENDING":
       return "Pengerjaan ditunda";
+    case "CETAK":
+      return r.status_from === "REVIEW" ? "Desain disetujui, masuk tahapan cetak" : "Kembali ke tahapan cetak";
     case "DONE":
-      return "Diterima & selesai";
+      return r.status_from === "CETAK" ? "BAST dikonfirmasi & selesai" : "Diterima & selesai";
     case "TO DO":
       return "Dikembalikan ke antrean";
     default:
@@ -262,6 +270,7 @@ export default function DetailPermintaanPage() {
   const [pendingStatus, setPendingStatus] = useState<string>("");
 
   const [isEditLanjutanOpen, setIsEditLanjutanOpen] = useState(false);
+  const [cetakDialog, setCetakDialog] = useState<CetakDialogKind>(null);
 
   // State Diskusi
   const [komentar, setKomentar] = useState<KomentarItem[]>([]);
@@ -356,7 +365,7 @@ export default function DetailPermintaanPage() {
   // --- AKSI ALUR KERJA (semua lewat server) ---
 
   const runAction = async (
-    action: WorkflowAction,
+    action: WorkflowAction | "ubah_spesifikasi",
     payload: Record<string, unknown> = {},
     successMessage: string,
   ) => {
@@ -562,6 +571,12 @@ export default function DetailPermintaanPage() {
   const canDeleteFile = role === "admin" || isPic;
   const fileCount = data.files?.length || 0;
   const revisionCount = data.revision_count ?? 0;
+  const proyekCetak = isProyekCetak(data.project);
+  const nextTahapCetak = proyekCetak ? tahapBerikutnya(data.cetak) : null;
+  const canActCetak =
+    (nextTahapCetak?.key === "review_design" && actions.includes("setujui_cetak")) ||
+    actions.includes("tahap_cetak") ||
+    actions.includes("bast");
 
   const riwayat = data.riwayat || [];
   const revisions = riwayat.filter(isPengajuanRevisi);
@@ -625,6 +640,18 @@ export default function DetailPermintaanPage() {
             fetchAllData();
             fetchKomentar(id);
           }}
+        />
+      )}
+
+      {proyekCetak && (
+        <CetakDialogs
+          open={cetakDialog}
+          onOpenChange={setCetakDialog}
+          permintaanId={id}
+          cetak={data.cetak}
+          isOwner={isOwner}
+          isSubmitting={isSubmitting}
+          runAction={runAction}
         />
       )}
 
@@ -850,7 +877,7 @@ export default function DetailPermintaanPage() {
             <StatusBadge status={status} />
           </div>
 
-          <WorkflowStepper status={status} data={data} />
+          <WorkflowStepper status={status} data={data} cetak={proyekCetak} />
 
           <WorkTimer status={status} riwayat={riwayat} />
         </div>
@@ -873,7 +900,18 @@ export default function DetailPermintaanPage() {
           onLanjutkan={handleLanjutkan}
           onRevisi={() => setIsRevisionOpen(true)}
           onSelesai={() => setIsFinishOpen(true)}
+          onCetak={setCetakDialog}
         />
+
+        {proyekCetak && (
+          <CetakTracker
+            status={status}
+            cetak={data.cetak}
+            canAct={canActCetak}
+            canEditSpesifikasi={actions.includes("ubah_spesifikasi")}
+            onOpen={setCetakDialog}
+          />
+        )}
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* KOLOM KIRI */}
@@ -1254,20 +1292,31 @@ function InfoRow({
   );
 }
 
-const STEPS: { key: PermintaanStatus; title: string; atKey: keyof PermintaanDetail }[] = [
-  { key: "TO DO", title: "Diajukan", atKey: "created_at" },
-  { key: "PROGRESS", title: "Dikerjakan", atKey: "progress_at" },
-  { key: "REVIEW", title: "Review Peminta", atKey: "review_at" },
-  { key: "DONE", title: "Selesai", atKey: "done_at" },
+type Step = { key: PermintaanStatus; title: string; at: (d: PermintaanDetail) => string | null | undefined };
+
+const STEPS_DASAR: Step[] = [
+  { key: "TO DO", title: "Diajukan", at: (d) => d.created_at },
+  { key: "PROGRESS", title: "Dikerjakan", at: (d) => d.progress_at },
+  { key: "REVIEW", title: "Review Peminta", at: (d) => d.review_at },
+  { key: "DONE", title: "Selesai", at: (d) => d.done_at },
+];
+
+const STEPS_CETAK: Step[] = [
+  ...STEPS_DASAR.slice(0, 3),
+  { key: "CETAK", title: "Proses Cetak", at: (d) => normalizeCetak(d.cetak).tahap?.review_design?.at },
+  STEPS_DASAR[3],
 ];
 
 function WorkflowStepper({
   status,
   data,
+  cetak,
 }: {
   status: PermintaanStatus;
   data: PermintaanDetail;
+  cetak: boolean;
 }) {
+  const STEPS = cetak ? STEPS_CETAK : STEPS_DASAR;
   // REVISION & PENDING berada di tahap "Dikerjakan" (desainer memperbaiki / menunda)
   const currentIdx =
     status === "REVISION" || status === "PENDING"
@@ -1278,11 +1327,11 @@ function WorkflowStepper({
   const pausedAt = status === "PENDING" ? riwayat[riwayat.length - 1]?.created_at : null;
 
   return (
-    <ol className="grid grid-cols-4 gap-2">
+    <ol className={cn("grid gap-2", cetak ? "grid-cols-5" : "grid-cols-4")}>
       {STEPS.map((step, idx) => {
         const done = idx < currentIdx || status === "DONE";
         const active = idx === currentIdx && status !== "DONE";
-        const at = data[step.atKey] as string | null | undefined;
+        const at = step.at(data);
         const isRevisionStep = idx === 1 && status === "REVISION";
         const isPausedStep = idx === 1 && status === "PENDING";
         return (
@@ -1349,6 +1398,7 @@ function NextStepPanel({
   onLanjutkan,
   onRevisi,
   onSelesai,
+  onCetak,
 }: {
   status: PermintaanStatus;
   data: PermintaanDetail;
@@ -1366,8 +1416,10 @@ function NextStepPanel({
   onLanjutkan: () => void;
   onRevisi: () => void;
   onSelesai: () => void;
+  onCetak: (kind: CetakDialogKind) => void;
 }) {
   const designerName = data.admin_data?.name || "Desainer";
+  const proyekCetak = isProyekCetak(data.project);
   const requesterName = data.requester_data?.name || "Peminta";
   const isWorker = isPic || role === "admin";
 
@@ -1415,13 +1467,29 @@ function NextStepPanel({
       description = isOwner ? "Anda akan diberi notifikasi saat pengerjaan dilanjutkan." : "";
     }
   } else if (status === "REVIEW") {
-    if (isOwner) {
+    if (isOwner && proyekCetak) {
+      tone = "action";
+      title = "Review Design sebelum dicetak";
+      description = `Cek file di bagian Lampiran${fileCount ? ` (${fileCount} file)` : ""} dengan teliti — setelah disetujui, desain langsung diproses ke percetakan. Ajukan revisi jika masih ada yang salah.`;
+    } else if (isOwner) {
       tone = "action";
       title = "Hasil siap — giliran Anda mengecek";
       description = `Cek file di bagian Lampiran${fileCount ? ` (${fileCount} file)` : ""}. Terima jika sudah sesuai, atau ajukan revisi jika masih perlu perbaikan.`;
     } else {
       title = `Menunggu ${requesterName} mengecek hasil`;
       description = "Peminta akan menerima hasil atau mengajukan revisi.";
+    }
+  } else if (status === "CETAK") {
+    const next = tahapBerikutnya(data.cetak);
+    if (actions.includes("tahap_cetak") || actions.includes("bast")) {
+      tone = "action";
+      title = next ? `Tahap cetak berikutnya: ${next.label}` : "Tahapan cetak";
+      description = next?.deskripsi ?? "";
+    } else {
+      title = next?.pelaku === "peminta"
+        ? `Menunggu ${requesterName} konfirmasi serah terima (BAST)`
+        : `Tim Design memproses cetak${next ? ` — ${next.label}` : ""}`;
+      description = isOwner ? "Anda akan diberi notifikasi di setiap tahap cetak." : "";
     }
   } else {
     tone = "done";
@@ -1435,6 +1503,8 @@ function NextStepPanel({
 
   const showRevisi = actions.includes("revisi") && (isOwner || role === "admin");
   const showSelesai = actions.includes("selesai") && (isOwner || role === "admin");
+  const showSetujuiCetak = actions.includes("setujui_cetak") && (isOwner || role === "admin");
+  const nextCetak = status === "CETAK" ? tahapBerikutnya(data.cetak) : null;
 
   return (
     <div
@@ -1520,6 +1590,29 @@ function NextStepPanel({
           >
             <CheckCircle2 className="mr-2 h-4 w-4" />
             {isOwner ? "Terima Hasil" : "Tandai Selesai"}
+          </Button>
+        )}
+        {showSetujuiCetak && (
+          <Button
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={() => onCetak("review")}
+            disabled={isSubmitting}
+          >
+            <CheckCircle2 className="mr-2 h-4 w-4" /> Review & Setujui Cetak
+          </Button>
+        )}
+        {nextCetak && actions.includes("tahap_cetak") && (
+          <Button onClick={() => onCetak("tahap")} disabled={isSubmitting}>
+            {nextCetak.tombol}
+          </Button>
+        )}
+        {actions.includes("bast") && (
+          <Button
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={() => onCetak("bast")}
+            disabled={isSubmitting}
+          >
+            <CheckCircle2 className="mr-2 h-4 w-4" /> Konfirmasi BAST
           </Button>
         )}
       </div>
@@ -1618,11 +1711,14 @@ function WorkTimer({
           ? { label: "Dijeda · ditunda", className: "text-slate-700 dark:text-slate-300 bg-slate-500/15" }
           : status === "REVIEW"
             ? { label: "Dijeda · menunggu peminta", className: "text-purple-700 dark:text-purple-400 bg-purple-500/10" }
+            : status === "CETAK"
+            ? { label: "Dijeda · proses cetak", className: "text-cyan-700 dark:text-cyan-400 bg-cyan-500/10" }
             : { label: "Belum dimulai", className: "text-muted-foreground bg-muted" };
 
   const excluded = [
     { label: "Ditunda", ms: waktu.pendingMs, dotClass: STATUS_META.PENDING.dotClass },
     { label: "Menunggu peminta", ms: waktu.reviewMs, dotClass: STATUS_META.REVIEW.dotClass },
+    { label: "Proses cetak", ms: waktu.cetakMs, dotClass: STATUS_META.CETAK.dotClass },
     { label: "Antre sebelum diambil", ms: waktu.antreMs, dotClass: STATUS_META["TO DO"].dotClass },
   ].filter((x) => x.ms >= 60_000);
 
@@ -1652,7 +1748,7 @@ function WorkTimer({
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
-            ) : status === "PENDING" || status === "REVIEW" ? (
+            ) : status === "PENDING" || status === "REVIEW" || status === "CETAK" ? (
               <Pause className="h-3 w-3" />
             ) : null}
             {state.label}

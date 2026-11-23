@@ -11,7 +11,7 @@ import {
   formatMonthYearIndo,
 } from "@/lib/safety-toolbox-meeting-hse-seed";
 
-export const PERMINTaan_STATUSES = ["TO DO", "PROGRESS", "REVIEW", "REVISION", "PENDING", "DONE"] as const;
+export const PERMINTaan_STATUSES = ["TO DO", "PROGRESS", "REVIEW", "REVISION", "PENDING", "CETAK", "DONE"] as const;
 
 export const DAILY_STATUSES = [
   "⏳ Waiting (Menunggu)",
@@ -37,6 +37,7 @@ export const PERMINTaan_COLORS: Record<string, string> = {
   REVIEW: "#eab308",
   REVISION: "#f97316",
   PENDING: "#64748b",
+  CETAK: "#0891b2",
   DONE: "#10b981",
 };
 

@@ -6,8 +6,20 @@
 //                       └──── REVISION ◀──revisi──┘   (revisi juga bisa dari PROGRESS / DONE)
 //
 //   PROGRESS / REVISION ──pending──▶ PENDING ──lanjutkan──▶ kembali ke status sebelumnya
+//
+//   Proyek Cetak (lihat lib/permintaan-cetak.ts):
+//   REVIEW ──setujui_cetak──▶ CETAK ──tahap_cetak (MR, PO, Cetak, Diterima)──▶ CETAK ──bast──▶ DONE
 
-export type PermintaanStatus = "TO DO" | "PROGRESS" | "REVIEW" | "REVISION" | "PENDING" | "DONE";
+import { bisaRevisiSaatCetak, isProyekCetak, tahapBerikutnya } from "@/lib/permintaan-cetak";
+
+export type PermintaanStatus =
+  | "TO DO"
+  | "PROGRESS"
+  | "REVIEW"
+  | "REVISION"
+  | "PENDING"
+  | "CETAK"
+  | "DONE";
 export type Role = "admin" | "designer" | "user";
 
 export const STATUS_META: Record<
@@ -44,6 +56,12 @@ export const STATUS_META: Record<
     badgeClass: "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30 hover:bg-slate-500/20",
     dotClass: "bg-slate-500",
   },
+  CETAK: {
+    label: "Proses Cetak",
+    short: "Cetak",
+    badgeClass: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20",
+    dotClass: "bg-cyan-500",
+  },
   DONE: {
     label: "Selesai",
     short: "Done",
@@ -59,14 +77,16 @@ export function normalizeStatus(status?: string | null): PermintaanStatus {
   return (STATUS_LIST as string[]).includes(s) ? (s as PermintaanStatus) : "TO DO";
 }
 
-/** Pihak yang ditunggu pada status ini. */
-export function waitingOn(status: string): "desainer" | "requester" | null {
+/** Pihak yang ditunggu pada status ini. Untuk CETAK, `cetak` menentukan tahap berikutnya. */
+export function waitingOn(status: string, cetak?: unknown): "desainer" | "requester" | null {
   switch (normalizeStatus(status)) {
     case "TO DO":
     case "PROGRESS":
     case "REVISION":
     case "PENDING":
       return "desainer";
+    case "CETAK":
+      return tahapBerikutnya(cetak)?.pelaku === "peminta" ? "requester" : "desainer";
     case "REVIEW":
       return "requester";
     default:
@@ -81,12 +101,18 @@ export type WorkflowAction =
   | "lanjutkan"
   | "revisi"
   | "selesai"
+  | "setujui_cetak"
+  | "tahap_cetak"
+  | "bast"
+  | "ubah_spesifikasi"
   | "ubah_status";
 
 interface Ticket {
   status: string;
   requester?: string | null;
   admin?: string | null;
+  project?: string | null;
+  cetak?: unknown;
 }
 
 interface Actor {
@@ -108,11 +134,24 @@ export function allowedActions(t: Ticket, a: Actor): WorkflowAction[] {
     if (status === "PROGRESS" || status === "REVISION") actions.push("kirim_review", "pending");
     if (status === "PENDING") actions.push("lanjutkan");
   }
+  const cetak = isProyekCetak(t.project);
+  const bisaTerima = status === "REVIEW" || ((status === "PROGRESS" || status === "REVISION") && !!t.admin);
+
   if (isRequester(t, a) || a.role === "admin") {
     if (status === "PROGRESS" || status === "REVIEW" || status === "DONE") actions.push("revisi");
-    if (status === "REVIEW" || ((status === "PROGRESS" || status === "REVISION") && t.admin)) {
-      actions.push("selesai");
-    }
+    if (status === "CETAK" && bisaRevisiSaatCetak(t.cetak)) actions.push("revisi");
+    // Proyek cetak: menerima desain = Review Design, tiket lanjut ke tahapan cetak.
+    if (bisaTerima) actions.push(cetak ? "setujui_cetak" : "selesai");
+  }
+  if (status === "CETAK") {
+    const next = tahapBerikutnya(t.cetak);
+    const pic = a.role === "admin" || (a.role === "designer" && isPic(t, a));
+    if (next?.pelaku === "pic" && pic) actions.push("tahap_cetak");
+    if (next?.key === "bast" && (isRequester(t, a) || a.role === "admin")) actions.push("bast");
+  }
+  // Spesifikasi cetak terkunci setelah Review Design disetujui
+  if (cetak && tahapBerikutnya(t.cetak)?.key === "review_design" && status !== "DONE") {
+    if (isRequester(t, a) || isPic(t, a) || a.role === "admin") actions.push("ubah_spesifikasi");
   }
   if (a.role === "admin") actions.push("ubah_status");
   return actions;
@@ -235,6 +274,8 @@ export interface WaktuPengerjaan {
   pendingMs: number;
   /** Menunggu peminta mengecek hasil (REVIEW). */
   reviewMs: number;
+  /** Proses MR/PO/cetak/BAST (proyek cetak). */
+  cetakMs: number;
   /** Antre sebelum diambil desainer (TO DO). */
   antreMs: number;
   /** Status terakhir PROGRESS / REVISION, jadi timer terus bertambah. */
@@ -250,6 +291,7 @@ export function hitungWaktuPengerjaan(riwayat: RiwayatStatus[], now = Date.now()
     aktifMs: 0,
     pendingMs: 0,
     reviewMs: 0,
+    cetakMs: 0,
     antreMs: 0,
     berjalan: false,
     sejak: null,
@@ -266,6 +308,7 @@ export function hitungWaktuPengerjaan(riwayat: RiwayatStatus[], now = Date.now()
     if (STATUS_DIHITUNG.includes(status)) hasil.aktifMs += ms;
     else if (status === "PENDING") hasil.pendingMs += ms;
     else if (status === "REVIEW") hasil.reviewMs += ms;
+    else if (status === "CETAK") hasil.cetakMs += ms;
     else if (status === "TO DO") hasil.antreMs += ms;
 
     // Entri hasil backfill (tanpa status asal) atau status asal yang tidak cocok

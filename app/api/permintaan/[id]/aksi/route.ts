@@ -9,6 +9,21 @@ import {
   type PermintaanStatus,
   type WorkflowAction,
 } from "@/lib/permintaan-workflow";
+import {
+  CHECKLIST_REVIEW_DESIGN,
+  normalizeCetak,
+  ringkasSpesifikasi,
+  tahapBerikutnya,
+  type CatatanTahap,
+  type FileCetak,
+} from "@/lib/permintaan-cetak";
+
+const bersihkanFiles = (raw: unknown): FileCetak[] =>
+  Array.isArray(raw)
+    ? raw
+        .filter((f) => f && typeof f.url === "string" && typeof f.name === "string")
+        .map((f) => ({ name: String(f.name), url: String(f.url) }))
+    : [];
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +45,7 @@ export async function POST(
 
     const { data: ticket, error: ticketError } = await supabase
       .from("permintaan")
-      .select("id, judul, status, requester, admin")
+      .select("id, judul, status, requester, admin, project, cetak")
       .eq("id", id)
       .maybeSingle();
     if (ticketError) {
@@ -58,6 +73,14 @@ export async function POST(
     const actorName = actorProfile?.name || "Pengguna";
 
     const updates: Record<string, any> = { updated_by: user.id, last_status_note: note || null };
+    const cetak = normalizeCetak(ticket.cetak);
+    const catatTahap = (extra: Partial<CatatanTahap> = {}): CatatanTahap => ({
+      at: new Date().toISOString(),
+      by: user.id,
+      by_name: actorName,
+      catatan: note || null,
+      ...extra,
+    });
     let notifyTarget: string | null = null;
     let notifyTitle = "";
     let notifyMessage = "";
@@ -115,6 +138,10 @@ export async function POST(
         // Dibuka ulang dari DONE: penilaian lama tidak berlaku
         updates.rating = null;
         updates.review = null;
+        // Desain berubah: tahapan cetak harus diulang dari Review Design
+        if (Object.keys(cetak.tahap ?? {}).length > 0) {
+          updates.cetak = { ...cetak, tahap: {} };
+        }
         notifyTarget = ticket.admin;
         notifyTitle = "Permintaan Revisi";
         notifyMessage = `${actorName} meminta revisi untuk "${ticket.judul}": ${note}`;
@@ -136,6 +163,98 @@ export async function POST(
           ? `Permintaan "${ticket.judul}" diterima oleh ${actorName}${rating ? ` dengan rating ${rating}/5` : ""}.`
           : `Permintaan "${ticket.judul}" ditandai selesai oleh ${actorName}.`;
         systemChat = `[SYSTEM] Permintaan diterima & ditandai SELESAI oleh ${actorName}.`;
+        break;
+      }
+
+      case "setujui_cetak": {
+        const checklist = Array.isArray(body.checklist) ? body.checklist.map(String) : [];
+        const lengkap = CHECKLIST_REVIEW_DESIGN.every((c) => checklist.includes(c));
+        if (!lengkap) {
+          return NextResponse.json(
+            { error: "Centang semua poin Review Design sebelum menyetujui cetak" },
+            { status: 400 }
+          );
+        }
+        updates.status = "CETAK";
+        updates.cetak = {
+          ...cetak,
+          tahap: { review_design: catatTahap({ checklist: CHECKLIST_REVIEW_DESIGN }) },
+        };
+        notifyTarget = ticket.admin;
+        notifyTitle = "Desain Disetujui untuk Dicetak";
+        notifyMessage = `${actorName} menyetujui desain "${ticket.judul}". Lanjutkan proses MR.`;
+        systemChat = `[SYSTEM] Review Design disetujui oleh ${actorName}. Masuk tahapan cetak${note ? `: "${note}"` : "."}`;
+        break;
+      }
+
+      case "tahap_cetak": {
+        const next = tahapBerikutnya(cetak);
+        if (!next || next.pelaku !== "pic" || body.tahap !== next.key) {
+          return NextResponse.json(
+            { error: "Tahapan cetak sudah berubah. Muat ulang halaman." },
+            { status: 409 }
+          );
+        }
+        const referensi = typeof body.referensi === "string" ? body.referensi.trim() : "";
+        if (next.referensiWajib && !referensi) {
+          return NextResponse.json({ error: `${next.referensiLabel} wajib diisi` }, { status: 400 });
+        }
+        updates.cetak = {
+          ...cetak,
+          tahap: {
+            ...cetak.tahap,
+            [next.key]: catatTahap({ referensi: referensi || null, files: bersihkanFiles(body.files) }),
+          },
+        };
+        const sesudahnya = tahapBerikutnya(updates.cetak);
+        notifyTarget = ticket.requester;
+        if (sesudahnya?.key === "bast") {
+          notifyTitle = "Hasil Cetak Siap Diserahterimakan";
+          notifyMessage = `Hasil cetak "${ticket.judul}" sudah diterima tim Design. Silakan konfirmasi BAST.`;
+        } else {
+          notifyTitle = `Cetak: ${next.label}`;
+          notifyMessage = `"${ticket.judul}" — ${next.label} selesai${referensi ? ` (${next.referensiLabel}: ${referensi})` : ""}.`;
+        }
+        systemChat = `[SYSTEM] ${next.label} selesai oleh ${actorName}${referensi ? ` — ${next.referensiLabel}: ${referensi}` : ""}${note ? `. Catatan: "${note}"` : "."}`;
+        break;
+      }
+
+      case "bast": {
+        const rating = Number(body.rating);
+        const isOwner = ticket.requester === user.id;
+        if (isOwner && !(rating >= 1 && rating <= 5)) {
+          return NextResponse.json({ error: "Rating 1-5 wajib diisi" }, { status: 400 });
+        }
+        const referensi = typeof body.referensi === "string" ? body.referensi.trim() : "";
+        updates.status = "DONE";
+        if (rating >= 1 && rating <= 5) updates.rating = rating;
+        if (typeof body.review === "string") updates.review = body.review.trim() || null;
+        updates.cetak = {
+          ...cetak,
+          tahap: {
+            ...cetak.tahap,
+            bast: catatTahap({ referensi: referensi || null, files: bersihkanFiles(body.files) }),
+          },
+        };
+        notifyTarget = isOwner ? ticket.admin : ticket.requester;
+        notifyTitle = "Serah Terima Cetak Selesai";
+        notifyMessage = `BAST "${ticket.judul}" dikonfirmasi oleh ${actorName}${rating ? ` dengan rating ${rating}/5` : ""}.`;
+        systemChat = `[SYSTEM] BAST dikonfirmasi oleh ${actorName}${referensi ? ` (No. ${referensi})` : ""}. Permintaan SELESAI.`;
+        break;
+      }
+
+      case "ubah_spesifikasi": {
+        const raw = body.spesifikasi && typeof body.spesifikasi === "object" ? body.spesifikasi : {};
+        const teks = (v: unknown) => (typeof v === "string" ? v.trim().slice(0, 200) : "");
+        const spesifikasi = {
+          jumlah: teks(raw.jumlah),
+          ukuran: teks(raw.ukuran),
+          bahan: teks(raw.bahan),
+          finishing: teks(raw.finishing),
+        };
+        delete updates.last_status_note;
+        updates.cetak = { ...cetak, spesifikasi };
+        systemChat = `[SYSTEM] ${actorName} memperbarui spesifikasi cetak: ${ringkasSpesifikasi(spesifikasi) || "-"}`;
         break;
       }
 

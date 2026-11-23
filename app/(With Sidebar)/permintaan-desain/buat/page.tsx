@@ -24,6 +24,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useRouter } from "next/navigation";
+import { SpesifikasiFields } from "@/components/permintaan-cetak";
+import type { SpesifikasiCetak } from "@/lib/permintaan-cetak";
 
 export interface PermintaanDesain {
   id: string;
@@ -86,6 +88,7 @@ const dataProject: ComboboxData = [
   { label: "Video Product", value: "Video Product" },
   { label: "Video Instlasi", value: "Video Instlasi" },
   { label: "Video Editing", value: "Video Editing" },
+  { label: "Cetak (desain + proses cetak sampai BAST)", value: "Cetak" },
   { label: "Lainnya...", value: "Lainnya" },
 ];
 
@@ -97,6 +100,7 @@ export default function BuatPermintaanDesainPage() {
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [customProject, setCustomProject] = useState<string>("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]); // State untuk lampiran
+  const [spesifikasi, setSpesifikasi] = useState<SpesifikasiCetak>({});
 
   const s = createClient();
 
@@ -198,6 +202,7 @@ export default function BuatPermintaanDesainPage() {
         files: uploadedFiles.map(({ name, url }) => ({ name, url })),
         status: "TO DO",
         requester: user.id,
+        ...(projectValue === "Cetak" ? { cetak: { spesifikasi, tahap: {} } } : {}),
       };
 
       const { error: insertError } = await s
@@ -222,6 +227,7 @@ export default function BuatPermintaanDesainPage() {
       setSelectedProject("");
       setCustomProject("");
       setUploadedFiles([]); // <-- Reset state lampiran
+      setSpesifikasi({});
       toast.success("Permintaan desain berhasil dibuat.");
       setAlertMessage("Berhasil membuat permintaan desain.");
       push("/permintaan-desain");
@@ -276,6 +282,19 @@ export default function BuatPermintaanDesainPage() {
                 required={selectedProject === "Lainnya"}
                 disabled={loading}
               />
+            </div>
+          )}
+
+          {selectedProject === "Cetak" && (
+            <div className="flex flex-col gap-3 rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4 animate-in fade-in">
+              <div>
+                <p className="text-sm font-medium">Spesifikasi Cetak</p>
+                <p className="text-xs text-muted-foreground">
+                  Setelah desain disetujui, permintaan lanjut ke Review Design → MR → PO → Cetak →
+                  Diterima Tim Design → BAST. Spesifikasi masih bisa diubah sebelum Review Design.
+                </p>
+              </div>
+              <SpesifikasiFields value={spesifikasi} onChange={setSpesifikasi} disabled={loading} />
             </div>
           )}
 

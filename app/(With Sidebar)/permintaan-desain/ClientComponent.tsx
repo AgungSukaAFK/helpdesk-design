@@ -91,6 +91,7 @@ import {
   waitingOn,
   type Role,
 } from "@/lib/permintaan-workflow";
+import { tahapBerikutnya } from "@/lib/permintaan-cetak";
 import { cn, formatDateDisplay, getTodayDate, shiftDate } from "@/lib/utils";
 import {
   BADGE, XC, badgeStatus, bukuBaru, infoEkspor, pct, sheetHeader, tglExcel, unduhWorkbook, writeRingkasan, writeTable,
@@ -119,7 +120,11 @@ interface Permintaan {
   revision_at?: string | null;
   revision_count?: number | null;
   done_at?: string | null;
+<<<<<<< HEAD
   bast_status?: "DITERIMA" | "MENUNGGU" | null;
+=======
+  cetak?: unknown;
+>>>>>>> 10d3a2b (Penambahan fitur generate PPT)
 }
 
 interface MonthStats {
@@ -129,6 +134,7 @@ interface MonthStats {
   review: number;
   revision: number;
   pending?: number;
+  cetak?: number;
   done: number;
   thirtyDays?: {
     total: number;
@@ -1366,7 +1372,7 @@ export default function PermintaanList() {
       )}
 
       {/* 3. RINGKASAN STATUS BULANAN (METRIC KPI CARDS) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 mb-5">
         {/* Total Tiket */}
         <button
           type="button"
@@ -1481,6 +1487,25 @@ export default function PermintaanList() {
           </div>
         </button>
 
+        {/* Proses Cetak */}
+        <button
+          type="button"
+          onClick={() => handleFilter("status", "CETAK")}
+          className={`p-3 rounded-xl border text-left transition-all ${
+            statusFilter === "CETAK"
+              ? "bg-cyan-500/15 border-cyan-500/40 ring-1 ring-cyan-500/30"
+              : "bg-card hover:bg-muted/40"
+          }`}
+        >
+          <div className="text-[11px] font-medium text-cyan-700 dark:text-cyan-400 flex items-center justify-between">
+            <span>Proses Cetak</span>
+            <Printer className="h-3.5 w-3.5 text-cyan-600" />
+          </div>
+          <div className="text-xl font-bold mt-1 text-cyan-700 dark:text-cyan-400">
+            {monthStats.cetak ?? 0}
+          </div>
+        </button>
+
         {/* Done */}
         <button
           type="button"
@@ -1570,6 +1595,7 @@ export default function PermintaanList() {
                 <SelectItem value="REVIEW">Review</SelectItem>
                 <SelectItem value="REVISION">Revision</SelectItem>
                 <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="CETAK">Proses Cetak</SelectItem>
                 <SelectItem value="DONE">Done</SelectItem>
               </SelectContent>
             </Select>
@@ -1763,14 +1789,16 @@ export default function PermintaanList() {
                   <TableCell>
                     <div className="flex flex-col items-start gap-1">
                       {getStatusBadge(item.status)}
-                      {waitingOn(item.status) && (
+                      {waitingOn(item.status, item.cetak) && (
                         <span className="text-[10px] text-muted-foreground">
-                          {waitingOn(item.status) === "requester"
+                          {waitingOn(item.status, item.cetak) === "requester"
                             ? item.requester === currentUser?.id
                               ? "Menunggu respon Anda"
                               : "Menunggu respon peminta"
                             : normalizeStatus(item.status) === "PENDING"
                               ? "Ditunda desainer"
+                            : normalizeStatus(item.status) === "CETAK"
+                              ? `Cetak: ${tahapBerikutnya(item.cetak)?.label ?? "-"}`
                               : item.admin
                                 ? "Dikerjakan desainer"
                                 : "Belum ada desainer"}

@@ -15,6 +15,7 @@ import {
   FileSpreadsheet,
   FileUp,
   FolderKanban,
+  Presentation,
   HelpCircle,
   Info,
   Layers,
@@ -831,7 +832,29 @@ export default function ProgramKerjaPage() {
   };
 
   // ==================== 5. EXPORT & TEMPLATE DOWNLOAD ====================
+<<<<<<< HEAD
   const handleExportExcel = async (exportAll = false) => {
+=======
+  const [isExportingPptx, setIsExportingPptx] = useState(false);
+  const handleExportPptx = async () => {
+    if (yearRecords.length === 0) {
+      toast.warning("Tidak ada data untuk diekspor.");
+      return;
+    }
+    setIsExportingPptx(true);
+    try {
+      const { exportProgramKerjaPptx } = await import("@/lib/pptx-program-kerja");
+      const fileName = await exportProgramKerjaPptx(yearRecords, selectedYear);
+      toast.success(`Presentasi berhasil dibuat: ${fileName}`);
+    } catch (err: any) {
+      toast.error("Gagal membuat PPTX: " + (err?.message || ""));
+    } finally {
+      setIsExportingPptx(false);
+    }
+  };
+
+  const handleExportExcel = (exportAll = false) => {
+>>>>>>> 10d3a2b (Penambahan fitur generate PPT)
     const dataToExport = exportAll ? records : yearRecords;
     if (dataToExport.length === 0) {
       toast.warning("Tidak ada data untuk diekspor.");
@@ -1095,6 +1118,21 @@ notify pgrst, 'reload schema';`;
             >
               <Download className="size-4 text-primary" />
               <span>Export {selectedYear}</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPptx}
+              disabled={isExportingPptx}
+              className="gap-1.5 font-medium shadow-2xs"
+              title="Export presentasi gaya QCC (PowerPoint)"
+            >
+              {isExportingPptx ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Presentation className="size-4 text-orange-600" />
+              )}
+              <span>PPTX QCC</span>
             </Button>
             <Button
               variant="ghost"

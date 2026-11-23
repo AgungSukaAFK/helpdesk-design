@@ -64,6 +64,7 @@ const PROJECT_OPTIONS = [
   "Video Product",
   "Video Instlasi",
   "Video Editing",
+  "Cetak",
   "Lainnya",
 ];
 
@@ -88,7 +89,7 @@ const DESIGNER_OPTIONS = [
   { id: "54e6f310-813b-447b-aac0-9052423440da", name: "Farel Ramadhan" },
 ];
 
-const STATUS_OPTIONS = ["TO DO", "PROGRESS", "REVIEW", "REVISION", "PENDING", "DONE"];
+const STATUS_OPTIONS = ["TO DO", "PROGRESS", "REVIEW", "REVISION", "PENDING", "CETAK", "DONE"];
 
 export function EditPermintaanDialog({
   open,

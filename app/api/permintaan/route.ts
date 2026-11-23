@@ -356,6 +356,7 @@ export async function GET(request: NextRequest) {
       review: 0,
       revision: 0,
       pending: 0,
+      cetak: 0,
       done: 0,
       thirtyDays: {
         total: 0,
@@ -388,6 +389,7 @@ export async function GET(request: NextRequest) {
       else if (s === "REVIEW") stats.review++;
       else if (s === "REVISION") stats.revision++;
       else if (s === "PENDING") stats.pending++;
+      else if (s === "CETAK") stats.cetak++;
       else if (s === "TO DO" || s === "TODO") stats.todo++;
 
       // 30 Days calculation

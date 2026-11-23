@@ -46,6 +46,7 @@ const statusOptions: ComboboxData = [
   { label: "REVISION", value: "REVISION" },
   { label: "REVIEW", value: "REVIEW" },
   { label: "PENDING", value: "PENDING" },
+  { label: "CETAK", value: "CETAK" },
   { label: "DONE", value: "DONE" },
 ];
 

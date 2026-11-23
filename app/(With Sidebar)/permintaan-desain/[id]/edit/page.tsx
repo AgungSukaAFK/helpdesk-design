@@ -65,6 +65,7 @@ const dataProject: ComboboxData = [
   { label: "Video Product", value: "Video Product" },
   { label: "Video Instlasi", value: "Video Instlasi" },
   { label: "Video Editing", value: "Video Editing" },
+  { label: "Cetak (desain + proses cetak sampai BAST)", value: "Cetak" },
   { label: "Lainnya...", value: "Lainnya" },
 ];
 
@@ -74,6 +75,7 @@ const statusOptions = [
   { label: "REVIEW", value: "REVIEW" },
   { label: "REVISION", value: "REVISION" },
   { label: "PENDING", value: "PENDING" },
+  { label: "CETAK", value: "CETAK" },
   { label: "DONE", value: "DONE" },
 ];
 

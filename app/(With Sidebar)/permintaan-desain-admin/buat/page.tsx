@@ -13,6 +13,8 @@ import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { FormEvent, useState } from "react";
 import { toast } from "sonner";
+import { SpesifikasiFields } from "@/components/permintaan-cetak";
+import type { SpesifikasiCetak } from "@/lib/permintaan-cetak";
 
 // REVISI: Menambahkan 'project' ke interface
 export interface PermintaanDesain {
@@ -77,6 +79,7 @@ const dataProject: ComboboxData = [
   { label: "Video Product", value: "Video Product" },
   { label: "Video Instlasi", value: "Video Instlasi" },
   { label: "Video Editing", value: "Video Editing" },
+  { label: "Cetak (desain + proses cetak sampai BAST)", value: "Cetak" },
   { label: "Lainnya...", value: "Lainnya" },
 ];
 
@@ -88,6 +91,7 @@ export default function BuatPermintaanDesainPage() {
   // REVISI: State baru untuk project
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [customProject, setCustomProject] = useState<string>("");
+  const [spesifikasi, setSpesifikasi] = useState<SpesifikasiCetak>({});
 
   const s = createClient();
 
@@ -141,7 +145,9 @@ export default function BuatPermintaanDesainPage() {
         requester: user.user.id,
       };
 
-      const { error: insertError } = await s.from("permintaan").insert([data]);
+      const { error: insertError } = await s.from("permintaan").insert([
+        projectValue === "Cetak" ? { ...data, cetak: { spesifikasi, tahap: {} } } : data,
+      ]);
       if (insertError) {
         throw insertError;
       }
@@ -151,6 +157,7 @@ export default function BuatPermintaanDesainPage() {
       setSelectedDepartemen("");
       setSelectedProject("");
       setCustomProject("");
+      setSpesifikasi({});
       toast.success("Permintaan desain berhasil dibuat.");
       setAlertMessage("Berhasil membuat permintaan desain.");
     } catch (error: any) {
@@ -213,6 +220,19 @@ export default function BuatPermintaanDesainPage() {
                 required={selectedProject === "Lainnya"} // Wajib diisi jika "Lainnya" dipilih
                 disabled={loading}
               />
+            </div>
+          )}
+
+          {selectedProject === "Cetak" && (
+            <div className="flex flex-col gap-3 rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4 animate-in fade-in">
+              <div>
+                <p className="text-sm font-medium">Spesifikasi Cetak</p>
+                <p className="text-xs text-muted-foreground">
+                  Setelah desain disetujui, permintaan lanjut ke Review Design → MR → PO → Cetak →
+                  Diterima Tim Design → BAST. Spesifikasi masih bisa diubah sebelum Review Design.
+                </p>
+              </div>
+              <SpesifikasiFields value={spesifikasi} onChange={setSpesifikasi} disabled={loading} />
             </div>
           )}
 
