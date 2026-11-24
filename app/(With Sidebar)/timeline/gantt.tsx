@@ -1,10 +1,10 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CalendarX2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  APPROVAL_BADGE, BULAN, STATUS_OPTIONS, fmtTgl, hariIni, parseTgl, rentangBar, selisihHari, statusStyle, terlambat, tglPendek,
+  APPROVAL_BADGE, BULAN, STATUS_OPTIONS, fmtTgl, hariIni, parseTgl, rentangBar, selisihHari, statusStyle, tambahHari, terlambat, tglPendek,
   type TimelineDesain, type TimelinePostTopic,
 } from "@/lib/timeline";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +12,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export type GanttHandle = { scrollKeHariIni: () => void };
 
 const ROW_H = 52;
+
+type DragMode = "move" | "start" | "end";
+interface DragState {
+  id: string;
+  mode: DragMode;
+  startX: number;
+  /** selisih hari saat ini (snap per hari) */
+  delta: number;
+  moved: boolean;
+}
+
+/** Jadwal baru dari rentang bar asli + geseran. Untuk "move" tiap tanggal digeser apa adanya. */
+function hitungJadwal(r: TimelineDesain, bar: { mulai: string; akhir: string }, mode: DragMode, delta: number) {
+  if (mode === "move") {
+    return {
+      date: r.date ? tambahHari(r.date, delta) : null,
+      due_date: r.due_date ? tambahHari(r.due_date, delta) : null,
+    };
+  }
+  if (mode === "start") {
+    const mulai = tambahHari(bar.mulai, delta);
+    return { date: mulai > bar.akhir ? bar.akhir : mulai, due_date: bar.akhir };
+  }
+  const akhir = tambahHari(bar.akhir, delta);
+  return { date: bar.mulai, due_date: akhir < bar.mulai ? bar.mulai : akhir };
+}
 
 interface Props {
   tahun: number;
@@ -21,14 +47,17 @@ interface Props {
   dayW: number;
   onEdit: (r: TimelineDesain) => void;
   onStatus: (r: TimelineDesain, status: string) => void;
+  /** dipanggil setelah bar digeser / diubah panjangnya */
+  onJadwal: (r: TimelineDesain, jadwal: { date: string | null; due_date: string | null }) => void;
 }
 
 /**
  * Gantt satu tahun: kolom data di kiri (sticky), deretan hari di kanan.
  * Bar dihitung dari Date → Due Date, jadi otomatis ikut berubah saat data kiri diubah.
  */
-export const Gantt = forwardRef<GanttHandle, Props>(function Gantt({ tahun, rows, postById, dayW, onEdit, onStatus }, ref) {
+export const Gantt = forwardRef<GanttHandle, Props>(function Gantt({ tahun, rows, postById, dayW, onEdit, onStatus, onJadwal }, ref) {
   const scroller = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
   const awal = `${tahun}-01-01`;
   const akhir = `${tahun}-12-31`;
   const totalHari = selisihHari(awal, akhir) + 1;
@@ -84,7 +113,7 @@ export const Gantt = forwardRef<GanttHandle, Props>(function Gantt({ tahun, rows
       ref={scroller}
       className={cn(
         "relative overflow-auto max-h-[70vh] rounded-b-2xl",
-        "[--left-w:200px] md:[--left-w:420px]",
+        "[--left-w:200px] md:[--left-w:460px]",
         "[--gantt-weekend:color-mix(in_oklab,var(--color-rose-500)_7%,transparent)] [--gantt-line:color-mix(in_oklab,var(--border)_70%,transparent)]",
       )}
     >
@@ -92,7 +121,7 @@ export const Gantt = forwardRef<GanttHandle, Props>(function Gantt({ tahun, rows
         {/* ------------------------------------------------ header (sticky) */}
         <div className="sticky top-0 z-30 flex bg-muted/95 backdrop-blur border-b">
           <div className="sticky left-0 z-40 w-[var(--left-w)] shrink-0 border-r bg-muted flex items-end">
-            <div className="grid w-full grid-cols-[36px_1fr] md:grid-cols-[36px_1fr_118px_92px] items-center gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="grid w-full grid-cols-[36px_1fr] md:grid-cols-[32px_minmax(0,1fr)_112px_104px] items-center gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               <span>No</span>
               <span>Design / Project</span>
               <span className="hidden md:block">Status</span>
@@ -148,7 +177,10 @@ export const Gantt = forwardRef<GanttHandle, Props>(function Gantt({ tahun, rows
           </div>
 
           {rows.map((r, i) => {
-            const bar = rentangBar(r);
+            const barAsli = rentangBar(r);
+            const dragIni = drag?.id === r.id ? drag : null;
+            const jadwalDrag = dragIni && barAsli ? hitungJadwal(r, barAsli, dragIni.mode, dragIni.delta) : null;
+            const bar = jadwalDrag ? rentangBar(jadwalDrag) : barAsli;
             const telat = terlambat(r, today);
             const post = r.post_topic_id ? postById.get(r.post_topic_id) : undefined;
             const gaya = statusStyle(r.status);
@@ -163,25 +195,80 @@ export const Gantt = forwardRef<GanttHandle, Props>(function Gantt({ tahun, rows
               const durasi = selisihHari(bar.mulai, bar.akhir) + 1;
               const judul = r.type_of_project || r.design;
               const labelDalam = w >= 90;
+              const mulaiDrag = (mode: DragMode) => (e: React.PointerEvent) => {
+                if (e.button !== 0) return;
+                e.stopPropagation();
+                e.currentTarget.setPointerCapture(e.pointerId);
+                setDrag({ id: r.id, mode, startX: e.clientX, delta: 0, moved: false });
+              };
+              const gerakDrag = (e: React.PointerEvent) => {
+                if (!dragIni) return;
+                const delta = Math.round((e.clientX - dragIni.startX) / dayW);
+                const moved = dragIni.moved || Math.abs(e.clientX - dragIni.startX) > 3;
+                if (delta !== dragIni.delta || moved !== dragIni.moved) setDrag({ ...dragIni, delta, moved });
+              };
+              const selesaiDrag = (e: React.PointerEvent) => {
+                if (!dragIni) return;
+                if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+                setDrag(null);
+                if (!dragIni.moved) {
+                  if (dragIni.mode === "move") onEdit(r);
+                } else if (dragIni.delta !== 0 && barAsli) {
+                  onJadwal(r, hitungJadwal(r, barAsli, dragIni.mode, dragIni.delta));
+                }
+              };
+              const batalDrag = () => setDrag(null);
+              const handleW = w >= 28 ? 7 : 0;
               barEl = (
-                <button
-                  type="button"
-                  onClick={() => onEdit(r)}
-                  title={`${judul}\n${tglPendek(bar.mulai)} → ${tglPendek(bar.akhir)} (${durasi} hari)\nStatus: ${r.status}${r.approval_status ? ` • ${r.approval_status}` : ""}${telat ? "\nMelewati Due Date" : ""}`}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEdit(r); } }}
+                  onPointerDown={mulaiDrag("move")}
+                  onPointerMove={gerakDrag}
+                  onPointerUp={selesaiDrag}
+                  onPointerCancel={batalDrag}
+                  title={`${judul}\n${tglPendek(bar.mulai)} → ${tglPendek(bar.akhir)} (${durasi} hari)\nStatus: ${r.status}${r.approval_status ? ` • ${r.approval_status}` : ""}${telat ? "\nMelewati Due Date" : ""}\nGeser untuk ubah tanggal • klik untuk detail`}
                   className={cn(
-                    "absolute top-1/2 -translate-y-1/2 h-7 flex items-center text-left shadow-sm transition hover:brightness-110 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                    "absolute top-1/2 -translate-y-1/2 h-7 flex items-center text-left shadow-sm select-none touch-none cursor-grab transition-[filter,box-shadow] hover:brightness-110 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                     gaya.bar,
                     potongKiri ? "rounded-l-none" : "rounded-l-md",
                     potongKanan ? "rounded-r-none" : "rounded-r-md",
                     telat && "ring-2 ring-rose-500 ring-offset-1 ring-offset-background",
+                    dragIni?.moved && "z-20 cursor-grabbing brightness-110 shadow-lg",
                   )}
                   style={{ left: s * dayW, width: Math.max(w, 6) }}
                 >
-                  {labelDalam && <span className="truncate px-2 text-[11px] font-semibold text-white">{judul}</span>}
-                  {!labelDalam && (
-                    <span className="absolute left-full ml-1.5 whitespace-nowrap text-[11px] font-medium text-foreground/80">{judul}</span>
+                  {handleW > 0 && !potongKiri && (
+                    <span
+                      onPointerDown={mulaiDrag("start")}
+                      onPointerMove={gerakDrag}
+                      onPointerUp={selesaiDrag}
+                      onPointerCancel={batalDrag}
+                      className="absolute inset-y-0 left-0 cursor-ew-resize rounded-l-md hover:bg-white/30"
+                      style={{ width: handleW }}
+                    />
                   )}
-                </button>
+                  {labelDalam && <span className="pointer-events-none truncate px-2 text-[11px] font-semibold text-white">{judul}</span>}
+                  {!labelDalam && (
+                    <span className="pointer-events-none absolute left-full ml-1.5 whitespace-nowrap text-[11px] font-medium text-foreground/80">{judul}</span>
+                  )}
+                  {handleW > 0 && !potongKanan && (
+                    <span
+                      onPointerDown={mulaiDrag("end")}
+                      onPointerMove={gerakDrag}
+                      onPointerUp={selesaiDrag}
+                      onPointerCancel={batalDrag}
+                      className="absolute inset-y-0 right-0 cursor-ew-resize rounded-r-md hover:bg-white/30"
+                      style={{ width: handleW }}
+                    />
+                  )}
+                  {dragIni?.moved && (
+                    <span className="pointer-events-none absolute -top-6 left-0 z-30 whitespace-nowrap rounded bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background shadow">
+                      {tglPendek(bar.mulai)} → {tglPendek(bar.akhir)} · {durasi} hari
+                    </span>
+                  )}
+                </div>
               );
             }
 
@@ -191,7 +278,7 @@ export const Gantt = forwardRef<GanttHandle, Props>(function Gantt({ tahun, rows
               <div key={r.id} className="group relative flex border-b hover:bg-muted/40" style={{ height: ROW_H }}>
                 {/* Kolom kiri */}
                 <div className="sticky left-0 z-20 w-[var(--left-w)] shrink-0 border-r bg-card group-hover:bg-muted">
-                  <div className="grid h-full grid-cols-[36px_1fr] md:grid-cols-[36px_1fr_118px_92px] items-center gap-2 px-3">
+                  <div className="grid h-full grid-cols-[36px_1fr] md:grid-cols-[32px_minmax(0,1fr)_112px_104px] items-center gap-2 px-3">
                     <span className="text-xs tabular-nums text-muted-foreground">{r.no ?? i + 1}</span>
                     <button type="button" onClick={() => onEdit(r)} className="min-w-0 text-left">
                       <div className="truncate text-sm font-semibold leading-tight hover:text-primary">
@@ -209,7 +296,7 @@ export const Gantt = forwardRef<GanttHandle, Props>(function Gantt({ tahun, rows
                     </button>
                     <div className="hidden md:block">
                       <Select value={r.status} onValueChange={(v) => onStatus(r, v)}>
-                        <SelectTrigger size="sm" className={cn("h-7 w-full border text-xs font-medium", gaya.badge)}>
+                        <SelectTrigger size="sm" className={cn("h-7 w-full min-w-0 border px-2 text-xs font-medium", gaya.badge)}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -222,12 +309,12 @@ export const Gantt = forwardRef<GanttHandle, Props>(function Gantt({ tahun, rows
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="hidden md:block text-xs leading-tight">
-                      <div className={cn("tabular-nums", telat && "font-semibold text-rose-600 dark:text-rose-400")}>
+                    <div className="hidden min-w-0 md:block text-xs leading-tight">
+                      <div className={cn("whitespace-nowrap tabular-nums", telat && "font-semibold text-rose-600 dark:text-rose-400")}>
                         {r.due_date ? tglPendek(r.due_date) : "-"}
                       </div>
                       {telat && (
-                        <div className="flex items-center gap-0.5 text-[10px] text-rose-600 dark:text-rose-400">
+                        <div className="flex items-center gap-0.5 whitespace-nowrap text-[10px] text-rose-600 dark:text-rose-400">
                           <AlertTriangle className="size-3" /> Terlambat
                         </div>
                       )}

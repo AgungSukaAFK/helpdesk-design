@@ -170,6 +170,15 @@ export default function TimelinePage() {
     return true;
   };
 
+  const ubahJadwal = async (r: TimelineDesain, jadwal: { date: string | null; due_date: string | null }) => {
+    setDesain((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...jadwal } : x)));
+    const { error } = await supabase.from("timeline_desain").update(jadwal).eq("id", r.id);
+    if (error) {
+      toast.error(`Gagal mengubah tanggal: ${error.message}`);
+      setDesain((prev) => prev.map((x) => (x.id === r.id ? { ...x, date: r.date, due_date: r.due_date } : x)));
+    }
+  };
+
   const ubahStatus = async (r: TimelineDesain, status: string) => {
     setDesain((prev) => prev.map((x) => (x.id === r.id ? { ...x, status } : x)));
     const { error } = await supabase.from("timeline_desain").update({ status }).eq("id", r.id);
@@ -353,11 +362,11 @@ export default function TimelinePage() {
   };
 
   // ---------------------------------------------------------------- render --
-  if (role !== undefined && role !== "admin") {
+  if (role !== undefined && role !== "admin" && role !== "designer") {
     return (
       <div className="col-span-12 flex flex-col items-center justify-center gap-2 rounded-2xl border bg-card p-12 text-center">
         <ShieldAlert className="size-8 text-muted-foreground" />
-        <p className="font-semibold">Halaman ini khusus admin.</p>
+        <p className="font-semibold">Halaman ini khusus admin dan desainer.</p>
       </div>
     );
   }
@@ -528,6 +537,7 @@ export default function TimelinePage() {
                 dayW={ZOOM[zoom]}
                 onEdit={(row) => setEditDesain({ open: true, row })}
                 onStatus={ubahStatus}
+                onJadwal={ubahJadwal}
               />
               <Legenda />
             </>
@@ -751,11 +761,11 @@ function TabelPost({ posts, desainByPost, onEdit, onHapus, onBuatDesain, onLihat
                     </div>
                   </td>
                   <td className="px-3 py-2.5 font-medium text-foreground">
-                    <button type="button" onClick={() => onEdit(p)} className="text-left hover:text-primary">{p.project_name}</button>
+                    <button type="button" onClick={() => onEdit(p)} className="block max-w-[260px] truncate text-left hover:text-primary" title={p.project_name}>{p.project_name}</button>
                   </td>
-                  <td className="px-3 py-2.5">{p.post_topic ?? "-"}</td>
+                  <td className="max-w-[200px] truncate px-3 py-2.5" title={p.post_topic ?? undefined}>{p.post_topic ?? "-"}</td>
                   <td className="px-3 py-2.5 whitespace-nowrap">{p.design}{p.visual_type ? <span className="text-muted-foreground"> • {p.visual_type}</span> : null}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap text-xs">{p.publish_channels ?? "-"}</td>
+                  <td className="max-w-[140px] truncate px-3 py-2.5 whitespace-nowrap text-xs" title={p.publish_channels ?? undefined}>{p.publish_channels ?? "-"}</td>
                   <td className="px-3 py-2.5">
                     {d ? (
                       <button type="button" onClick={() => onLihatDesain(d)} className="flex flex-col items-start gap-0.5 text-left">
@@ -763,7 +773,7 @@ function TabelPost({ posts, desainByPost, onEdit, onHapus, onBuatDesain, onLihat
                           <Link2 className="size-3" /> {d.status}
                           {d.approval_status && <span className={cn("ml-1 rounded border px-1", APPROVAL_BADGE[d.approval_status])}>{d.approval_status}</span>}
                         </span>
-                        <span className="text-[11px] text-muted-foreground tabular-nums">{tglPendek(d.date)} → {tglPendek(d.due_date)}</span>
+                        <span className="whitespace-nowrap text-[11px] text-muted-foreground tabular-nums">{tglPendek(d.date)} → {tglPendek(d.due_date)}</span>
                       </button>
                     ) : (
                       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onBuatDesain(p)}>

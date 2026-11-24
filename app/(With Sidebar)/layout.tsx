@@ -27,6 +27,7 @@ function isDesignerAllowedRoute(pathname: string) {
     pathname === "/riwayat-pengerjaan" ||
     pathname === "/artikel-admin" ||
     pathname === "/notifikasi" ||
+    pathname === "/timeline" ||
     pathname === "/profile" ||
     pathname === "/feedback" ||
     pathname === "/qcc" ||
