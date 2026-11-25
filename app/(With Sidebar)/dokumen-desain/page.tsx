@@ -3,11 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { FilePen, Loader2, Plus, RefreshCw, Search } from "lucide-react";
+import { FilePen, LayoutGrid, List, Loader2, Plus, RefreshCw, Search } from "lucide-react";
 import { Content } from "@/components/content";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -16,6 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DaftarDokumen,
+  type DokumenRow,
+  type TampilanDokumen,
+} from "@/components/dokumen-desain/daftar-dokumen";
 import { getCurrentProfile } from "@/lib/supabase/current-user";
 import {
   DOKUMEN_STATUS_META,
@@ -24,27 +28,7 @@ import {
 } from "@/lib/dokumen-desain";
 import { cn } from "@/lib/utils";
 
-interface DokumenRow {
-  id: string;
-  created_at: string;
-  no_dokumen: string;
-  no_dokumen_sub: string | null;
-  project_design: string;
-  tipe_design: string;
-  deskripsi: string;
-  status: string;
-  revisi: number;
-  created_by: string;
-  created_by_name: string;
-  permintaan_judul: string;
-  hasil_files: { name: string; url: string }[] | null;
-  ttd_total: number;
-  ttd_selesai: number;
-  perlu_ttd_saya: boolean;
-}
-
-const fmtTanggal = (iso: string) =>
-  new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+const KUNCI_TAMPILAN = "dokumen-desain:tampilan";
 
 export default function DokumenDesainPage() {
   const [rows, setRows] = useState<DokumenRow[]>([]);
@@ -53,6 +37,21 @@ export default function DokumenDesainPage() {
   const [tab, setTab] = useState("semua");
   const [status, setStatus] = useState<"SEMUA" | DokumenStatus>("SEMUA");
   const [cari, setCari] = useState("");
+  const [tampilan, setTampilan] = useState<TampilanDokumen>("kartu");
+
+  // localStorage bisa diblokir browser; pilihan tampilan tetap jalan tanpa disimpan
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(KUNCI_TAMPILAN) === "daftar") setTampilan("daftar");
+    } catch {}
+  }, []);
+
+  const gantiTampilan = (t: TampilanDokumen) => {
+    setTampilan(t);
+    try {
+      localStorage.setItem(KUNCI_TAMPILAN, t);
+    } catch {}
+  };
 
   const muat = async () => {
     setLoading(true);
@@ -152,6 +151,28 @@ export default function DokumenDesainPage() {
               ))}
             </SelectContent>
           </Select>
+          <div className="flex shrink-0 items-center gap-1 self-start rounded-md border p-0.5" role="group" aria-label="Jenis tampilan">
+            {(
+              [
+                ["kartu", "Tampilan kartu", LayoutGrid],
+                ["daftar", "Tampilan daftar", List],
+              ] as const
+            ).map(([nilai, label, Ikon]) => (
+              <Button
+                key={nilai}
+                type="button"
+                variant={tampilan === nilai ? "secondary" : "ghost"}
+                size="icon"
+                className="h-7 w-8"
+                title={label}
+                aria-label={label}
+                aria-pressed={tampilan === nilai}
+                onClick={() => gantiTampilan(nilai)}
+              >
+                <Ikon className="h-4 w-4" />
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -165,67 +186,7 @@ export default function DokumenDesainPage() {
           {tab === "perlu-ttd" ? "Tidak ada dokumen yang menunggu tanda tangan Anda." : "Belum ada dokumen."}
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {tampil.map((r) => {
-            const st = normalizeDokumenStatus(r.status);
-            const persen = r.ttd_total ? Math.round((r.ttd_selesai / r.ttd_total) * 100) : 0;
-            return (
-              <Link
-                key={r.id}
-                href={`/dokumen-desain/${r.id}`}
-                className={cn(
-                  "group flex flex-col overflow-hidden rounded-xl border bg-card transition hover:border-primary/40 hover:shadow-md",
-                  r.perlu_ttd_saya && "border-primary/50 ring-1 ring-primary/20",
-                )}
-              >
-                <div className="relative aspect-[16/9] bg-muted">
-                  {r.hasil_files?.[0] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={r.hasil_files[0].url} alt={r.hasil_files[0].name} className="h-full w-full object-contain" loading="lazy" />
-                  )}
-                  {(r.hasil_files?.length ?? 0) > 1 && (
-                    <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-xs font-medium text-white">
-                      +{r.hasil_files!.length - 1} gambar
-                    </span>
-                  )}
-                  <Badge variant="outline" className={cn("absolute left-2 top-2 bg-background/90", DOKUMEN_STATUS_META[st].badgeClass)}>
-                    {DOKUMEN_STATUS_META[st].label}
-                  </Badge>
-                  {r.perlu_ttd_saya && (
-                    <Badge className="absolute right-2 top-2">Perlu TTD Anda</Badge>
-                  )}
-                </div>
-                <div className="flex flex-1 flex-col gap-1.5 p-4">
-                  <div className="font-mono text-xs text-muted-foreground">
-                    {r.no_dokumen}
-                    {r.no_dokumen_sub && ` · ${r.no_dokumen_sub}`}
-                    {r.revisi > 0 && ` · Rev. ${r.revisi}`}
-                  </div>
-                  <div className="font-semibold leading-snug group-hover:text-primary">
-                    {r.project_design} — {r.tipe_design}
-                  </div>
-                  <div className="line-clamp-1 text-sm text-muted-foreground">{r.permintaan_judul}</div>
-                  <div className="mt-auto pt-3">
-                    <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                      <span>
-                        TTD {r.ttd_selesai}/{r.ttd_total}
-                      </span>
-                      <span>
-                        {r.created_by_name} · {fmtTanggal(r.created_at)}
-                      </span>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={cn("h-full rounded-full", st === "DITOLAK" ? "bg-rose-500" : "bg-emerald-500")}
-                        style={{ width: `${st === "DITOLAK" ? 100 : persen}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        <DaftarDokumen rows={tampil} tampilan={tampilan} />
       )}
     </Content>
   );
